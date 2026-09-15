@@ -1,0 +1,32 @@
+# Local Python environment and caches
+/.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+/.trash/
+
+# Immutable raw dataset at its existing location
+/Dataset/*.dat
+/Dataset/*.zip
+/Dataset/*.gz
+/Dataset/*.tar
+/Dataset/*.tgz
+/Dataset/*.7z
+
+# Derived/cache data and generated runs
+/data/derived/**
+/data/cache/**
+/runs/**
+
+# Large generated artifacts
+*.joblib
+*.pkl
+*.npy
+*.npz
+*.parquet
+*.feather
+*.h5
+*.hdf5

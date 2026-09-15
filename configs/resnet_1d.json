@@ -1,0 +1,80 @@
+{
+  "experiment_id": "B0",
+  "canonical_name": "canonical 1D ResNet B0",
+  "optimizer_variant": "SGD",
+  "pca_config": "configs/pca.json",
+  "saved_cv_folds": "runs/20260906T085010Z_pca_svm/cv_fold_assignments.csv",
+  "source_batch": 1,
+  "random_seed": 42,
+  "validation": {
+    "folds": 5,
+    "scoring": "accuracy",
+    "early_stopping_metric": "validation_accuracy",
+    "epoch_selection": "median of the five fold best epochs (round half up)",
+    "scheduler_selection": "highest mean Batch 1 CV accuracy; ties use lower mean selected validation cross-entropy, then candidate order",
+    "target_use": "Batches 2-10 are evaluated once after source-only epoch selection and final Batch 1 fitting"
+  },
+  "architecture": {
+    "convolution_dimension": 1,
+    "input_layout": [1, 128],
+    "block_channels": [32, 64, 128, 256, 128],
+    "kernel_size": 3,
+    "padding": 1,
+    "stride": 1,
+    "shortcut_kernel_size": 1,
+    "pooling": "none",
+    "flattened_features": 16384,
+    "fc_hidden": 128,
+    "classes": 6
+  },
+  "training": {
+    "max_epochs": 30,
+    "patience": 8,
+    "batch_size": 64,
+    "optimizer": "SGD",
+    "learning_rate": 0.001,
+    "weight_decay": 0.0001,
+    "momentum": 0.9,
+    "loss": "CrossEntropyLoss",
+    "shuffle": true,
+    "device": "cpu",
+    "num_threads": 4
+  },
+  "scheduler_candidates": [
+    {
+      "name": "no_scheduler",
+      "type": "none",
+      "role": "control"
+    },
+    {
+      "name": "step_lr",
+      "type": "StepLR",
+      "step_size": 10,
+      "gamma": 0.1,
+      "decay_epochs": [10, 20]
+    }
+  ],
+  "implementation_assumptions": {
+    "sgd_momentum": "Momentum was not otherwise specified by the baseline configuration; use momentum=0.9 as requested.",
+    "step_lr_step_size": "The paper does not specify StepLR step_size; use step_size=10 as an implementation assumption. With max_epochs=30 and gamma=0.1, decay occurs after epochs 10 and 20.",
+    "scheduler_control": "Retain a no-scheduler candidate as the control and select the scheduler using Batch 1 cross-validation only."
+  },
+  "adam_comparison": {
+    "run": "runs/20260908T132734Z_canonical_1d_resnet_b0",
+    "label": "Adam B0",
+    "changed_parameters": {
+      "training.optimizer": {
+        "adam_b0": "Adam",
+        "this_run": "SGD"
+      },
+      "training.momentum": {
+        "adam_b0": "not applicable",
+        "this_run": 0.9
+      }
+    },
+    "explicitly_unchanged_optimizer_parameters": {
+      "training.learning_rate": 0.001,
+      "training.weight_decay": 0.0001
+    }
+  }
+}
