@@ -26,10 +26,14 @@ from sklearn.preprocessing import StandardScaler
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from src.cdcnn_ablation import (
-    CANONICAL_STAGES,
+    ALL_STAGES,
+    CANONICAL_IMPLEMENTATION_VERSION,
     CDCNNModel,
+    CONFOUND_IMPLEMENTATION_VERSION,
     DataAccessGuard,
+    LAYERNORM_STAGES,
     ProtocolError,
+    STABILIZED_STAGES,
     _confusion_rows,
     _folds,
     _implementation_identity,
@@ -48,19 +52,27 @@ from src.pca_analysis import save_json, sha256
 
 
 SEEDS = (1042, 2024, 3407, 42, 123)
-STAGES = ("B0", "A1", "A2-semantic", "A3")
+RUN_SUFFIXES = {
+    CANONICAL_IMPLEMENTATION_VERSION: "cdcnn_v6_3_full",
+    CONFOUND_IMPLEMENTATION_VERSION: "cdcnn_v6_3_a3_confound_full",
+}
 
 
 def stage_slug(stage: str) -> str:
     return stage.lower().replace("-", "_")
 
 
+def config_stages(cfg: dict) -> tuple[str, ...]:
+    """Stage list for a validated config; validate_config pins it per implementation."""
+    return tuple(cfg["stages"])
+
+
 def read_config(root: Path, config_path: str) -> tuple[Path, dict]:
     path = (root / config_path).resolve()
     cfg = json.loads(path.read_text(encoding="utf-8"))
     validate_config(cfg)
-    if tuple(cfg["stages"]) != STAGES or tuple(cfg["seeds"]) != SEEDS:
-        raise ProtocolError("The full launcher requires the canonical four stages and five seeds")
+    if tuple(cfg["seeds"]) != SEEDS:
+        raise ProtocolError("The full launcher requires the five canonical seeds")
     return path, cfg
 
 
@@ -130,7 +142,7 @@ def source_worker(stage: str, seed: int, config_path: str, output: str) -> Path:
     """Train one stage/seed through CV and final fitting using Batch 1 only."""
     root = Path.cwd().resolve()
     config_file, cfg = read_config(root, config_path)
-    if stage not in STAGES or seed not in SEEDS:
+    if stage not in config_stages(cfg) or seed not in SEEDS:
         raise ProtocolError(f"Noncanonical source task: stage={stage!r}, seed={seed!r}")
     out = Path(output).resolve()
     out.mkdir(parents=True, exist_ok=False)
@@ -218,7 +230,7 @@ def source_worker(stage: str, seed: int, config_path: str, output: str) -> Path:
                              "feature_generation": seed + 2_000_000},
             "source_batch": 1, "target_batches_loaded": [],
         }, checkpoint_path)
-        a3_has_batchnorm_running_state = stage == "A3" and any(
+        layernorm_stage_has_batchnorm_running_state = stage in LAYERNORM_STAGES and any(
             isinstance(module, torch.nn.modules.batchnorm._BatchNorm)
             and module.track_running_stats for module in model.modules())
         del model
@@ -290,16 +302,17 @@ def source_worker(stage: str, seed: int, config_path: str, output: str) -> Path:
             "generated_sigmas_positive_and_finite": bool(
                 style_rows.empty or (style_rows.sampled_sigma_min.gt(0).all()
                                      and style_rows.generation_nonfinite_tensor_count.eq(0).all())),
-            "a3_has_no_batchnorm_running_state": not a3_has_batchnorm_running_state,
-            "a3_sigma_within_hard_bounds": bool(
-                stage != "A3" or (
+            "layernorm_stage_has_no_batchnorm_running_state": (
+                not layernorm_stage_has_batchnorm_running_state),
+            "stabilized_sigma_within_hard_bounds": bool(
+                stage not in STABILIZED_STAGES or (
                     style_rows.sampled_sigma_min.ge(
                         cfg["a3_numerical_stability"]["sigma_min"]).all()
                     and style_rows.sampled_sigma_max.le(
                         cfg["a3_numerical_stability"]["sigma_max"]).all()
                 )),
-            "a3_gradients_clipped_to_max_norm": bool(
-                stage != "A3" or stability_rows.gradient_norm_after_clip_max.le(
+            "stabilized_gradients_clipped_to_max_norm": bool(
+                stage not in STABILIZED_STAGES or stability_rows.gradient_norm_after_clip_max.le(
                     cfg["a3_numerical_stability"]["gradient_max_norm"] + 1e-5).all()),
             "six_training_contexts_verified_on_cuda": len(device_audit) == 6 and all(
                 row["selected_device"].startswith("cuda")
@@ -358,11 +371,12 @@ def source_worker(stage: str, seed: int, config_path: str, output: str) -> Path:
 def verify_source_runs(
     root: Path, cfg: dict, selections: list[dict], seeds: tuple[int, ...] = SEEDS,
 ) -> list[dict]:
-    expected_count = len(STAGES) * len(seeds)
+    stages = config_stages(cfg)
+    expected_count = len(stages) * len(seeds)
     if len(selections) != expected_count:
         raise ProtocolError(
             f"Expected {expected_count} successful source runs, found {len(selections)}")
-    expected = {(stage, seed) for stage in STAGES for seed in seeds}
+    expected = {(stage, seed) for stage in stages for seed in seeds}
     actual = {(row["stage"], int(row["seed"])) for row in selections}
     if actual != expected:
         raise ProtocolError(f"Source task coverage mismatch: missing={sorted(expected - actual)}")
@@ -397,7 +411,7 @@ def verify_source_runs(
             "source_run": str(run.relative_to(root)), "checkpoint": str(checkpoint.relative_to(root)),
             "sha256": sha256(checkpoint), "frozen_utc": manifest["frozen_utc"],
         })
-    return sorted(checkpoints, key=lambda r: (STAGES.index(r["stage"]), seeds.index(r["seed"])))
+    return sorted(checkpoints, key=lambda r: (stages.index(r["stage"]), seeds.index(r["seed"])))
 
 
 def markdown_table(columns: list[str], rows: list[list[str]]) -> str:
@@ -439,7 +453,7 @@ def write_report(out: Path, metrics: pd.DataFrame, predictions: pd.DataFrame,
         ["stage", "batch", "true_gas_label", "predicted_gas_label"], as_index=False
     )["count"].sum()
     confusion_sections = []
-    for stage in STAGES:
+    for stage in config_stages(cfg):
         confusion_sections.append(f"### {stage}\n")
         for batch in range(2, 11):
             subset = aggregate_conf[(aggregate_conf.stage == stage) & (aggregate_conf.batch == batch)]
@@ -459,18 +473,25 @@ def write_report(out: Path, metrics: pd.DataFrame, predictions: pd.DataFrame,
     else:
         failure_text = "No failures were recorded."
 
-    report = f"""# CDCNN v6.3 full experiment report
+    stages = config_stages(cfg)
+    canonical = cfg["implementation_version"] == CANONICAL_IMPLEMENTATION_VERSION
+    title = "CDCNN v6.3 full experiment report" if canonical else "CDCNN v6.3 A3 confound ablation report"
+    confound_text = "" if canonical else (
+        "## Confound ablation definitions\n\n"
+        + "\n".join(f"- `{key}`: {value}" for key, value in cfg["confound_ablation"].items())
+        + "\n\nAll other settings are identical to the canonical v6.3 configuration.\n\n")
+    report = f"""# {title}
 
 ## Outcome
 
-All canonical experiments—B0, A1, A2-semantic, and A3—used seeds 1042, 2024,
+All experiments—{', '.join(stages)}—used seeds 1042, 2024,
 3407, 42, and 123 with exactly 100 epochs for every Batch-1 CV fold and every
-all-Batch-1 final fit. All 20 final checkpoints were frozen and hash-verified
+all-Batch-1 final fit. All {len(stages) * len(SEEDS)} final checkpoints were frozen and hash-verified
 before the single target-loading phase began. Batches 2–10 were each loaded once
 into memory and then evaluated by every frozen checkpoint. No target result was
 used for training, validation, checkpoint selection, or any other decision.
 
-Standard deviations below are sample standard deviations across the five seeds
+{confound_text}Standard deviations below are sample standard deviations across the five seeds
 (`ddof=1`). Target mean is the unweighted mean of the nine batch accuracies;
 target pooled accuracy weights target samples equally.
 
@@ -523,7 +544,7 @@ gradient clipping are project-controlled.
 
 ## Artifact index
 
-- `global_freeze_manifest.json`: all 20 checkpoint identities and freeze evidence
+- `global_freeze_manifest.json`: all {len(stages) * len(SEEDS)} checkpoint identities and freeze evidence
 - `target_batch_metrics.csv`: exact stage/seed/batch metrics
 - `target_predictions.csv.gz`: sample-level predictions
 - `confusion_matrices.csv`: exact per-seed 6×6 confusion counts
@@ -561,7 +582,7 @@ def write_pilot_report(
     ] for row in metrics.itertuples(index=False)]
 
     confusion_sections = []
-    for stage in STAGES:
+    for stage in config_stages(cfg):
         confusion_sections.append(f"### {stage}\n")
         for batch in range(2, 11):
             subset = confusions[(confusions.stage == stage) & (confusions.batch == batch)]
@@ -587,10 +608,10 @@ def write_pilot_report(
 
 ## Outcome
 
-This is a **one-seed pilot**, not the canonical five-seed comparison. B0, A1,
-A2-semantic, and A3 used seed {seed}, with exactly 100 epochs for every Batch-1
+This is a **one-seed pilot**, not the canonical five-seed comparison.
+{', '.join(config_stages(cfg))} used seed {seed}, with exactly 100 epochs for every Batch-1
 CV fold and every all-Batch-1 final fit. A2-paper-literal was not included. All
-four final checkpoints were frozen and hash-verified before the single target
+{len(config_stages(cfg))} final checkpoints were frozen and hash-verified before the single target
 loading phase began. Batches 2–10 were each loaded once and evaluated without
 using target results for training, validation, checkpoint selection, or tuning.
 
@@ -660,7 +681,7 @@ def evaluate(run_dir: str, config_path: str, selections_path: str,
     failures = json.loads(Path(failures_path).read_text()) if failures_path else []
 
     checkpoints = verify_source_runs(root, cfg, selections, seeds)
-    expected_model_count = len(STAGES) * len(seeds)
+    expected_model_count = len(config_stages(cfg)) * len(seeds)
     save_json(out / "global_freeze_manifest.json", {
         "frozen_utc": utc_now(), "status": "all_source_runs_frozen",
         "source_run_count": len(checkpoints), "checkpoint_epoch": 100,
@@ -800,7 +821,7 @@ def evaluate(run_dir: str, config_path: str, selections_path: str,
     save_json(out / "experiment_summary.json", {
         "status": audit["status"], "experiment_kind": report_kind,
         "implementation_version": cfg["implementation_version"],
-        "stages": list(STAGES), "seeds": list(seeds),
+        "stages": list(config_stages(cfg)), "seeds": list(seeds),
         "epochs": 100, "source_run_count": expected_model_count,
         "target_batches": list(range(2, 11)), "target_raw_load_count": 9,
         "target_evaluation_models": expected_model_count, "report": report_name,
@@ -857,7 +878,7 @@ def controller(run_dir: str, config_path: str, max_workers: int, max_attempts: i
         raise ProtocolError(f"Invalid source seed selection: {seeds}")
     if report_kind == "one_seed_pilot" and len(seeds) != 1:
         raise ProtocolError("The one-seed pilot controller requires exactly one seed")
-    tasks = [(stage, seed) for stage in STAGES for seed in seeds]
+    tasks = [(stage, seed) for stage in config_stages(cfg) for seed in seeds]
     expected_task_count = len(tasks)
 
     def complete_task(task: tuple[str, int]) -> tuple[dict | None, list[dict]]:
@@ -941,21 +962,24 @@ def launch(config_path: str, max_workers: int, max_attempts: int,
     verified_smoke = verify_gpu_smoke_gate(root, config_file, gpu_smoke_run)
     if report_kind == "one_seed_pilot" and len(seeds) != 1:
         raise ProtocolError("The one-seed pilot launcher requires exactly one seed")
-    suffix = "cdcnn_v6_3_one_seed_pilot" if report_kind == "one_seed_pilot" else "cdcnn_v6_3_full"
+    stages = config_stages(cfg)
+    suffix = RUN_SUFFIXES[cfg["implementation_version"]]
+    if report_kind == "one_seed_pilot":
+        suffix = suffix.removesuffix("_full") + "_one_seed_pilot"
     run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ") + f"_{suffix}"
     out = root / cfg["output_root"] / run_id
     out.mkdir(parents=True, exist_ok=False)
     (out / "logs").mkdir()
     save_json(out / "orchestration_config.json", {
-        "run_id": run_id, "created_utc": utc_now(), "stages": list(STAGES),
+        "run_id": run_id, "created_utc": utc_now(), "stages": list(stages),
         "implementation_version": cfg["implementation_version"],
-        "seeds": list(seeds), "epochs": 100, "source_tasks": len(STAGES) * len(seeds),
+        "seeds": list(seeds), "epochs": 100, "source_tasks": len(stages) * len(seeds),
         "experiment_kind": report_kind,
         "max_concurrent_source_jobs": max_workers, "max_attempts_per_source_task": max_attempts,
         "source_execution_strategy": "sequential fresh Python subprocesses; no fork-based CUDA multiprocessing",
         "verified_gpu_smoke_run": str(verified_smoke.relative_to(root)),
         "global_target_gate": (
-            f"all {len(STAGES) * len(seeds)} source checkpoints frozen and verified"),
+            f"all {len(stages) * len(seeds)} source checkpoints frozen and verified"),
         "target_loading": "one phase; each Batch 2-10 raw file loaded once",
         "config_path": str(config_file.relative_to(root)), "config_sha256": sha256(config_file),
         "python_executable": sys.executable,
@@ -1138,7 +1162,7 @@ def main() -> None:
     smoke = sub.add_parser("gpu-smoke")
     smoke.add_argument("--config", default="configs/cdcnn_v6.json")
     worker = sub.add_parser("source-worker")
-    worker.add_argument("--stage", required=True, choices=STAGES)
+    worker.add_argument("--stage", required=True, choices=ALL_STAGES)
     worker.add_argument("--seed", required=True, type=int, choices=SEEDS)
     worker.add_argument("--config", default="configs/cdcnn_v6.json")
     worker.add_argument("--output", required=True)

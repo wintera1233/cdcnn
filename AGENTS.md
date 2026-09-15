@@ -28,4 +28,4 @@
 **5. Legacy 2D Framework Ban**
 - Never restore, add, import, or invoke a Conv2d gas-classification model or a 128-feature-to-16x8 reshape.
 - `src/resnet_baseline.py`, `scripts/run_resnet.py`, and `configs/resnet.json` are disabled tombstones, not training interfaces.
-- The canonical architecture is Conv1d over `[N, 1, 128]`; full training is permitted only through `scripts/run_cdcnn_v6_full.py` with `configs/cdcnn_v6.json`.
+- The canonical architecture is Conv1d over `[N, 1, 128]`; full training is permitted only through `scripts/run_cdcnn_v6_full.py` with `configs/cdcnn_v6.json`, or with `configs/cdcnn_v6_3_a3_confound.json` for the A3 confound ablation described in `docs/a3-confound-ablation.md`.

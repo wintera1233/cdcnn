@@ -39,9 +39,36 @@ from src.resnet_1d_baseline import ResidualBlock1D, reshape
 
 CANONICAL_STAGES = ("B0", "A1", "A2-semantic", "A3")
 DIAGNOSTIC_STAGES = ("A2-paper-literal",)
-ALL_STAGES = CANONICAL_STAGES + DIAGNOSTIC_STAGES
-FEATURE_STAGES = ("A2-semantic", "A2-paper-literal", "A3")
+# A3 confound ablation: canonical stages with A3's v6.3 safeguards added one at a
+# time. B0-LN swaps BatchNorm for LayerNorm; B0-stab and A2-stab add the full A3
+# package (LayerNorm, hard bounds, gradient clipping). A2-stab is A3 without L_con.
+CONFOUND_STAGES = ("B0-LN", "B0-stab", "A2-stab")
+ALL_STAGES = CANONICAL_STAGES + DIAGNOSTIC_STAGES + CONFOUND_STAGES
+CANONICAL_FEATURE_STAGES = ("A2-semantic", "A2-paper-literal", "A3")
+FEATURE_STAGES = CANONICAL_FEATURE_STAGES + ("A2-stab",)
+CANONICAL_AUGMENTED_STAGES = ("A1",) + CANONICAL_FEATURE_STAGES
 AUGMENTED_STAGES = ("A1",) + FEATURE_STAGES
+LAYERNORM_STAGES = ("A3", "B0-LN", "B0-stab", "A2-stab")
+STABILIZED_STAGES = ("A3", "B0-stab", "A2-stab")
+
+CANONICAL_IMPLEMENTATION_VERSION = "CDCNN_v6.3_A3_numerical_stabilization"
+CONFOUND_IMPLEMENTATION_VERSION = "CDCNN_v6.3_A3_confound_ablation"
+# implementation_version -> (stages, diagnostic_stages, augmented, feature-generating)
+STAGE_SETS = {
+    CANONICAL_IMPLEMENTATION_VERSION: (
+        CANONICAL_STAGES, DIAGNOSTIC_STAGES,
+        CANONICAL_AUGMENTED_STAGES, CANONICAL_FEATURE_STAGES),
+    CONFOUND_IMPLEMENTATION_VERSION: (
+        ("B0", "B0-LN", "B0-stab", "A2-semantic", "A2-stab", "A3"), (),
+        AUGMENTED_STAGES, FEATURE_STAGES),
+}
+CONFOUND_ABLATION_DEFINITION = {
+    "B0-LN": "B0 with LayerNorm(128) replacing BatchNorm1d(128)",
+    "B0-stab": "B0 with the full A3 v6.3 numerical-stability package",
+    "A2-stab": "A2-semantic with the full A3 v6.3 numerical-stability package; equals A3 without contrastive loss",
+    "layernorm_stages": list(LAYERNORM_STAGES),
+    "stabilized_stages": list(STABILIZED_STAGES),
+}
 
 A3_STABILITY_DEFAULTS = {
     "applies_to_stage": "A3",
@@ -162,13 +189,15 @@ def _require_equal(actual, expected, name: str) -> None:
 def validate_config(cfg: dict) -> None:
     """Reject configuration drift from the preregistered v6 protocol."""
     _require_equal(cfg.get("protocol_version"), "CDCNN_four_experiment_spec_v6", "protocol_version")
-    _require_equal(
-        cfg.get("implementation_version"),
-        "CDCNN_v6.3_A3_numerical_stabilization",
-        "implementation_version",
-    )
-    _require_equal(cfg.get("stages"), list(CANONICAL_STAGES), "stages")
-    _require_equal(cfg.get("diagnostic_stages"), list(DIAGNOSTIC_STAGES), "diagnostic_stages")
+    version = cfg.get("implementation_version")
+    if version not in STAGE_SETS:
+        raise ProtocolError(
+            f"implementation_version must be one of {sorted(STAGE_SETS)}; received {version!r}")
+    stages, diagnostic_stages, augmented_stages, feature_stages = STAGE_SETS[version]
+    _require_equal(cfg.get("stages"), list(stages), "stages")
+    _require_equal(cfg.get("diagnostic_stages"), list(diagnostic_stages), "diagnostic_stages")
+    if version == CONFOUND_IMPLEMENTATION_VERSION:
+        _require_equal(cfg.get("confound_ablation"), CONFOUND_ABLATION_DEFINITION, "confound_ablation")
     _require_equal(cfg.get("seeds"), [1042, 2024, 3407, 42, 123], "seeds")
     _require_equal(cfg.get("seed_policy"), {
         "model_dataloader_and_a1": "listed experiment seed",
@@ -201,7 +230,7 @@ def validate_config(cfg: dict) -> None:
         _require_equal(arch.get(key), expected, f"architecture.{key}")
     aug = cfg["augmentation"]
     for key, expected in {
-        "enabled_stages": list(AUGMENTED_STAGES), "views_per_source_sample": 1,
+        "enabled_stages": list(augmented_stages), "views_per_source_sample": 1,
         "partner": "same-class non-self", "lambda_distribution": "Uniform(0,1)",
         "statistic": "population variance over 128 features", "perturbation_scale": 1.0,
         "schedule": "fixed once per source training context", "include_originals": True,
@@ -210,7 +239,7 @@ def validate_config(cfg: dict) -> None:
         _require_equal(aug.get(key), expected, f"augmentation.{key}")
     feature = cfg["feature_generation"]
     for key, expected in {
-        "enabled_stages": list(FEATURE_STAGES),
+        "enabled_stages": list(feature_stages),
         "semantic_restyled_component": "pooled_upsampled_low_frequency_like",
         "paper_literal_restyled_component": "residual_paper_L",
         "pool_kernel_size": 2, "pool_stride": 2, "upsample_mode": "nearest",
@@ -386,12 +415,13 @@ class CDCNNModel(nn.Module):
         self.flatten = nn.Flatten()
         stability_config = A3_STABILITY_DEFAULTS if a3_stability is None else a3_stability
         self.a3_stabilizer = (
-            A3NumericalStabilizer(stability_config) if stage == "A3" else None)
+            A3NumericalStabilizer(stability_config) if stage in STABILIZED_STAGES else None)
         # A3 never owns a BatchNorm running buffer. Generated samples therefore
         # cannot contaminate inference state when original and synthetic features
-        # share the tail. Other stages retain the exact v6 BatchNorm definition.
+        # share the tail. Canonical non-A3 stages retain the exact v6 BatchNorm
+        # definition; confound stages borrow A3's LayerNorm.
         feature_norm: nn.Module = (
-            nn.LayerNorm(128) if stage == "A3" else nn.BatchNorm1d(128))
+            nn.LayerNorm(128) if stage in LAYERNORM_STAGES else nn.BatchNorm1d(128))
         self.fc128 = nn.Sequential(nn.Linear(128 * 128, 128), feature_norm)
         self.fc6 = nn.Linear(128, 6)
         self.projection = nn.Linear(128, projection_dim) if stage == "A3" else None
@@ -430,7 +460,7 @@ class CDCNNModel(nn.Module):
         if self.stage not in FEATURE_STAGES:
             raise ProtocolError(f"Feature generation is disabled for {self.stage}")
         low, high = self.decompose(z_s)
-        if self.stage in ("A2-semantic", "A3"):
+        if self.stage != "A2-paper-literal":
             component, untouched = low, high
             restyled_name = "low_frequency_like_pooled_upsampled"
             untouched_name = "high_frequency_like_residual"
@@ -542,7 +572,7 @@ def supervised_contrastive_mean(
 def compute_loss(model: CDCNNModel, outputs: dict, y: torch.Tensor, cfg: dict) -> dict[str, torch.Tensor]:
     ce_original = F.cross_entropy(outputs["original_logits"], y)
     zero = ce_original.new_zeros(())
-    if model.stage in ("B0", "A1"):
+    if model.stage not in FEATURE_STAGES:
         return {"total": ce_original, "ce": ce_original, "mse": zero, "contrastive": zero}
     ce_generated = F.cross_entropy(outputs["generated_logits"], y)
     ce = 0.5 * (ce_original + ce_generated)
@@ -572,8 +602,8 @@ def build_optimizer_and_scheduler(model: nn.Module, training_cfg: dict):
 
 
 def clip_a3_gradients(model: CDCNNModel, cfg: dict) -> tuple[float, float] | None:
-    """Clip A3 gradients immediately before its optimizer step; leave baselines untouched."""
-    if model.stage != "A3":
+    """Clip stabilized-stage gradients before the optimizer step; leave baselines untouched."""
+    if model.stage not in STABILIZED_STAGES:
         return None
     stability = cfg["a3_numerical_stability"]
     before = nn.utils.clip_grad_norm_(
@@ -597,7 +627,7 @@ def _training_arrays(
     stage: str, scaled: np.ndarray, y: np.ndarray, source_indices: np.ndarray,
     line_numbers: np.ndarray, augmentation_seed: int, context: str,
 ) -> tuple[np.ndarray, np.ndarray, pd.DataFrame]:
-    if stage == "B0":
+    if stage not in AUGMENTED_STAGES:
         return scaled, y, pd.DataFrame()
     augmented, provenance = generate_a1_views(
         scaled, y, source_indices, line_numbers, augmentation_seed, context)
@@ -764,12 +794,14 @@ def train_model(
             "sampled_mean_max": sampled_mean_max if stage in FEATURE_STAGES else None,
             "generation_nonfinite_tensor_count": generation_nonfinite_tensors,
             "gradient_max_norm": (
-                cfg["a3_numerical_stability"]["gradient_max_norm"] if stage == "A3" else None),
+                cfg["a3_numerical_stability"]["gradient_max_norm"]
+                if stage in STABILIZED_STAGES else None),
             "gradient_norm_before_clip_max": (
-                gradient_norm_before_clip_max if stage == "A3" else None),
+                gradient_norm_before_clip_max if stage in STABILIZED_STAGES else None),
             "gradient_norm_after_clip_max": (
-                gradient_norm_after_clip_max if stage == "A3" else None),
-            "gradient_clipped_batches": gradient_clipped_batches if stage == "A3" else None,
+                gradient_norm_after_clip_max if stage in STABILIZED_STAGES else None),
+            "gradient_clipped_batches": (
+                gradient_clipped_batches if stage in STABILIZED_STAGES else None),
         }
         if validation is not None:
             valid_logits = predict(model, validation[0], cfg["training"]["batch_size"])
@@ -890,7 +922,7 @@ def run_smoke_suite(config_path: str = "configs/cdcnn_v6.json") -> Path:
     save_json(out / "input_manifest.json", input_manifest)
     target_events = [event for event in access.events if event.get("batch") in range(2, 11)]
     audit_checks = {
-        "all_five_modes_passed": len(rows) == 5 and all(row["status"] == "passed" for row in rows),
+        "all_modes_passed": len(rows) == len(ALL_STAGES) and all(row["status"] == "passed" for row in rows),
         "only_batch1_loaded": not target_events and {event.get("batch") for event in access.events if "batch" in event} == {1},
         "no_target_metrics": True, "raw_data_unchanged": True,
         "no_exclusions": True, "canonical_config_validated_before_smoke": True,
@@ -923,8 +955,8 @@ def run_smoke_suite(config_path: str = "configs/cdcnn_v6.json") -> Path:
     })
     (out / "report.md").write_text(
         "# CDCNN v6.3 Batch-1-only smoke test\n\n"
-        "All five executable modes passed a one-epoch, one-optimization-batch smoke test: "
-        "B0, A1, A2-semantic, A2-paper-literal, and A3. This is not a result-bearing "
+        f"All {len(ALL_STAGES)} executable modes passed a one-epoch, one-optimization-batch "
+        f"smoke test: {', '.join(ALL_STAGES)}. This is not a result-bearing "
         "experiment and does not satisfy the canonical 100-epoch training protocol. "
         "Only Batch 1 was opened; no target metric was computed.\n",
         encoding="utf-8",
