@@ -135,6 +135,11 @@ the contrastive loss. The canonical stages were verified to produce
 bit-identical losses and predictions before and after that change, in one
 environment. See `docs/a3-confound-ablation.md`.
 
+The ablation completed on 2026-09-19. LayerNorm alone accounts for +0.0845 target
+mean (5/5 seeds) and the contrastive loss for +0.0029; hard bounds and clipping
+are accuracy-neutral. The v6.3 A3 result therefore measures a normalization
+change, not supervised contrastive learning.
+
 ### Launcher generalization
 
 `scripts/run_cdcnn_v6_full.py` now takes its stage list from the validated

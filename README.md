@@ -1,6 +1,6 @@
 # Exploratory PCA for the UCI Gas Sensor Array Drift Dataset
 
-The repository covers exploratory PCA and dataset validation, two retained historical SVM baselines, and the CDCNN v6.3 drift experiments. A completed five-seed v6.3 four-stage run is retained (`20260911T092326995583Z_cdcnn_v6_3_full`), and an A3 confound ablation is in progress. Retained results are not authorization to train or tune further; each new training run needs an explicit request. Baseline settings are project settings, not verified settings from the paper.
+The repository covers exploratory PCA and dataset validation, two retained historical SVM baselines, and the CDCNN v6.3 drift experiments. A completed five-seed v6.3 four-stage run is retained (`20260911T092326995583Z_cdcnn_v6_3_full`), and a completed A3 confound ablation (`20260915T025701880293Z_cdcnn_v6_3_a3_confound_full`) shows that A3's target-accuracy gain comes from its LayerNorm swap rather than from contrastive learning. Retained results are not authorization to train or tune further; each new training run needs an explicit request. Baseline settings are project settings, not verified settings from the paper.
 
 ## Environment
 
@@ -52,7 +52,7 @@ The following table is the complete inventory of retained directories under `run
 | `20260912T103502820938Z_cdcnn_v6_3_accuracy_bars` | Complete; plotting derivative | Accuracy bar figures for the full run |
 | `20260915T025623543707Z_cdcnn_v6_3_batch1_smoke` | Passed; Batch-1-only mode smoke | Eight-mode check including the confound stages |
 | `20260915T025641199413Z_v6_3_b0_batch1_gpu_smoke` | Passed; Batch-1-only CUDA gate | Gate for the A3 confound ablation |
-| `20260915T025701880293Z_cdcnn_v6_3_a3_confound_full` | In progress; six-stage A3 confound ablation | Separates LayerNorm, hard bounds, and contrastive loss in A3 |
+| `20260915T025701880293Z_cdcnn_v6_3_a3_confound_full` | **Completed; six-stage A3 confound ablation** | Attributes A3's gain: LayerNorm +0.0845, contrastive loss +0.0029 target mean |
 | `GAS4_predict` | Completed; inference only | Non-timestamped legacy inference directory |
 
 ### Run cleanup record
@@ -168,6 +168,11 @@ python scripts/run_cdcnn_v6_full.py launch \
   --max-workers 1 \
   --gpu-smoke-run runs/<passing_b0_batch1_gpu_smoke>
 ```
+
+The completed ablation attributes A3's target-mean gain to the LayerNorm swap
+(+0.0845, 5/5 seeds), not to the contrastive loss (+0.0029). `B0-LN` is the
+strongest stage on both Batch 1 CV and target accuracy. Full tables are in
+[`docs/a3-confound-ablation.md`](docs/a3-confound-ablation.md).
 
 Runs reproduce only within one software environment: the 2026-09-11 run used
 torch 2.5.1+cu121 and the 2026-09-15 ablation uses torch 2.8.0+cu126, which

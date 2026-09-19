@@ -279,7 +279,11 @@ A3: A3 differs by the contrastive loss *and* by normalization, bounds, and
 clipping. The A3 confound ablation
 (`configs/cdcnn_v6_3_a3_confound.json`, `docs/a3-confound-ablation.md`) adds the
 diagnostic stages `B0-LN`, `B0-stab`, and `A2-stab` to separate those effects.
-`A2-stab` is A3 without the contrastive loss.
+`A2-stab` is A3 without the contrastive loss. That ablation has been run
+(`runs/20260915T025701880293Z_cdcnn_v6_3_a3_confound_full`): the LayerNorm swap
+accounts for +0.0845 target mean on 5/5 seeds while the contrastive loss accounts
+for +0.0029, so A3-minus-A2 differences must not be described as contrastive-learning
+effects.
 
 ### Configuration keys that document rather than control
 
