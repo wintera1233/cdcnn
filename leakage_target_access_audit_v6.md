@@ -3,6 +3,15 @@
 Audit date: 2026-09-10 UTC  
 Outcome: **passed for the unified v6 implementation and Batch-1 smoke run**
 
+Scope note (2026-09-19): this audit predates v6.3 and the A3 confound ablation.
+`DataAccessGuard`, the scaler scopes, the mini-batch style-statistic scope, and
+the freeze-before-target control flow are unchanged since it was written, so its
+findings still apply. The later changes were A3 numerical safeguards, added
+diagnostic stages, and a config-driven stage list, none of which touch the
+access boundary. The completed full run's own
+`leakage_target_access_audit.json` records the first execution of the
+post-freeze target path, which this audit could only review statically.
+
 ## Access boundary
 
 `DataAccessGuard` is the only raw-batch loader used by the unified pipeline. It

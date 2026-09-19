@@ -1,6 +1,7 @@
 # CDCNN v6.3 A3 numerical stabilization
 
-Status: implemented and unit-tested; no smoke, pilot, CV, or full training run was started.
+Status: implemented, unit-tested, and executed. The five-seed run
+`runs/20260911T092326995583Z_cdcnn_v6_3_full` completed under these settings.
 
 CDCNN v6.3 keeps the v6 experiment protocol and changes only A3 numerical
 behavior. Batch 1 remains the sole pre-freeze data source. The five seeds, SGD
@@ -29,9 +30,14 @@ tuned on Batches 2–10 and are not represented as paper-derived values.
 
 ## Traceability
 
-The canonical configuration remains `configs/cdcnn_v6.json` because project
-instructions permit full execution only through that configuration and
-`scripts/run_cdcnn_v6_full.py`. It now records implementation version
+The canonical configuration remains `configs/cdcnn_v6.json`, and
+`scripts/run_cdcnn_v6_full.py` remains the only full-training entry point. The
+A3 confound ablation adds one further permitted configuration,
+`configs/cdcnn_v6_3_a3_confound.json` (see `docs/a3-confound-ablation.md`).
+Because these safeguards apply to A3 alone, they are confounded with the
+contrastive loss in any A3-minus-A2 comparison; that ablation separates them.
+
+The canonical configuration records implementation version
 `CDCNN_v6.3_A3_numerical_stabilization` and the exact A3 constants. Future
 checkpoints record the same configuration, and source-run audits verify the
 absence of A3 BatchNorm running state plus sigma and post-clipping gradient

@@ -4,7 +4,7 @@ Read the canonical config and implementation while working; this reference is a 
 
 ## Shared protocol
 
-- Canonical stages: B0, A1, A2-semantic, A3. `A2-paper-literal` is separately named and diagnostic only.
+- Canonical stages: B0, A1, A2-semantic, A3. `A2-paper-literal` is separately named and diagnostic only. `B0-LN`, `B0-stab`, and `A2-stab` exist only in the A3 confound ablation configuration.
 - Seeds: `1042`, `2024`, `3407`, `42`, `123` for every canonical stage.
 - Source CV: persisted five-fold Batch 1 assignments, with exact duplicates kept within one fold.
 - Each CV `StandardScaler` fits original Batch 1 training-fold rows only. Each final scaler fits all original Batch 1 rows only. Augmented rows and target rows never enter `fit`.
@@ -51,6 +51,26 @@ A3-only stabilization:
 - gradient norm clipping at 1.0 with nonfinite gradients treated as errors.
 
 These bounds and exact optimizer/loss constants are project-controlled, not author-provided paper values.
+
+## A3 confound ablation
+
+`configs/cdcnn_v6_3_a3_confound.json` (implementation version
+`CDCNN_v6.3_A3_confound_ablation`) runs six stages: B0, B0-LN, B0-stab,
+A2-semantic, A2-stab, and A3. It exists because v6.3 gave A3 LayerNorm, hard
+bounds, and gradient clipping together with the contrastive loss, so the A3
+gain cannot be attributed to contrastive learning alone.
+
+- `B0-LN`: B0 with LayerNorm only.
+- `B0-stab`: B0 with LayerNorm, hard bounds, and gradient clipping.
+- `A2-stab`: A2-semantic with that package; identical to A3 minus the contrastive loss.
+
+`LAYERNORM_STAGES` and `STABILIZED_STAGES` in `src/cdcnn_ablation.py` decide which
+stages get which safeguard; `validate_config` pins the stage list per
+implementation version, and the launcher reads its stage list from the validated
+config. Every other protocol value matches the canonical configuration. Do not
+mix stages from this configuration with canonical four-stage results, and
+compare only within one software environment: torch build differences can change
+a single validation sample across 100 epochs.
 
 ## Leakage boundary
 

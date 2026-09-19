@@ -191,7 +191,7 @@ statistics must be generated from source-training data only.
 
 ### Restyling and recombination
 
-$$\tilde z_{low}=\sigma'\left(rac{z_{low}-\mu_{low}}{\sigma_{low}}\right)+\mu',$$
+$$\tilde z_{low}=\sigma'\left(\frac{z_{low}-\mu_{low}}{\sigma_{low}}\right)+\mu',$$
 $$\tilde z_s=z_{high}+\tilde z_{low}.$$
 
 ### Dual branch and A2 loss
@@ -253,6 +253,54 @@ $$L_{A3}=L_{ce}+\lambda_{MSE}L_{MSE}+\lambda_{con}L_{con},$$
 with project-controlled defaults $\lambda_{MSE}=0.5$ and
 $\lambda_{con}=0.5$.
 
+## v6.3 Implementation Status and Deviations
+
+The executable implementation is `src/cdcnn_ablation.py` with
+`configs/cdcnn_v6.json`, launched through `scripts/run_cdcnn_v6_full.py`. It
+reports implementation version `CDCNN_v6.3_A3_numerical_stabilization` and
+deviates from the A3 definition printed above in four recorded ways. Full detail
+is in `docs/cdcnn-v6.3-numerical-stabilization.md`.
+
+| This specification | v6.3 implementation | Scope |
+|---|---|---|
+| `FC128 -> BatchNorm1d(128) -> FC6` for every stage | A3 uses `LayerNorm(128)`, so generated samples cannot enter inference-time normalization state | A3 only |
+| "Softplus and clipping are not alternative canonical implementations" | A3 clamps sampled sigma to `[0.001, 10]` and log-sigma dispersion to `[0, 2]` | A3 only |
+| No bound on intermediate values | A3 clamps residual, generated, and contrastive vectors to `[-20, 20]` | A3 only |
+| $L_{con}$ sums over all $2B$ anchors | the implementation averages over anchors, so the term does not scale with batch size | A3 only |
+
+A3 additionally applies `clip_grad_norm_(max_norm=1.0, error_if_nonfinite=True)`
+before every optimizer step. B0, A1, A2-semantic, and A2-paper-literal follow
+this specification exactly.
+
+These are project-controlled numerical choices, never tuned on Batches 2-10.
+They do mean that the sentence "the addition of a loss or augmentation is the
+only intended change between stages" no longer holds between A2-semantic and
+A3: A3 differs by the contrastive loss *and* by normalization, bounds, and
+clipping. The A3 confound ablation
+(`configs/cdcnn_v6_3_a3_confound.json`, `docs/a3-confound-ablation.md`) adds the
+diagnostic stages `B0-LN`, `B0-stab`, and `A2-stab` to separate those effects.
+`A2-stab` is A3 without the contrastive loss.
+
+### Configuration keys that document rather than control
+
+`validate_config` pins every protocol value, but some keys are descriptive: the
+behavior they name is fixed in code. These include `pool_kernel_size`,
+`pool_stride`, `upsample_mode`, `statistics_axis`, `population_variance`,
+`batch_spread_unbiased`, `style_sampling`, `detach_sampled_style_statistics`,
+`partner`, `lambda_distribution`, `views_per_source_sample`, `include_originals`,
+`perturbation_scale`, `mse_on`, and `contrastive_reduction`. Editing one of them
+is rejected by the validator rather than silently applied, so a sensitivity
+experiment such as `perturbation_scale = 0.1` requires a code change and a new
+implementation version, not only a configuration edit.
+
+### Environment sensitivity
+
+Runs are deterministic within one software environment, not across environments.
+The 2026-09-11 full run used torch 2.5.1+cu121; a 2026-09-15 rerun of the same
+seeds under torch 2.8.0+cu126 on the same GPU reproduced four of five B0 seeds
+bit-for-bit and differed by one validation sample in the fifth. Stage
+comparisons must therefore come from a single environment.
+
 ## Final Comparison Table
 
 The paper values are reference benchmarks only. They are not expected to match
@@ -260,14 +308,19 @@ the semantic adaptation exactly.
 
 | Model stage | Batch 1 CV Acc | Target mean Acc | B2 | B3 | B4 | B5 | B6 | B7 | B8 | B9 | B10 | Paper reference only |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| **B0 ResNet** | - | - | - | - | - | - | - | - | - | - | - | 0.6344 |
-| **A1 Input Aug** | - | - | - | - | - | - | - | - | - | - | - | - |
-| **A2-semantic** | - | - | - | - | - | - | - | - | - | - | - | 0.6705 |
-| **A3 CDCNN** | - | - | - | - | - | - | - | - | - | - | **0.7230** |
+| **B0 ResNet** | 0.9779 | 0.4097 | 0.7413 | 0.5090 | 0.4969 | 0.4508 | 0.4763 | 0.3088 | 0.2007 | 0.2119 | 0.2914 | 0.6344 |
+| **A1 Input Aug** | 0.9797 | 0.3721 | 0.7315 | 0.4981 | 0.4870 | 0.3299 | 0.4177 | 0.2733 | 0.1259 | 0.1817 | 0.3036 | - |
+| **A2-semantic** | 0.9824 | 0.3968 | 0.7666 | 0.5090 | 0.4944 | 0.3594 | 0.4154 | 0.2855 | 0.1714 | 0.2609 | 0.3089 | 0.6705 |
+| **A3 CDCNN** | 0.9676 | 0.4600 | 0.8934 | 0.6835 | 0.5764 | 0.3492 | 0.4145 | 0.3299 | 0.1721 | 0.3026 | 0.4188 | **0.7230** |
 
 The 0.6705 and 0.7230 values are the paper's CDWC and CDCNN results,
 respectively; they are reference points, not guaranteed outcomes for the
 physical-semantic implementation.
+
+The measured columns are the five-seed means of the completed run
+`runs/20260911T092326995583Z_cdcnn_v6_3_full`, taken from its `stage_summary.csv`
+and `per_batch_summary.csv`. They were produced by the v6.3 implementation
+described in the next section, not by the literal A3 definition printed above.
 
 ## Required Outputs and Reproducibility
 

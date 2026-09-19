@@ -1,6 +1,6 @@
 # Exploratory PCA for the UCI Gas Sensor Array Drift Dataset
 
-The active project phase is dataset validation and exploratory PCA. The repository also contains two retained historical SVM baselines and two current CDCNN implementation smoke gates; these are not authorization to train or tune models during the current phase. Baseline settings are project settings, not verified settings from the paper.
+The repository covers exploratory PCA and dataset validation, two retained historical SVM baselines, and the CDCNN v6.3 drift experiments. A completed five-seed v6.3 four-stage run is retained (`20260911T092326995583Z_cdcnn_v6_3_full`), and an A3 confound ablation is in progress. Retained results are not authorization to train or tune further; each new training run needs an explicit request. Baseline settings are project settings, not verified settings from the paper.
 
 ## Environment
 
@@ -39,7 +39,21 @@ The following table is the complete inventory of retained directories under `run
 | `20260906T085010Z_pca_svm` | Complete; historical PCA–SVM baseline | Supplies the frozen Batch 1 fold assignments referenced by later historical configurations |
 | `20260906T090350Z_svm_no_pca` | Complete; historical no-PCA SVM comparison | Direct, saved-fold comparison with the PCA–SVM baseline |
 | `20260910T195333901824Z_cdcnn_v6_batch1_smoke` | Passed; Batch-1-only v6 mode smoke test | Confirms all five executable modes run without opening target batches; not an experiment result |
-| `20260910T204313901041Z_b0_batch1_gpu_smoke` | Passed; Batch-1-only CUDA gate | Current-launcher GPU placement evidence; not an experiment result |
+| `20260910T204313901041Z_b0_batch1_gpu_smoke` | Passed; Batch-1-only CUDA gate | Pre-v6.3 launcher GPU placement evidence; not an experiment result |
+| `20260911T075932355204Z_b0_batch1_gpu_smoke` | Passed; Batch-1-only CUDA gate | Gate for the v6 one-seed pilot |
+| `20260911T075952177964Z_cdcnn_v6_one_seed_pilot` | Completed; one-seed pilot | Pre-v6.3 pilot; not a five-seed result |
+| `20260911T085949697200Z_v6_3_b0_batch1_gpu_smoke` | Passed; Batch-1-only CUDA gate | First v6.3 gate; superseded by the 0903 gate |
+| `20260911T090046807325Z_cdcnn_v6_3_batch1_smoke` | Passed; Batch-1-only v6.3 mode smoke | Five-mode implementation check; not an experiment result |
+| `20260911T090335466807Z_v6_3_b0_batch1_gpu_smoke` | Passed; Batch-1-only CUDA gate | Gate used by the completed v6.3 full run |
+| `20260911T090400010314Z_cdcnn_v6_3_one_seed_pilot` | Completed; one-seed v6.3 pilot | Seed-42 pilot preceding the full run; not a five-seed result |
+| `20260911T092326995583Z_cdcnn_v6_3_full` | **Completed; canonical five-seed v6.3 four-stage experiment** | Primary CDCNN result: B0, A1, A2-semantic, A3 over seeds 1042/2024/3407/42/123 |
+| `20260911T100408906245Z_cdcnn_v6_3_result_plots` | Complete; plotting derivative | Figures for the full run |
+| `20260911T103411776649Z_GAS4_predict` | Completed; inference only | Frozen-checkpoint inference diagnostic on gas 4 |
+| `20260912T103502820938Z_cdcnn_v6_3_accuracy_bars` | Complete; plotting derivative | Accuracy bar figures for the full run |
+| `20260915T025623543707Z_cdcnn_v6_3_batch1_smoke` | Passed; Batch-1-only mode smoke | Eight-mode check including the confound stages |
+| `20260915T025641199413Z_v6_3_b0_batch1_gpu_smoke` | Passed; Batch-1-only CUDA gate | Gate for the A3 confound ablation |
+| `20260915T025701880293Z_cdcnn_v6_3_a3_confound_full` | In progress; six-stage A3 confound ablation | Separates LayerNorm, hard bounds, and contrastive loss in A3 |
+| `GAS4_predict` | Completed; inference only | Non-timestamped legacy inference directory |
 
 ### Run cleanup record
 
@@ -90,10 +104,14 @@ This reuses the saved Batch 1 fold assignments from the PCA–SVM run, searches 
 
 ## CDCNN v6.3 four-stage protocol
 
-The smoke-test directories listed above are not full experimental results, and
-no completed v6.3 four-stage run is retained. The v6.3 A3 stabilization changes
+Smoke and gate directories are implementation checks, not results. The
+completed five-seed four-stage experiment is
+`20260911T092326995583Z_cdcnn_v6_3_full`; its measured stage means are recorded
+in the specification's final comparison table. The v6.3 A3 stabilization changes
 and selected hard bounds are documented in
-[`docs/cdcnn-v6.3-numerical-stabilization.md`](docs/cdcnn-v6.3-numerical-stabilization.md).
+[`docs/cdcnn-v6.3-numerical-stabilization.md`](docs/cdcnn-v6.3-numerical-stabilization.md),
+and the deviations from the specification's printed A3 definition are listed in
+its "v6.3 Implementation Status and Deviations" section.
 Do not launch this protocol unless training is explicitly approved.
 
 The canonical B0, A1, A2-semantic, and A3 implementations now share one code
@@ -133,6 +151,29 @@ python scripts/run_cdcnn_v6_full.py launch \
   --gpu-smoke-run runs/<passing_b0_batch1_gpu_smoke>
 ```
 
+### A3 confound ablation
+
+Because v6.3 gave A3 LayerNorm, hard bounds, and gradient clipping alongside the
+contrastive loss, an A3-minus-A2 difference cannot be credited to contrastive
+learning by itself. The confound ablation adds the diagnostic stages `B0-LN`,
+`B0-stab`, and `A2-stab` (A3 without the contrastive loss) and re-runs B0,
+A2-semantic, and A3 as same-environment references. It uses its own
+configuration and the same launcher, and is documented in
+[`docs/a3-confound-ablation.md`](docs/a3-confound-ablation.md):
+
+```bash
+python scripts/run_cdcnn_v6_full.py gpu-smoke --config configs/cdcnn_v6_3_a3_confound.json
+python scripts/run_cdcnn_v6_full.py launch \
+  --config configs/cdcnn_v6_3_a3_confound.json \
+  --max-workers 1 \
+  --gpu-smoke-run runs/<passing_b0_batch1_gpu_smoke>
+```
+
+Runs reproduce only within one software environment: the 2026-09-11 run used
+torch 2.5.1+cu121 and the 2026-09-15 ablation uses torch 2.8.0+cu126, which
+reproduced four of five B0 seeds exactly and differed by one validation sample in
+the fifth. Compare stages only within a single run.
+
 The older `src/resnet_1d_baseline.py`, `src/a1_formal.py`, and
 `src/a2_formal.py` modules are retained as historical pre-v6 implementation
 evidence. Their public wrapper scripts route to the unified v6 implementation.
@@ -152,5 +193,6 @@ old launcher and configuration are disabled tombstones with no training
 settings, and invoking the launcher raises an error. A repository test forbids
 two-dimensional convolution constructors in active Python source. The only
 supported full-training entry point is `scripts/run_cdcnn_v6_full.py` with
-`configs/cdcnn_v6.json`; it must not be launched during the active
-validation/PCA phase unless training is explicitly requested.
+`configs/cdcnn_v6.json`, or `configs/cdcnn_v6_3_a3_confound.json` for the
+confound ablation; it must not be launched unless training is explicitly
+requested.

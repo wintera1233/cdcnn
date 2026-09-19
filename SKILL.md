@@ -23,7 +23,7 @@ Work from the repository root. This skill supplies project workflow; it never gr
 - Never restore or introduce `Conv2d` gas classification or a 128-to-16x8 reshape. The canonical tensor layout is `[N, 1, 128]` with `Conv1d`.
 - Never overwrite a run. New computation or derived figures go to a unique `runs/<UTC timestamp>_<name>/` directory with provenance.
 - Never delete obsolete or failed runs. Move them to `.trash/run-cleanup-<date>/` only after dependency/process checks, and document the rationale in `docs/run-cleanup-<date>.md`.
-- Do not launch any training unless the user explicitly requests it. Full training is allowed only through `scripts/run_cdcnn_v6_full.py launch` with `configs/cdcnn_v6.json`, `--max-workers 1`, and a current passing GPU-smoke artifact.
+- Do not launch any training unless the user explicitly requests it. Full training is allowed only through `scripts/run_cdcnn_v6_full.py launch` with `--max-workers 1`, a current passing GPU-smoke artifact, and either `configs/cdcnn_v6.json` (canonical four stages) or `configs/cdcnn_v6_3_a3_confound.json` (A3 confound ablation; see `docs/a3-confound-ablation.md`).
 
 ## Route to the right reference
 
