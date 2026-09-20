@@ -30,6 +30,7 @@ from src.cdcnn_ablation import (
     CANONICAL_IMPLEMENTATION_VERSION,
     CDCNNModel,
     CONFOUND_IMPLEMENTATION_VERSION,
+    DUPLICATION_IMPLEMENTATION_VERSION,
     DataAccessGuard,
     INPUT_IMPLEMENTATION_VERSION,
     LITERAL_IMPLEMENTATION_VERSION,
@@ -64,6 +65,7 @@ RUN_SUFFIXES = {
     NORMALIZED_IMPLEMENTATION_VERSION: "cdcnn_v6_5_normalized_ladder_full",
     LITERAL_IMPLEMENTATION_VERSION: "cdcnn_v6_6_paper_literal_full",
     SCALE_IMPLEMENTATION_VERSION: "cdcnn_v6_7_augmentation_scale_full",
+    DUPLICATION_IMPLEMENTATION_VERSION: "cdcnn_v6_8_duplication_control_full",
 }
 REPORT_TITLES = {
     CANONICAL_IMPLEMENTATION_VERSION: "CDCNN v6.3 full experiment report",
@@ -72,6 +74,7 @@ REPORT_TITLES = {
     NORMALIZED_IMPLEMENTATION_VERSION: "CDCNN v6.5 normalized-input ladder report",
     LITERAL_IMPLEMENTATION_VERSION: "CDCNN v6.6 paper-literal and augmentation report",
     SCALE_IMPLEMENTATION_VERSION: "CDCNN v6.7 augmentation-scale report",
+    DUPLICATION_IMPLEMENTATION_VERSION: "CDCNN v6.8 duplication-control report",
 }
 # Optional per-experiment descriptor block: config key -> report section heading.
 REPORT_DESCRIPTORS = {

@@ -42,6 +42,8 @@ STAGE_INPUT_TRANSFORMS = {
     "A1-PS-s50": "per_sample",
     "A1-PS-s20": "per_sample",
     "A1-PS-s05": "per_sample",
+    # v6.8: duplication control, scale 0.0.
+    "A1-PS-s00": "per_sample",
 }
 
 

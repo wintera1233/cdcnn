@@ -71,8 +71,12 @@ NORMALIZED_LADDER_STAGES = ("B0-stab-PS", "A2-stab-PS", "A3-PS")
 LITERAL_LADDER_STAGES = ("A1-stab-PS", "A2-lit-PS", "A3-lit-PS")
 # v6.7: A1 augmentation noise magnitude. The paper's Eq. (7) has no multiplier,
 # so 1.0 is canonical and anything else is a declared sensitivity experiment.
-SCALE_LADDER_STAGES = ("A1-PS-s50", "A1-PS-s20", "A1-PS-s05")
-STAGE_PERTURBATION_SCALES = {"A1-PS-s50": 0.5, "A1-PS-s20": 0.2, "A1-PS-s05": 0.05}
+SCALE_LADDER_STAGES = ("A1-PS-s50", "A1-PS-s20", "A1-PS-s05", "A1-PS-s00")
+# Scale 0.0 is the duplication control: the generated view is an exact copy of
+# its anchor, so it isolates the doubled dataset and optimizer-step count from
+# the augmentation noise itself.
+STAGE_PERTURBATION_SCALES = {
+    "A1-PS-s50": 0.5, "A1-PS-s20": 0.2, "A1-PS-s05": 0.05, "A1-PS-s00": 0.0}
 ALL_STAGES = (CANONICAL_STAGES + DIAGNOSTIC_STAGES + CONFOUND_STAGES + INPUT_STAGES
               + NORMALIZED_LADDER_STAGES + LITERAL_LADDER_STAGES + SCALE_LADDER_STAGES)
 CANONICAL_FEATURE_STAGES = ("A2-semantic", "A2-paper-literal", "A3")
@@ -91,6 +95,8 @@ LITERAL_IMPLEMENTATION_VERSION = "CDCNN_v6.6_paper_literal_and_augmentation"
 LITERAL_EXPERIMENT_STAGES = ("B0-stab-PS", "A1-stab-PS", "A2-lit-PS", "A3-lit-PS")
 SCALE_IMPLEMENTATION_VERSION = "CDCNN_v6.7_augmentation_scale"
 SCALE_EXPERIMENT_STAGES = ("A1-PS-s50", "A1-PS-s20", "A1-PS-s05")
+DUPLICATION_IMPLEMENTATION_VERSION = "CDCNN_v6.8_duplication_control"
+DUPLICATION_EXPERIMENT_STAGES = ("A1-PS-s00",)
 # Each shipped configuration pins the stage lists it was written with, as frozen
 # literals rather than references to the growing module tuples: a config file is
 # an immutable artifact whose hash is recorded in completed runs, so adding a
@@ -101,8 +107,11 @@ V65_AUGMENTED_STAGES = V63_AUGMENTED_STAGES + ("A2-stab-PS", "A3-PS")
 V65_FEATURE_STAGES = V63_FEATURE_STAGES + ("A2-stab-PS", "A3-PS")
 V66_AUGMENTED_STAGES = ("A1", "A1-stab-PS") + V65_FEATURE_STAGES + ("A2-lit-PS", "A3-lit-PS")
 V66_FEATURE_STAGES = V65_FEATURE_STAGES + ("A2-lit-PS", "A3-lit-PS")
-V67_AUGMENTED_STAGES = ("A1", "A1-stab-PS") + SCALE_LADDER_STAGES + V66_FEATURE_STAGES
+V67_AUGMENTED_STAGES = (
+    "A1", "A1-stab-PS", "A1-PS-s50", "A1-PS-s20", "A1-PS-s05") + V66_FEATURE_STAGES
 V67_FEATURE_STAGES = V66_FEATURE_STAGES
+V68_AUGMENTED_STAGES = ("A1", "A1-stab-PS") + SCALE_LADDER_STAGES + V66_FEATURE_STAGES
+V68_FEATURE_STAGES = V66_FEATURE_STAGES
 
 # implementation_version -> (stages, diagnostic_stages, augmented, feature-generating)
 STAGE_SETS = {
@@ -119,6 +128,8 @@ STAGE_SETS = {
         LITERAL_EXPERIMENT_STAGES, (), V66_AUGMENTED_STAGES, V66_FEATURE_STAGES),
     SCALE_IMPLEMENTATION_VERSION: (
         SCALE_EXPERIMENT_STAGES, (), V67_AUGMENTED_STAGES, V67_FEATURE_STAGES),
+    DUPLICATION_IMPLEMENTATION_VERSION: (
+        DUPLICATION_EXPERIMENT_STAGES, (), V68_AUGMENTED_STAGES, V68_FEATURE_STAGES),
 }
 CONFOUND_ABLATION_DEFINITION = {
     "B0-LN": "B0 with LayerNorm(128) replacing BatchNorm1d(128)",
@@ -233,14 +244,15 @@ def validate_config(cfg: dict) -> None:
     stages, diagnostic_stages, augmented_stages, feature_stages = STAGE_SETS[version]
     _require_equal(cfg.get("stages"), list(stages), "stages")
     _require_equal(cfg.get("diagnostic_stages"), list(diagnostic_stages), "diagnostic_stages")
-    if version == SCALE_IMPLEMENTATION_VERSION:
+    if version in (SCALE_IMPLEMENTATION_VERSION, DUPLICATION_IMPLEMENTATION_VERSION):
         _require_equal(cfg.get("a1_perturbation_scales"),
                        {stage: perturbation_scale_for(stage) for stage in stages},
                        "a1_perturbation_scales")
     if version == CONFOUND_IMPLEMENTATION_VERSION:
         _require_equal(cfg.get("confound_ablation"), CONFOUND_ABLATION_DEFINITION, "confound_ablation")
     if version in (INPUT_IMPLEMENTATION_VERSION, NORMALIZED_IMPLEMENTATION_VERSION,
-                   LITERAL_IMPLEMENTATION_VERSION, SCALE_IMPLEMENTATION_VERSION):
+                   LITERAL_IMPLEMENTATION_VERSION, SCALE_IMPLEMENTATION_VERSION,
+                   DUPLICATION_IMPLEMENTATION_VERSION):
         _require_equal(cfg.get("input_normalization"),
                        {stage: input_transform_for(stage) for stage in stages},
                        "input_normalization")

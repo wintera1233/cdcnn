@@ -68,3 +68,40 @@ class AugmentationScaleTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class DuplicationControlTests(unittest.TestCase):
+    """Scale 0.0 must produce exact copies, isolating schedule length from noise."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.cfg = json.loads(
+            (ROOT / "configs/cdcnn_v6_8_duplication_control.json").read_text(encoding="utf-8"))
+
+    def test_config_validates(self):
+        from src.cdcnn_ablation import (DUPLICATION_EXPERIMENT_STAGES,
+                                        DUPLICATION_IMPLEMENTATION_VERSION)
+        validate_config(self.cfg)
+        self.assertEqual(self.cfg["implementation_version"], DUPLICATION_IMPLEMENTATION_VERSION)
+        self.assertEqual(list(self.cfg["stages"]), list(DUPLICATION_EXPERIMENT_STAGES))
+        self.assertEqual(self.cfg["a1_perturbation_scales"]["A1-PS-s00"], 0.0)
+
+    def test_scale_zero_duplicates_the_source_rows_exactly(self):
+        x = np.random.default_rng(5).normal(size=(6, 128))
+        y = np.array([1, 1, 2, 2, 3, 3])
+        train_x, train_y, provenance = _training_arrays(
+            "A1-PS-s00", x, y, np.arange(6), np.arange(1, 7), 9, "unit")
+        self.assertEqual(len(train_x), 12)
+        np.testing.assert_array_equal(train_x[:6], x)
+        np.testing.assert_array_equal(train_x[6:], x)
+        np.testing.assert_array_equal(train_y[:6], train_y[6:])
+        self.assertTrue((provenance.perturbation_scale == 0.0).all())
+
+    def test_noise_is_still_drawn_but_discarded(self):
+        """Scale 0 must not change the RNG stream, so seeds stay comparable."""
+        x = np.random.default_rng(6).normal(size=(4, 128))
+        y = np.array([1, 1, 2, 2])
+        _, zero = generate_a1_views(x, y, np.arange(4), np.arange(1, 5), 13, "unit", 0.0)
+        _, one = generate_a1_views(x, y, np.arange(4), np.arange(1, 5), 13, "unit", 1.0)
+        np.testing.assert_array_equal(zero.partner_source_index, one.partner_source_index)
+        np.testing.assert_allclose(zero["lambda"], one["lambda"], rtol=0, atol=0)
