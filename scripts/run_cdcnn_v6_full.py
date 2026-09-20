@@ -31,6 +31,7 @@ from src.cdcnn_ablation import (
     CDCNNModel,
     CONFOUND_IMPLEMENTATION_VERSION,
     DataAccessGuard,
+    INPUT_IMPLEMENTATION_VERSION,
     LAYERNORM_STAGES,
     ProtocolError,
     STABILIZED_STAGES,
@@ -48,6 +49,7 @@ from src.cdcnn_ablation import (
     utc_now,
     validate_config,
 )
+from src.input_transform import input_transform_for, prepare_inputs, prepare_inputs_from_params
 from src.pca_analysis import save_json, sha256
 
 
@@ -55,6 +57,7 @@ SEEDS = (1042, 2024, 3407, 42, 123)
 RUN_SUFFIXES = {
     CANONICAL_IMPLEMENTATION_VERSION: "cdcnn_v6_3_full",
     CONFOUND_IMPLEMENTATION_VERSION: "cdcnn_v6_3_a3_confound_full",
+    INPUT_IMPLEMENTATION_VERSION: "cdcnn_v6_4_input_norm_full",
 }
 
 
@@ -171,19 +174,20 @@ def source_worker(stage: str, seed: int, config_path: str, output: str) -> Path:
                 "fit_target_samples": 0,
             })
             train_x, train_y, provenance = _training_arrays(
-                stage, scaler.transform(source.x[train_idx]), source.y[train_idx], train_idx,
-                source.line_numbers, seed, f"seed_{seed}_cv_fold_{fold}")
+                stage, prepare_inputs(stage, scaler, source.x[train_idx]), source.y[train_idx],
+                train_idx, source.line_numbers, seed, f"seed_{seed}_cv_fold_{fold}")
             if len(provenance):
                 provenance.insert(0, "stage", stage)
                 provenance.insert(1, "model_seed", seed)
                 provenance_frames.append(provenance)
             model, history = train_model(
                 stage, train_x, train_y, cfg, seed,
-                validation=(scaler.transform(source.x[valid_idx]), source.y[valid_idx]),
+                validation=(prepare_inputs(stage, scaler, source.x[valid_idx]), source.y[valid_idx]),
                 device_audit=device_audit, training_context=f"cv_fold_{fold}")
             history_rows.extend({"phase": "cv", "seed": seed, "fold": fold, **row}
                                 for row in history)
-            logits = predict(model, scaler.transform(source.x[valid_idx]), cfg["training"]["batch_size"])
+            logits = predict(model, prepare_inputs(stage, scaler, source.x[valid_idx]),
+                             cfg["training"]["batch_size"])
             pred = logits.argmax(1) + 1
             cv_rows.append({
                 "seed": seed, "fold": fold, "checkpoint_epoch": 100,
@@ -205,7 +209,7 @@ def source_worker(stage: str, seed: int, config_path: str, output: str) -> Path:
             "fit_target_samples": 0,
         })
         final_x, final_y, provenance = _training_arrays(
-            stage, final_scaler.transform(source.x), source.y, np.arange(len(source.x)),
+            stage, prepare_inputs(stage, final_scaler, source.x), source.y, np.arange(len(source.x)),
             source.line_numbers, seed, f"seed_{seed}_final_fit")
         if len(provenance):
             provenance.insert(0, "stage", stage)
@@ -223,6 +227,7 @@ def source_worker(stage: str, seed: int, config_path: str, output: str) -> Path:
             "implementation_version": cfg["implementation_version"],
             "model_state_dict": model.state_dict(),
             "scaler_mean": final_scaler.mean_, "scaler_scale": final_scaler.scale_,
+            "input_transform": input_transform_for(stage),
             "training": cfg["training"], "augmentation": cfg["augmentation"],
             "feature_generation": cfg["feature_generation"], "loss": cfg["loss"],
             "a3_numerical_stability": cfg["a3_numerical_stability"],
@@ -265,7 +270,8 @@ def source_worker(stage: str, seed: int, config_path: str, output: str) -> Path:
         save_json(out / "input_manifest.json",
                   _provenance_input_manifest(root, config_file, cfg) + raw_loads)
         save_json(out / "feature_generation_geometry.json", {
-            "stage": stage, "insertion": "between residual blocks 3 and 4",
+            "stage": stage, "input_transform": input_transform_for(stage),
+            "insertion": "between residual blocks 3 and 4",
             "block3_shape": ["B", 128, 128], "pool": {"kernel_size": 2, "stride": 2},
             "upsample": {"mode": "nearest", "length": 128},
             "statistics_shape": ["B", 128, 1], "statistics_axis": "length",
@@ -726,6 +732,7 @@ def evaluate(run_dir: str, config_path: str, selections_path: str,
         stage, seed = entry["stage"], entry["seed"]
         checkpoint = torch.load(root / entry["checkpoint"], map_location="cpu", weights_only=False)
         if (checkpoint["stage"] != stage or checkpoint["seed"] != seed
+                or checkpoint.get("input_transform", "identity") != input_transform_for(stage)
                 or checkpoint["epoch"] != 100
                 or checkpoint.get("implementation_version") != cfg["implementation_version"]
                 or checkpoint.get("a3_numerical_stability") != cfg["a3_numerical_stability"]):
@@ -745,7 +752,8 @@ def evaluate(run_dir: str, config_path: str, selections_path: str,
         cv_pred.insert(0, "stage", stage)
         cv_prediction_frames.append(cv_pred)
         for batch, data in target_data.items():
-            scaled = (data.x - mean) / scale
+            scaled = prepare_inputs_from_params(
+                checkpoint.get("input_transform", "identity"), mean, scale, data.x)
             pred = predict(model, scaled, cfg["training"]["batch_size"]).argmax(1) + 1
             prediction_frames.append(pd.DataFrame({
                 "stage": stage, "seed": seed, "batch": batch,
@@ -1028,13 +1036,14 @@ def run_gpu_smoke(config_path: str) -> Path:
         valid_idx = np.flatnonzero(fold_ids == fold)
         scaler = StandardScaler().fit(source.x[train_idx])
         model, history = train_model(
-            "B0", scaler.transform(source.x[train_idx]), source.y[train_idx], cfg,
+            "B0", prepare_inputs("B0", scaler, source.x[train_idx]), source.y[train_idx], cfg,
             int(cfg["smoke"]["seeds"][0]), epochs=1, max_training_batches=1,
-            validation=(scaler.transform(source.x[valid_idx]), source.y[valid_idx]),
+            validation=(prepare_inputs("B0", scaler, source.x[valid_idx]), source.y[valid_idx]),
             device_audit=device_audit, training_context=f"gpu_smoke_cv_fold_{fold}",
         )
         post_training_smi = capture_nvidia_smi_evidence(device)
-        logits = predict(model, scaler.transform(source.x[valid_idx]), cfg["training"]["batch_size"])
+        logits = predict(model, prepare_inputs("B0", scaler, source.x[valid_idx]),
+                         cfg["training"]["batch_size"])
         placement = device_audit[0] if device_audit else {}
         matching_rows = placement.get("nvidia_smi", {}).get("matching_process_rows", [])
         checks = {

@@ -42,6 +42,11 @@ from src.a3_stage import (
     supervised_contrastive_mean,
 )
 from src.cv_folds import load_folds
+from src.input_transform import (
+    STAGE_INPUT_TRANSFORMS,
+    input_transform_for,
+    prepare_inputs,
+)
 from src.pca_analysis import load_batch, save_json, sha256
 from src.protocol import ProtocolError
 from src.resnet_1d_baseline import ResidualBlock1D, reshape
@@ -53,28 +58,35 @@ DIAGNOSTIC_STAGES = ("A2-paper-literal",)
 # time. B0-LN swaps BatchNorm for LayerNorm; B0-stab and A2-stab add the full A3
 # package (LayerNorm, hard bounds, gradient clipping). A2-stab is A3 without L_con.
 CONFOUND_STAGES = ("B0-LN", "B0-stab", "A2-stab")
-ALL_STAGES = CANONICAL_STAGES + DIAGNOSTIC_STAGES + CONFOUND_STAGES
+# v6.4 input-normalization ladder: identical backbones, different handling of
+# the scaled input. See docs/input-normalization.md.
+INPUT_STAGES = ("B0-PS", "B0-LN-PS", "B0-LN-LOG", "B0-LN-CLIP")
+ALL_STAGES = CANONICAL_STAGES + DIAGNOSTIC_STAGES + CONFOUND_STAGES + INPUT_STAGES
 CANONICAL_FEATURE_STAGES = ("A2-semantic", "A2-paper-literal", "A3")
 FEATURE_STAGES = CANONICAL_FEATURE_STAGES + ("A2-stab",)
 CANONICAL_AUGMENTED_STAGES = ("A1",) + CANONICAL_FEATURE_STAGES
 AUGMENTED_STAGES = ("A1",) + FEATURE_STAGES
 CANONICAL_IMPLEMENTATION_VERSION = "CDCNN_v6.3_A3_numerical_stabilization"
 CONFOUND_IMPLEMENTATION_VERSION = "CDCNN_v6.3_A3_confound_ablation"
+INPUT_IMPLEMENTATION_VERSION = "CDCNN_v6.4_input_normalization"
+CONFOUND_EXPERIMENT_STAGES = ("B0", "B0-LN", "B0-stab", "A2-semantic", "A2-stab", "A3")
+INPUT_EXPERIMENT_STAGES = ("B0", "B0-LN", "B0-PS", "B0-LN-PS", "B0-LN-LOG", "B0-LN-CLIP")
 # implementation_version -> (stages, diagnostic_stages, augmented, feature-generating)
 STAGE_SETS = {
     CANONICAL_IMPLEMENTATION_VERSION: (
         CANONICAL_STAGES, DIAGNOSTIC_STAGES,
         CANONICAL_AUGMENTED_STAGES, CANONICAL_FEATURE_STAGES),
     CONFOUND_IMPLEMENTATION_VERSION: (
-        ("B0", "B0-LN", "B0-stab", "A2-semantic", "A2-stab", "A3"), (),
-        AUGMENTED_STAGES, FEATURE_STAGES),
+        CONFOUND_EXPERIMENT_STAGES, (), AUGMENTED_STAGES, FEATURE_STAGES),
+    INPUT_IMPLEMENTATION_VERSION: (
+        INPUT_EXPERIMENT_STAGES, (), AUGMENTED_STAGES, FEATURE_STAGES),
 }
 CONFOUND_ABLATION_DEFINITION = {
     "B0-LN": "B0 with LayerNorm(128) replacing BatchNorm1d(128)",
     "B0-stab": "B0 with the full A3 v6.3 numerical-stability package",
     "A2-stab": "A2-semantic with the full A3 v6.3 numerical-stability package; equals A3 without contrastive loss",
-    "layernorm_stages": list(LAYERNORM_STAGES),
-    "stabilized_stages": list(STABILIZED_STAGES),
+    "layernorm_stages": [s for s in LAYERNORM_STAGES if s in CONFOUND_EXPERIMENT_STAGES],
+    "stabilized_stages": [s for s in STABILIZED_STAGES if s in CONFOUND_EXPERIMENT_STAGES],
 }
 
 
@@ -184,6 +196,10 @@ def validate_config(cfg: dict) -> None:
     _require_equal(cfg.get("diagnostic_stages"), list(diagnostic_stages), "diagnostic_stages")
     if version == CONFOUND_IMPLEMENTATION_VERSION:
         _require_equal(cfg.get("confound_ablation"), CONFOUND_ABLATION_DEFINITION, "confound_ablation")
+    if version == INPUT_IMPLEMENTATION_VERSION:
+        _require_equal(cfg.get("input_normalization"),
+                       {stage: input_transform_for(stage) for stage in stages},
+                       "input_normalization")
     _require_equal(cfg.get("seeds"), [1042, 2024, 3407, 42, 123], "seeds")
     _require_equal(cfg.get("seed_policy"), {
         "model_dataloader_and_a1": "listed experiment seed",
@@ -786,7 +802,7 @@ def run_smoke_suite(config_path: str = "configs/cdcnn_v6.json") -> Path:
     rows, histories, provenance_frames = [], [], []
     for stage in ALL_STAGES:
         seed = cfg["smoke"]["seeds"][0]
-        scaled_train = scaler.transform(source.x[train_idx])
+        scaled_train = prepare_inputs(stage, scaler, source.x[train_idx])
         train_x, train_y, provenance = _training_arrays(
             stage, scaled_train, source.y[train_idx], train_idx, source.line_numbers,
             seed, f"smoke_{stage}_fold_{fold}")
@@ -797,9 +813,10 @@ def run_smoke_suite(config_path: str = "configs/cdcnn_v6.json") -> Path:
             stage, train_x, train_y, cfg, seed,
             epochs=cfg["smoke"]["epochs"],
             max_training_batches=cfg["smoke"]["max_training_batches"],
-            validation=(scaler.transform(source.x[valid_idx]), source.y[valid_idx]),
+            validation=(prepare_inputs(stage, scaler, source.x[valid_idx]), source.y[valid_idx]),
         )
-        logits = predict(model, scaler.transform(source.x[valid_idx]), cfg["training"]["batch_size"])
+        logits = predict(model, prepare_inputs(stage, scaler, source.x[valid_idx]),
+                         cfg["training"]["batch_size"])
         if logits.shape != (len(valid_idx), 6) or not np.isfinite(logits).all():
             raise ProtocolError(f"{stage} smoke prediction validation failed")
         for item in history:
@@ -926,18 +943,20 @@ def main(stage: str, config_path: str = "configs/cdcnn_v6.json", smoke: bool = F
                                   "fit_original_samples": len(train_idx), "fit_augmented_samples": 0,
                                   "fit_target_samples": 0})
             train_x, train_y, provenance = _training_arrays(
-                stage, scaler.transform(source.x[train_idx]), source.y[train_idx], train_idx,
-                source.line_numbers, seed, f"seed_{seed}_cv_fold_{fold}")
+                stage, prepare_inputs(stage, scaler, source.x[train_idx]), source.y[train_idx],
+                train_idx, source.line_numbers, seed, f"seed_{seed}_cv_fold_{fold}")
             if len(provenance):
                 provenance.insert(0, "stage", stage)
                 provenance.insert(1, "model_seed", seed)
                 provenance_frames.append(provenance)
             model, history = train_model(
                 stage, train_x, train_y, cfg, seed,
-                validation=(scaler.transform(source.x[valid_idx]), source.y[valid_idx]))
+                validation=(prepare_inputs(stage, scaler, source.x[valid_idx]),
+                            source.y[valid_idx]))
             for row in history:
                 history_rows.append({"phase": "cv", "seed": seed, "fold": fold, **row})
-            logits = predict(model, scaler.transform(source.x[valid_idx]), cfg["training"]["batch_size"])
+            logits = predict(model, prepare_inputs(stage, scaler, source.x[valid_idx]),
+                             cfg["training"]["batch_size"])
             pred = logits.argmax(1) + 1
             cv_rows.append({"seed": seed, "fold": fold, "checkpoint_epoch": 100,
                             "samples": len(valid_idx), "accuracy": float(accuracy_score(source.y[valid_idx], pred))})
@@ -954,7 +973,7 @@ def main(stage: str, config_path: str = "configs/cdcnn_v6.json", smoke: bool = F
                               "fit_original_samples": len(source.x), "fit_augmented_samples": 0,
                               "fit_target_samples": 0})
         final_x, final_y, provenance = _training_arrays(
-            stage, final_scaler.transform(source.x), source.y, np.arange(len(source.x)),
+            stage, prepare_inputs(stage, final_scaler, source.x), source.y, np.arange(len(source.x)),
             source.line_numbers, seed, f"seed_{seed}_final_fit")
         if len(provenance):
             provenance.insert(0, "stage", stage)
@@ -969,6 +988,7 @@ def main(stage: str, config_path: str = "configs/cdcnn_v6.json", smoke: bool = F
             "implementation_version": cfg["implementation_version"],
             "model_state_dict": model.state_dict(),
             "scaler_mean": final_scaler.mean_, "scaler_scale": final_scaler.scale_,
+            "input_transform": input_transform_for(stage),
             "training": cfg["training"], "augmentation": cfg["augmentation"],
             "feature_generation": cfg["feature_generation"], "loss": cfg["loss"],
             "a3_numerical_stability": cfg["a3_numerical_stability"],
@@ -1012,7 +1032,8 @@ def main(stage: str, config_path: str = "configs/cdcnn_v6.json", smoke: bool = F
         model = final_models[seed]
         scaler = final_scalers[seed]
         for batch, data in target_data.items():
-            pred = predict(model, scaler.transform(data.x), cfg["training"]["batch_size"]).argmax(1) + 1
+            pred = predict(model, prepare_inputs(stage, scaler, data.x),
+                           cfg["training"]["batch_size"]).argmax(1) + 1
             prediction_frames.append(pd.DataFrame({
                 "seed": seed, "batch": batch,
                 "sample_id": [f"batch{batch}:line{int(line)}" for line in data.line_numbers],
@@ -1061,6 +1082,7 @@ def main(stage: str, config_path: str = "configs/cdcnn_v6.json", smoke: bool = F
     raw_loads = [event for event in access.events if event["event"] == "raw_file_load"]
     save_json(out / "input_manifest.json", _provenance_input_manifest(root, config_file, cfg) + raw_loads)
     save_json(out / "feature_generation_geometry.json", {
+        "input_transform": input_transform_for(stage),
         "insertion": "between residual blocks 3 and 4", "block3_shape": ["B", 128, 128],
         "pool": {"kernel_size": 2, "stride": 2}, "upsample": {"mode": "nearest", "length": 128},
         "statistics_shape": ["B", 128, 1], "statistics_axis": "length",

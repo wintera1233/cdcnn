@@ -21,7 +21,10 @@ from src.protocol import ProtocolError
 # Stages that borrow A3's normalization and, where noted, its hard bounds and
 # gradient clipping. The confound-ablation stages exist to separate those
 # effects from the contrastive loss; see docs/a3-confound-ablation.md.
-LAYERNORM_STAGES = ("A3", "B0-LN", "B0-stab", "A2-stab")
+LAYERNORM_STAGES = (
+    "A3", "B0-LN", "B0-stab", "A2-stab",
+    "B0-LN-PS", "B0-LN-LOG", "B0-LN-CLIP",
+)
 STABILIZED_STAGES = ("A3", "B0-stab", "A2-stab")
 
 A3_STABILITY_DEFAULTS = {
