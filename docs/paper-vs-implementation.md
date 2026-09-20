@@ -122,6 +122,14 @@ Each is source-only and fits the existing ladder.
    guard instead of the log-normal rule; dividing by the variance rather than
    the standard deviation; the 512-wide inner convolution in block 5.
 
+**Blocking issue found while testing item 5's neighbourhood (v6.7, v6.8).** The
+augmentation penalty this project has reported since v6.3 is a schedule
+artefact: augmented stages take twice the optimizer steps at a fixed 100 epochs,
+and a zero-noise duplication control reproduces the full penalty. Until the
+protocol resolves that, no statement about what the paper's augmentation
+contributes can be made from this project's numbers. See
+`docs/duplication-control.md`.
+
 Items 2-5 change the executable protocol, so each needs a new implementation
 version, synchronized documentation, and a fresh GPU smoke artifact before any
 launch.

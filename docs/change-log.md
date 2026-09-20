@@ -4,6 +4,25 @@ Branch `exp/a3-confound-ablation`, newest first. Each entry records what changed
 why, and what was verified. Run directories are never overwritten; each
 experiment writes its own.
 
+## v6.8 duplication control — results (2026-09-20)
+
+**Result, and the most consequential finding of the session.** With
+`perturbation_scale = 0.0` each generated view is a bit-exact copy of its anchor,
+yet the penalty is unchanged: −0.0114 against −0.0131 for canonical augmentation.
+Across bit-exact copies to full-variance noise the target mean moves by 0.0032.
+
+**The A1 penalty is therefore a schedule artefact, not an augmentation effect.**
+Augmented stages train on 890 rows instead of 445 under a fixed 100-epoch budget,
+so they take twice the optimizer and scheduler steps. Every A1-versus-B0
+comparison in this project — including the canonical v6.3 result that A1 is worse
+than B0 (−0.0376) — measures augmentation plus a doubled schedule. Feature
+generation and contrastive comparisons are unaffected, since both of their arms
+are augmented and therefore matched.
+
+Resolving it changes the protocol (100 epochs, early stopping disabled), so
+**nothing was changed**; options are recorded in `docs/duplication-control.md`
+for a decision.
+
 ## v6.7 augmentation scale sensitivity — results (2026-09-20)
 
 **Result.** Reducing the augmentation noise does not rescue it. Scales 0.5, 0.2

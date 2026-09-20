@@ -67,6 +67,9 @@ The following table is the complete inventory of retained directories under `run
 | `20260920T201453177056Z_cdcnn_v6_3_batch1_smoke` | Passed; Batch-1-only mode smoke | Twenty-one-mode check including the v6.7 scale stages |
 | `20260920T201510387823Z_v6_3_b0_batch1_gpu_smoke` | Passed; Batch-1-only CUDA gate | Gate for the v6.7 augmentation-scale sweep |
 | `20260920T201524271480Z_cdcnn_v6_7_augmentation_scale_full` | **Completed; augmentation-scale sweep** | Noise magnitude barely matters: scales 0.05–0.5 all stay ~0.01 below no augmentation |
+| `20260920T204952623150Z_cdcnn_v6_3_batch1_smoke` | Passed; Batch-1-only mode smoke | Twenty-two-mode check including the duplication control |
+| `20260920T205025054689Z_v6_3_b0_batch1_gpu_smoke` | Passed; Batch-1-only CUDA gate | Gate for the v6.8 duplication control |
+| `20260920T205038327586Z_cdcnn_v6_8_duplication_control_full` | **Completed; duplication control** | Exact duplicates cost the same as augmentation: the A1 penalty is a doubled-schedule artefact |
 | `GAS4_predict` | Completed; inference only | Non-timestamped legacy inference directory |
 
 ### Run cleanup record
@@ -173,6 +176,16 @@ strongest single change measured here: +0.1087 target mean on 5/5 seeds, and
 (signed-log, clip) does nothing. Configuration
 `configs/cdcnn_v6_4_input_norm.json`; details and tables in
 [`docs/input-normalization.md`](docs/input-normalization.md).
+
+### Duplication control (v6.8) — protocol issue
+
+Exact duplicates (`perturbation_scale = 0.0`) cost −0.0114, indistinguishable
+from canonical augmentation's −0.0131. Augmented stages train on 890 rows rather
+than 445 under the fixed 100-epoch schedule, so they take twice the optimizer
+steps; that, not the generated data, explains the A1 penalty. **Every A1-versus-B0
+comparison here is confounded by schedule length.** Resolving it changes the
+training protocol, so nothing was changed; options are in
+[`docs/duplication-control.md`](docs/duplication-control.md).
 
 ### Augmentation scale sensitivity (v6.7)
 

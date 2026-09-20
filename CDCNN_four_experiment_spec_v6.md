@@ -111,6 +111,20 @@ N x 1 x 128 -> five residual blocks -> flatten
 - Total training: exactly `100` epochs.
 - Early stopping: disabled. The selected model for the fixed schedule is the epoch-100 checkpoint unless a source-only checkpoint rule is explicitly recorded before training.
 
+**Empirical note (2026-09-20): the fixed epoch budget confounds every
+augmentation comparison.** Augmented stages train on 890 rows instead of 445, so
+at a fixed 100 epochs they take twice as many optimizer and scheduler steps as
+un-augmented stages. A control that replaces the generated view with a bit-exact
+copy of its anchor (`perturbation_scale = 0.0`, no noise at all) reproduces
+essentially the full A1 penalty: −0.0114 target mean against −0.0131 for
+canonical augmentation, with only 0.0032 separating bit-exact copies from
+full-variance noise (`docs/duplication-control.md`). A1-versus-B0 differences
+therefore measure augmentation *plus* a doubled schedule, and the schedule alone
+accounts for nearly all of the observed effect. Comparisons between A1, A2, and
+A3 are unaffected, because all of those arms are augmented. Resolving this
+requires a protocol decision — matched optimizer steps, matched rows per epoch,
+or a declared step-matched sensitivity arm — and none has been adopted.
+
 ## A1 Input Data Augmentation
 
 This section follows the paper's Section 3 and Eqs. (5)–(7). For each source
