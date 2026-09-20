@@ -28,6 +28,17 @@ stopping are unchanged.
 All bounds are explicit project-controlled numerical safeguards. They were not
 tuned on Batches 2–10 and are not represented as paper-derived values.
 
+## Source layout
+
+The A3-specific code is `src/a3_stage.py`: `A3_STABILITY_DEFAULTS`,
+`A3NumericalStabilizer`, `supervised_contrastive_mean`, `contrastive_term`,
+`clip_a3_gradients`, and the `LAYERNORM_STAGES`/`STABILIZED_STAGES` tuples.
+`src/protocol.py` holds `ProtocolError` so that module and the shared pipeline
+can raise the same type without importing each other. `src/cdcnn_ablation.py`
+imports and re-exports those names, so `from src.cdcnn_ablation import ...`
+continues to work. Both new modules are hashed into every run's
+`implementation_files` manifest.
+
 ## Traceability
 
 The canonical configuration remains `configs/cdcnn_v6.json`, and

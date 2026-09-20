@@ -43,6 +43,8 @@ Restyles the residual branch printed as L in the paper while retaining the proje
 
 Extends A2-semantic with a shared linear 128-dimensional projection, unit-sphere normalization, supervised contrastive temperature 0.07, and weight 0.5. The current reduction averages positive terms per anchor and then averages over anchors. Do not copy the older v6 sum reduction.
 
+A3-only code lives in `src/a3_stage.py` (bounds, contrastive objective, gradient clipping, and the stage-membership tuples); `src/cdcnn_ablation.py` imports it and re-exports the names, so existing import paths still work.
+
 A3-only stabilization:
 
 - LayerNorm instead of BatchNorm running state;

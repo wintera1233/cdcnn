@@ -32,8 +32,18 @@ from sklearn.preprocessing import StandardScaler
 from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
 
+from src.a3_stage import (
+    A3_STABILITY_DEFAULTS,
+    A3NumericalStabilizer,
+    LAYERNORM_STAGES,
+    STABILIZED_STAGES,
+    clip_a3_gradients,
+    contrastive_term,
+    supervised_contrastive_mean,
+)
 from src.cv_folds import load_folds
 from src.pca_analysis import load_batch, save_json, sha256
+from src.protocol import ProtocolError
 from src.resnet_1d_baseline import ResidualBlock1D, reshape
 
 
@@ -48,9 +58,6 @@ CANONICAL_FEATURE_STAGES = ("A2-semantic", "A2-paper-literal", "A3")
 FEATURE_STAGES = CANONICAL_FEATURE_STAGES + ("A2-stab",)
 CANONICAL_AUGMENTED_STAGES = ("A1",) + CANONICAL_FEATURE_STAGES
 AUGMENTED_STAGES = ("A1",) + FEATURE_STAGES
-LAYERNORM_STAGES = ("A3", "B0-LN", "B0-stab", "A2-stab")
-STABILIZED_STAGES = ("A3", "B0-stab", "A2-stab")
-
 CANONICAL_IMPLEMENTATION_VERSION = "CDCNN_v6.3_A3_numerical_stabilization"
 CONFOUND_IMPLEMENTATION_VERSION = "CDCNN_v6.3_A3_confound_ablation"
 # implementation_version -> (stages, diagnostic_stages, augmented, feature-generating)
@@ -69,27 +76,6 @@ CONFOUND_ABLATION_DEFINITION = {
     "layernorm_stages": list(LAYERNORM_STAGES),
     "stabilized_stages": list(STABILIZED_STAGES),
 }
-
-A3_STABILITY_DEFAULTS = {
-    "applies_to_stage": "A3",
-    "normalization": "LayerNorm",
-    "normalization_feature_dimension": 128,
-    "normalization_tracks_running_stats": False,
-    "sigma_min": 1e-3,
-    "sigma_max": 10.0,
-    "log_sigma_dispersion_min": 0.0,
-    "log_sigma_dispersion_max": 2.0,
-    "residual_output_min": -20.0,
-    "residual_output_max": 20.0,
-    "contrastive_feature_min": -20.0,
-    "contrastive_feature_max": 20.0,
-    "gradient_max_norm": 1.0,
-    "gradient_error_if_nonfinite": True,
-}
-
-
-class ProtocolError(RuntimeError):
-    """Raised when a v6 invariant or access boundary is violated."""
 
 
 def utc_now() -> str:
@@ -363,36 +349,6 @@ def generate_a1_views(
     return result, pd.DataFrame(rows)
 
 
-class A3NumericalStabilizer(nn.Module):
-    """Stateless hard bounds used only by the v6.3 A3 branch."""
-
-    def __init__(self, config: dict):
-        super().__init__()
-        self.sigma_min = float(config["sigma_min"])
-        self.sigma_max = float(config["sigma_max"])
-        self.log_sigma_dispersion_min = float(config["log_sigma_dispersion_min"])
-        self.log_sigma_dispersion_max = float(config["log_sigma_dispersion_max"])
-        self.residual_output_min = float(config["residual_output_min"])
-        self.residual_output_max = float(config["residual_output_max"])
-        self.contrastive_feature_min = float(config["contrastive_feature_min"])
-        self.contrastive_feature_max = float(config["contrastive_feature_max"])
-
-    def clamp_sigma(self, value: torch.Tensor) -> torch.Tensor:
-        return torch.clamp(value, min=self.sigma_min, max=self.sigma_max)
-
-    def clamp_log_sigma_dispersion(self, value: torch.Tensor) -> torch.Tensor:
-        return torch.clamp(
-            value, min=self.log_sigma_dispersion_min, max=self.log_sigma_dispersion_max)
-
-    def clamp_residual(self, value: torch.Tensor) -> torch.Tensor:
-        return torch.clamp(
-            value, min=self.residual_output_min, max=self.residual_output_max)
-
-    def clamp_contrastive(self, value: torch.Tensor) -> torch.Tensor:
-        return torch.clamp(
-            value, min=self.contrastive_feature_min, max=self.contrastive_feature_max)
-
-
 class CDCNNModel(nn.Module):
     """One backbone shared by every stage, with v6.3 safeguards isolated to A3."""
 
@@ -550,25 +506,6 @@ def probability_consistency_mse(original_logits: torch.Tensor, generated_logits:
     return delta.square().sum(dim=1).mean()
 
 
-def supervised_contrastive_mean(
-    projections: torch.Tensor, labels: torch.Tensor, temperature: float,
-) -> torch.Tensor:
-    """v6.3 reduction: average positives per anchor, then mean all anchors."""
-    if projections.ndim != 2 or labels.ndim != 1 or len(projections) != len(labels):
-        raise ValueError("Contrastive projections/labels have incompatible shapes")
-    normalized = F.normalize(projections, p=2, dim=1)
-    logits = normalized @ normalized.T / temperature
-    diagonal = torch.eye(len(labels), dtype=torch.bool, device=labels.device)
-    positive = labels[:, None].eq(labels[None, :]) & ~diagonal
-    positive_counts = positive.sum(dim=1)
-    if bool((positive_counts == 0).any()):
-        raise ProtocolError("Every contrastive anchor must have at least one positive")
-    denominator_logits = logits.masked_fill(diagonal, -torch.inf)
-    log_prob = logits - torch.logsumexp(denominator_logits, dim=1, keepdim=True)
-    per_anchor = -(log_prob.masked_fill(~positive, 0.0).sum(dim=1) / positive_counts)
-    return per_anchor.mean()
-
-
 def compute_loss(model: CDCNNModel, outputs: dict, y: torch.Tensor, cfg: dict) -> dict[str, torch.Tensor]:
     ce_original = F.cross_entropy(outputs["original_logits"], y)
     zero = ce_original.new_zeros(())
@@ -580,11 +517,7 @@ def compute_loss(model: CDCNNModel, outputs: dict, y: torch.Tensor, cfg: dict) -
     contrastive = zero
     total = ce + cfg["loss"]["lambda_mse"] * mse
     if model.stage == "A3":
-        projected = model.project_contrastive(torch.cat(
-            [outputs["original_features"], outputs["generated_features"]], dim=0))
-        contrastive_labels = torch.cat([y, y], dim=0)
-        contrastive = supervised_contrastive_mean(
-            projected, contrastive_labels, cfg["loss"]["contrastive_temperature"])
+        contrastive = contrastive_term(model, outputs, y, cfg)
         total = total + cfg["loss"]["lambda_contrastive"] * contrastive
     return {"total": total, "ce": ce, "mse": mse, "contrastive": contrastive}
 
@@ -599,28 +532,6 @@ def build_optimizer_and_scheduler(model: nn.Module, training_cfg: dict):
         gamma=training_cfg["scheduler"]["gamma"],
     )
     return optimizer, scheduler
-
-
-def clip_a3_gradients(model: CDCNNModel, cfg: dict) -> tuple[float, float] | None:
-    """Clip stabilized-stage gradients before the optimizer step; leave baselines untouched."""
-    if model.stage not in STABILIZED_STAGES:
-        return None
-    stability = cfg["a3_numerical_stability"]
-    before = nn.utils.clip_grad_norm_(
-        model.parameters(), max_norm=float(stability["gradient_max_norm"]),
-        error_if_nonfinite=bool(stability["gradient_error_if_nonfinite"]),
-    )
-    gradients = [
-        parameter.grad.detach() for parameter in model.parameters()
-        if parameter.grad is not None
-    ]
-    after = (
-        torch.linalg.vector_norm(torch.stack([
-            torch.linalg.vector_norm(gradient, ord=2) for gradient in gradients
-        ]), ord=2)
-        if gradients else before.new_zeros(())
-    )
-    return float(before), float(after)
 
 
 def _training_arrays(
@@ -823,8 +734,9 @@ def _software_versions() -> dict:
 def _implementation_identity(root: Path) -> list[dict]:
     result = []
     for relative in (
-        "src/cdcnn_ablation.py", "src/resnet_1d_baseline.py", "src/cv_folds.py",
-        "src/pca_analysis.py", "scripts/run_cdcnn_ablation.py", "configs/cdcnn_v6.json",
+        "src/cdcnn_ablation.py", "src/a3_stage.py", "src/protocol.py",
+        "src/resnet_1d_baseline.py", "src/cv_folds.py", "src/pca_analysis.py",
+        "scripts/run_cdcnn_ablation.py", "configs/cdcnn_v6.json",
     ):
         path = root / relative
         result.append({"path": relative, "sha256": sha256(path), "bytes": path.stat().st_size})

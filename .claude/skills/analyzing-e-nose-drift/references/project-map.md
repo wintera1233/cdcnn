@@ -9,6 +9,7 @@ Use this map to avoid treating every retained file as a current interface.
 3. For the current CDCNN executable contract, read together:
    - `configs/cdcnn_v6.json`
    - `src/cdcnn_ablation.py`, especially `validate_config` and `DataAccessGuard`
+   - `src/a3_stage.py` for anything A3-specific
    - `scripts/run_cdcnn_v6_full.py`
    - `tests/test_cdcnn_v6.py`
    - `docs/cdcnn-v6.3-numerical-stabilization.md`
@@ -30,7 +31,9 @@ Gas mapping: 1 Ethanol, 2 Ethylene, 3 Ammonia, 4 Acetaldehyde, 5 Acetone, 6 Tolu
 ## Current CDCNN surfaces
 
 - `configs/cdcnn_v6.json`: only canonical CDCNN configuration.
-- `src/cdcnn_ablation.py`: unified B0, A1, A2-semantic, A2-paper-literal diagnostic, and A3 implementation.
+- `src/cdcnn_ablation.py`: unified pipeline for B0, A1, A2-semantic, the A2-paper-literal diagnostic, and A3 — backbone, augmentation, feature generation, CE/MSE, training loop, orchestration, audits.
+- `src/a3_stage.py`: A3-only components — `A3_STABILITY_DEFAULTS`, `A3NumericalStabilizer`, `supervised_contrastive_mean`, `contrastive_term`, `clip_a3_gradients`, and the `LAYERNORM_STAGES`/`STABILIZED_STAGES` membership tuples. Imported by `cdcnn_ablation`, never the reverse.
+- `src/protocol.py`: `ProtocolError` only, so stage modules and the pipeline share one exception type without a circular import. `src.cdcnn_ablation.ProtocolError` remains a valid import path.
 - `scripts/run_cdcnn_v6_full.py`: only permitted full-training launcher. Its public user-facing commands are `gpu-smoke`, `pilot-launch`, and `launch`; internal controller/worker/evaluate commands belong to orchestration.
 - `tests/test_cdcnn_v6.py`: executable contract for config locks, target access, 1D architecture, stage semantics, A3 stabilization, and scheduler behavior.
 - `scripts/run_cdcnn_smoke.py` and `scripts/run_cdcnn_ablation.py --smoke`: Batch-1-only implementation smoke paths, not experiments.
