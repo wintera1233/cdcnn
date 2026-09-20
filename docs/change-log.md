@@ -4,6 +4,20 @@ Branch `exp/a3-confound-ablation`, newest first. Each entry records what changed
 why, and what was verified. Run directories are never overwritten; each
 experiment writes its own.
 
+## v6.7 augmentation scale sensitivity — results (2026-09-20)
+
+**Result.** Reducing the augmentation noise does not rescue it. Scales 0.5, 0.2
+and 0.05 all land 0.010–0.013 below the un-augmented backbone, improving on 1/5
+seeds each; a twentyfold reduction in noise changes the target mean by +0.0026.
+Batch 1 CV rises as noise falls (0.9784 at scale 0.05) while target accuracy does
+not follow. Since a near-copy of each anchor still costs accuracy, the suspect is
+the procedure rather than the noise: augmented stages train on 890 rows instead
+of 445 and therefore take twice as many optimizer steps under the fixed
+100-epoch schedule. Details in `docs/augmentation-scale.md`.
+
+**Next.** A `perturbation_scale = 0.0` control (exact duplicates, no noise)
+separates the doubled schedule from the augmentation itself.
+
 ## v6.6 paper-literal and augmentation ladder — results (2026-09-20)
 
 **Result.** Augmentation alone is the harmful component: −0.0131 target mean,

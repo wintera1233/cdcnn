@@ -64,6 +64,9 @@ The following table is the complete inventory of retained directories under `run
 | `20260920T191600735756Z_cdcnn_v6_3_batch1_smoke` | Passed; Batch-1-only mode smoke | Eighteen-mode check including the v6.6 stages |
 | `20260920T191622505529Z_v6_3_b0_batch1_gpu_smoke` | Passed; Batch-1-only CUDA gate | Gate for the v6.6 paper-literal ladder |
 | `20260920T191634939156Z_cdcnn_v6_6_paper_literal_full` | **Completed; paper-literal and augmentation ladder** | Augmentation alone −0.0131; the paper's restyled branch beats the project's semantic branch on 5/5 seeds |
+| `20260920T201453177056Z_cdcnn_v6_3_batch1_smoke` | Passed; Batch-1-only mode smoke | Twenty-one-mode check including the v6.7 scale stages |
+| `20260920T201510387823Z_v6_3_b0_batch1_gpu_smoke` | Passed; Batch-1-only CUDA gate | Gate for the v6.7 augmentation-scale sweep |
+| `20260920T201524271480Z_cdcnn_v6_7_augmentation_scale_full` | **Completed; augmentation-scale sweep** | Noise magnitude barely matters: scales 0.05–0.5 all stay ~0.01 below no augmentation |
 | `GAS4_predict` | Completed; inference only | Non-timestamped legacy inference directory |
 
 ### Run cleanup record
@@ -170,6 +173,14 @@ strongest single change measured here: +0.1087 target mean on 5/5 seeds, and
 (signed-log, clip) does nothing. Configuration
 `configs/cdcnn_v6_4_input_norm.json`; details and tables in
 [`docs/input-normalization.md`](docs/input-normalization.md).
+
+### Augmentation scale sensitivity (v6.7)
+
+Reducing the A1 noise magnitude twentyfold changes target accuracy by +0.0026 and
+leaves augmentation ~0.01 below the un-augmented backbone, so the penalty is not
+about how much noise is added. Configuration
+`configs/cdcnn_v6_7_augmentation_scale.json`; details in
+[`docs/augmentation-scale.md`](docs/augmentation-scale.md).
 
 ### Paper-literal and augmentation ladder (v6.6)
 
