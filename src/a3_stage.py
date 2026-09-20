@@ -25,10 +25,17 @@ LAYERNORM_STAGES = (
     "A3", "B0-LN", "B0-stab", "A2-stab",
     "B0-LN-PS", "B0-LN-LOG", "B0-LN-CLIP",
     "B0-stab-PS", "A2-stab-PS", "A3-PS",
+    "A1-stab-PS", "A2-lit-PS", "A3-lit-PS",
 )
-STABILIZED_STAGES = ("A3", "B0-stab", "A2-stab", "B0-stab-PS", "A2-stab-PS", "A3-PS")
+STABILIZED_STAGES = (
+    "A3", "B0-stab", "A2-stab", "B0-stab-PS", "A2-stab-PS", "A3-PS",
+    "A1-stab-PS", "A2-lit-PS", "A3-lit-PS",
+)
 # Stages carrying the supervised contrastive term and its projection head.
-CONTRASTIVE_STAGES = ("A3", "A3-PS")
+CONTRASTIVE_STAGES = ("A3", "A3-PS", "A3-lit-PS")
+# Stages restyling the residual branch the paper prints as L (Eqs. 8-9, 15-16),
+# rather than this project's physical-semantic pooled branch.
+PAPER_LITERAL_STAGES = ("A2-paper-literal", "A2-lit-PS", "A3-lit-PS")
 
 A3_STABILITY_DEFAULTS = {
     "applies_to_stage": "A3",

@@ -34,6 +34,10 @@ STAGE_INPUT_TRANSFORMS = {
     "B0-stab-PS": "per_sample",
     "A2-stab-PS": "per_sample",
     "A3-PS": "per_sample",
+    # v6.6: augmentation isolated, and the paper's literal restyled branch.
+    "A1-stab-PS": "per_sample",
+    "A2-lit-PS": "per_sample",
+    "A3-lit-PS": "per_sample",
 }
 
 

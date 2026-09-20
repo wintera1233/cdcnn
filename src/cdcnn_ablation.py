@@ -36,6 +36,7 @@ from src.a3_stage import (
     A3_STABILITY_DEFAULTS,
     A3NumericalStabilizer,
     CONTRASTIVE_STAGES,
+    PAPER_LITERAL_STAGES,
     LAYERNORM_STAGES,
     STABILIZED_STAGES,
     clip_a3_gradients,
@@ -65,12 +66,16 @@ INPUT_STAGES = ("B0-PS", "B0-LN-PS", "B0-LN-LOG", "B0-LN-CLIP")
 # v6.5: each v6.3 ablation step repeated on per-sample-normalized inputs, to
 # test whether the CDCNN components add anything once normalization is fixed.
 NORMALIZED_LADDER_STAGES = ("B0-stab-PS", "A2-stab-PS", "A3-PS")
+# v6.6: augmentation isolated from feature generation, and the paper's literal
+# residual-restyling branch measured at five seeds for the first time.
+LITERAL_LADDER_STAGES = ("A1-stab-PS", "A2-lit-PS", "A3-lit-PS")
 ALL_STAGES = (CANONICAL_STAGES + DIAGNOSTIC_STAGES + CONFOUND_STAGES
-              + INPUT_STAGES + NORMALIZED_LADDER_STAGES)
+              + INPUT_STAGES + NORMALIZED_LADDER_STAGES + LITERAL_LADDER_STAGES)
 CANONICAL_FEATURE_STAGES = ("A2-semantic", "A2-paper-literal", "A3")
-FEATURE_STAGES = CANONICAL_FEATURE_STAGES + ("A2-stab", "A2-stab-PS", "A3-PS")
+FEATURE_STAGES = CANONICAL_FEATURE_STAGES + (
+    "A2-stab", "A2-stab-PS", "A3-PS", "A2-lit-PS", "A3-lit-PS")
 CANONICAL_AUGMENTED_STAGES = ("A1",) + CANONICAL_FEATURE_STAGES
-AUGMENTED_STAGES = ("A1",) + FEATURE_STAGES
+AUGMENTED_STAGES = ("A1", "A1-stab-PS") + FEATURE_STAGES
 CANONICAL_IMPLEMENTATION_VERSION = "CDCNN_v6.3_A3_numerical_stabilization"
 CONFOUND_IMPLEMENTATION_VERSION = "CDCNN_v6.3_A3_confound_ablation"
 INPUT_IMPLEMENTATION_VERSION = "CDCNN_v6.4_input_normalization"
@@ -78,6 +83,8 @@ CONFOUND_EXPERIMENT_STAGES = ("B0", "B0-LN", "B0-stab", "A2-semantic", "A2-stab"
 INPUT_EXPERIMENT_STAGES = ("B0", "B0-LN", "B0-PS", "B0-LN-PS", "B0-LN-LOG", "B0-LN-CLIP")
 NORMALIZED_IMPLEMENTATION_VERSION = "CDCNN_v6.5_cdcnn_on_normalized_inputs"
 NORMALIZED_EXPERIMENT_STAGES = ("B0-LN-PS", "B0-stab-PS", "A2-stab-PS", "A3-PS")
+LITERAL_IMPLEMENTATION_VERSION = "CDCNN_v6.6_paper_literal_and_augmentation"
+LITERAL_EXPERIMENT_STAGES = ("B0-stab-PS", "A1-stab-PS", "A2-lit-PS", "A3-lit-PS")
 # Each shipped configuration pins the stage lists it was written with, as frozen
 # literals rather than references to the growing module tuples: a config file is
 # an immutable artifact whose hash is recorded in completed runs, so adding a
@@ -86,6 +93,8 @@ V63_AUGMENTED_STAGES = ("A1", "A2-semantic", "A2-paper-literal", "A3", "A2-stab"
 V63_FEATURE_STAGES = ("A2-semantic", "A2-paper-literal", "A3", "A2-stab")
 V65_AUGMENTED_STAGES = V63_AUGMENTED_STAGES + ("A2-stab-PS", "A3-PS")
 V65_FEATURE_STAGES = V63_FEATURE_STAGES + ("A2-stab-PS", "A3-PS")
+V66_AUGMENTED_STAGES = ("A1", "A1-stab-PS") + V65_FEATURE_STAGES + ("A2-lit-PS", "A3-lit-PS")
+V66_FEATURE_STAGES = V65_FEATURE_STAGES + ("A2-lit-PS", "A3-lit-PS")
 
 # implementation_version -> (stages, diagnostic_stages, augmented, feature-generating)
 STAGE_SETS = {
@@ -98,6 +107,8 @@ STAGE_SETS = {
         INPUT_EXPERIMENT_STAGES, (), V63_AUGMENTED_STAGES, V63_FEATURE_STAGES),
     NORMALIZED_IMPLEMENTATION_VERSION: (
         NORMALIZED_EXPERIMENT_STAGES, (), V65_AUGMENTED_STAGES, V65_FEATURE_STAGES),
+    LITERAL_IMPLEMENTATION_VERSION: (
+        LITERAL_EXPERIMENT_STAGES, (), V66_AUGMENTED_STAGES, V66_FEATURE_STAGES),
 }
 CONFOUND_ABLATION_DEFINITION = {
     "B0-LN": "B0 with LayerNorm(128) replacing BatchNorm1d(128)",
@@ -214,7 +225,8 @@ def validate_config(cfg: dict) -> None:
     _require_equal(cfg.get("diagnostic_stages"), list(diagnostic_stages), "diagnostic_stages")
     if version == CONFOUND_IMPLEMENTATION_VERSION:
         _require_equal(cfg.get("confound_ablation"), CONFOUND_ABLATION_DEFINITION, "confound_ablation")
-    if version in (INPUT_IMPLEMENTATION_VERSION, NORMALIZED_IMPLEMENTATION_VERSION):
+    if version in (INPUT_IMPLEMENTATION_VERSION, NORMALIZED_IMPLEMENTATION_VERSION,
+                   LITERAL_IMPLEMENTATION_VERSION):
         _require_equal(cfg.get("input_normalization"),
                        {stage: input_transform_for(stage) for stage in stages},
                        "input_normalization")
@@ -451,7 +463,7 @@ class CDCNNModel(nn.Module):
         if self.stage not in FEATURE_STAGES:
             raise ProtocolError(f"Feature generation is disabled for {self.stage}")
         low, high = self.decompose(z_s)
-        if self.stage != "A2-paper-literal":
+        if self.stage not in PAPER_LITERAL_STAGES:
             component, untouched = low, high
             restyled_name = "low_frequency_like_pooled_upsampled"
             untouched_name = "high_frequency_like_residual"
