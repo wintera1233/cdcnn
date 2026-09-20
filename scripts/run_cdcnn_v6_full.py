@@ -32,6 +32,7 @@ from src.cdcnn_ablation import (
     CONFOUND_IMPLEMENTATION_VERSION,
     DataAccessGuard,
     INPUT_IMPLEMENTATION_VERSION,
+    NORMALIZED_IMPLEMENTATION_VERSION,
     LAYERNORM_STAGES,
     ProtocolError,
     STABILIZED_STAGES,
@@ -58,11 +59,13 @@ RUN_SUFFIXES = {
     CANONICAL_IMPLEMENTATION_VERSION: "cdcnn_v6_3_full",
     CONFOUND_IMPLEMENTATION_VERSION: "cdcnn_v6_3_a3_confound_full",
     INPUT_IMPLEMENTATION_VERSION: "cdcnn_v6_4_input_norm_full",
+    NORMALIZED_IMPLEMENTATION_VERSION: "cdcnn_v6_5_normalized_ladder_full",
 }
 REPORT_TITLES = {
     CANONICAL_IMPLEMENTATION_VERSION: "CDCNN v6.3 full experiment report",
     CONFOUND_IMPLEMENTATION_VERSION: "CDCNN v6.3 A3 confound ablation report",
     INPUT_IMPLEMENTATION_VERSION: "CDCNN v6.4 input-normalization report",
+    NORMALIZED_IMPLEMENTATION_VERSION: "CDCNN v6.5 normalized-input ladder report",
 }
 # Optional per-experiment descriptor block: config key -> report section heading.
 REPORT_DESCRIPTORS = {

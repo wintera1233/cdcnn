@@ -10,6 +10,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
+from src.a3_stage import CONTRASTIVE_STAGES
 from src.cdcnn_ablation import (
     ALL_STAGES,
     CDCNNModel,
@@ -97,7 +98,7 @@ class ConfigAndProtocolTests(unittest.TestCase):
             self.assertEqual(tuple(z.shape), (2, 128, 128))
             self.assertEqual(tuple(logits.shape), (2, 6))
             self.assertEqual(sum(isinstance(m, torch.nn.Conv2d) for m in model.modules()), 0)
-            self.assertEqual(model.projection is not None, stage == "A3")
+            self.assertEqual(model.projection is not None, stage in CONTRASTIVE_STAGES)
 
     def test_same_seed_gives_identical_shared_initialization(self):
         states = {}

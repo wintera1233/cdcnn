@@ -24,8 +24,11 @@ from src.protocol import ProtocolError
 LAYERNORM_STAGES = (
     "A3", "B0-LN", "B0-stab", "A2-stab",
     "B0-LN-PS", "B0-LN-LOG", "B0-LN-CLIP",
+    "B0-stab-PS", "A2-stab-PS", "A3-PS",
 )
-STABILIZED_STAGES = ("A3", "B0-stab", "A2-stab")
+STABILIZED_STAGES = ("A3", "B0-stab", "A2-stab", "B0-stab-PS", "A2-stab-PS", "A3-PS")
+# Stages carrying the supervised contrastive term and its projection head.
+CONTRASTIVE_STAGES = ("A3", "A3-PS")
 
 A3_STABILITY_DEFAULTS = {
     "applies_to_stage": "A3",

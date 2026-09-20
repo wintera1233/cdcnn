@@ -30,6 +30,10 @@ STAGE_INPUT_TRANSFORMS = {
     "B0-LN-PS": "per_sample",
     "B0-LN-LOG": "signed_log",
     "B0-LN-CLIP": "clip",
+    # v6.5: the confound ladder rebuilt on per-sample-normalized inputs.
+    "B0-stab-PS": "per_sample",
+    "A2-stab-PS": "per_sample",
+    "A3-PS": "per_sample",
 }
 
 

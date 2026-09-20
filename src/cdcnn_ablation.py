@@ -35,6 +35,7 @@ from torch.utils.data import DataLoader, TensorDataset
 from src.a3_stage import (
     A3_STABILITY_DEFAULTS,
     A3NumericalStabilizer,
+    CONTRASTIVE_STAGES,
     LAYERNORM_STAGES,
     STABILIZED_STAGES,
     clip_a3_gradients,
@@ -61,9 +62,13 @@ CONFOUND_STAGES = ("B0-LN", "B0-stab", "A2-stab")
 # v6.4 input-normalization ladder: identical backbones, different handling of
 # the scaled input. See docs/input-normalization.md.
 INPUT_STAGES = ("B0-PS", "B0-LN-PS", "B0-LN-LOG", "B0-LN-CLIP")
-ALL_STAGES = CANONICAL_STAGES + DIAGNOSTIC_STAGES + CONFOUND_STAGES + INPUT_STAGES
+# v6.5: each v6.3 ablation step repeated on per-sample-normalized inputs, to
+# test whether the CDCNN components add anything once normalization is fixed.
+NORMALIZED_LADDER_STAGES = ("B0-stab-PS", "A2-stab-PS", "A3-PS")
+ALL_STAGES = (CANONICAL_STAGES + DIAGNOSTIC_STAGES + CONFOUND_STAGES
+              + INPUT_STAGES + NORMALIZED_LADDER_STAGES)
 CANONICAL_FEATURE_STAGES = ("A2-semantic", "A2-paper-literal", "A3")
-FEATURE_STAGES = CANONICAL_FEATURE_STAGES + ("A2-stab",)
+FEATURE_STAGES = CANONICAL_FEATURE_STAGES + ("A2-stab", "A2-stab-PS", "A3-PS")
 CANONICAL_AUGMENTED_STAGES = ("A1",) + CANONICAL_FEATURE_STAGES
 AUGMENTED_STAGES = ("A1",) + FEATURE_STAGES
 CANONICAL_IMPLEMENTATION_VERSION = "CDCNN_v6.3_A3_numerical_stabilization"
@@ -71,15 +76,28 @@ CONFOUND_IMPLEMENTATION_VERSION = "CDCNN_v6.3_A3_confound_ablation"
 INPUT_IMPLEMENTATION_VERSION = "CDCNN_v6.4_input_normalization"
 CONFOUND_EXPERIMENT_STAGES = ("B0", "B0-LN", "B0-stab", "A2-semantic", "A2-stab", "A3")
 INPUT_EXPERIMENT_STAGES = ("B0", "B0-LN", "B0-PS", "B0-LN-PS", "B0-LN-LOG", "B0-LN-CLIP")
+NORMALIZED_IMPLEMENTATION_VERSION = "CDCNN_v6.5_cdcnn_on_normalized_inputs"
+NORMALIZED_EXPERIMENT_STAGES = ("B0-LN-PS", "B0-stab-PS", "A2-stab-PS", "A3-PS")
+# Each shipped configuration pins the stage lists it was written with, as frozen
+# literals rather than references to the growing module tuples: a config file is
+# an immutable artifact whose hash is recorded in completed runs, so adding a
+# stage later must never change what an older config is required to contain.
+V63_AUGMENTED_STAGES = ("A1", "A2-semantic", "A2-paper-literal", "A3", "A2-stab")
+V63_FEATURE_STAGES = ("A2-semantic", "A2-paper-literal", "A3", "A2-stab")
+V65_AUGMENTED_STAGES = V63_AUGMENTED_STAGES + ("A2-stab-PS", "A3-PS")
+V65_FEATURE_STAGES = V63_FEATURE_STAGES + ("A2-stab-PS", "A3-PS")
+
 # implementation_version -> (stages, diagnostic_stages, augmented, feature-generating)
 STAGE_SETS = {
     CANONICAL_IMPLEMENTATION_VERSION: (
         CANONICAL_STAGES, DIAGNOSTIC_STAGES,
         CANONICAL_AUGMENTED_STAGES, CANONICAL_FEATURE_STAGES),
     CONFOUND_IMPLEMENTATION_VERSION: (
-        CONFOUND_EXPERIMENT_STAGES, (), AUGMENTED_STAGES, FEATURE_STAGES),
+        CONFOUND_EXPERIMENT_STAGES, (), V63_AUGMENTED_STAGES, V63_FEATURE_STAGES),
     INPUT_IMPLEMENTATION_VERSION: (
-        INPUT_EXPERIMENT_STAGES, (), AUGMENTED_STAGES, FEATURE_STAGES),
+        INPUT_EXPERIMENT_STAGES, (), V63_AUGMENTED_STAGES, V63_FEATURE_STAGES),
+    NORMALIZED_IMPLEMENTATION_VERSION: (
+        NORMALIZED_EXPERIMENT_STAGES, (), V65_AUGMENTED_STAGES, V65_FEATURE_STAGES),
 }
 CONFOUND_ABLATION_DEFINITION = {
     "B0-LN": "B0 with LayerNorm(128) replacing BatchNorm1d(128)",
@@ -196,7 +214,7 @@ def validate_config(cfg: dict) -> None:
     _require_equal(cfg.get("diagnostic_stages"), list(diagnostic_stages), "diagnostic_stages")
     if version == CONFOUND_IMPLEMENTATION_VERSION:
         _require_equal(cfg.get("confound_ablation"), CONFOUND_ABLATION_DEFINITION, "confound_ablation")
-    if version == INPUT_IMPLEMENTATION_VERSION:
+    if version in (INPUT_IMPLEMENTATION_VERSION, NORMALIZED_IMPLEMENTATION_VERSION):
         _require_equal(cfg.get("input_normalization"),
                        {stage: input_transform_for(stage) for stage in stages},
                        "input_normalization")
@@ -396,7 +414,8 @@ class CDCNNModel(nn.Module):
             nn.LayerNorm(128) if stage in LAYERNORM_STAGES else nn.BatchNorm1d(128))
         self.fc128 = nn.Sequential(nn.Linear(128 * 128, 128), feature_norm)
         self.fc6 = nn.Linear(128, 6)
-        self.projection = nn.Linear(128, projection_dim) if stage == "A3" else None
+        self.projection = (
+            nn.Linear(128, projection_dim) if stage in CONTRASTIVE_STAGES else None)
         forbidden_layer = getattr(nn, "Conv" + "2d")
         if any(isinstance(module, forbidden_layer) for module in self.modules()):
             raise ProtocolError("CDCNN v6 forbids two-dimensional convolution layers")
@@ -532,7 +551,7 @@ def compute_loss(model: CDCNNModel, outputs: dict, y: torch.Tensor, cfg: dict) -
     mse = probability_consistency_mse(outputs["original_logits"], outputs["generated_logits"])
     contrastive = zero
     total = ce + cfg["loss"]["lambda_mse"] * mse
-    if model.stage == "A3":
+    if model.stage in CONTRASTIVE_STAGES:
         contrastive = contrastive_term(model, outputs, y, cfg)
         total = total + cfg["loss"]["lambda_contrastive"] * contrastive
     return {"total": total, "ce": ce, "mse": mse, "contrastive": contrastive}
