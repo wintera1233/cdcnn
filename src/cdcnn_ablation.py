@@ -69,13 +69,17 @@ NORMALIZED_LADDER_STAGES = ("B0-stab-PS", "A2-stab-PS", "A3-PS")
 # v6.6: augmentation isolated from feature generation, and the paper's literal
 # residual-restyling branch measured at five seeds for the first time.
 LITERAL_LADDER_STAGES = ("A1-stab-PS", "A2-lit-PS", "A3-lit-PS")
-ALL_STAGES = (CANONICAL_STAGES + DIAGNOSTIC_STAGES + CONFOUND_STAGES
-              + INPUT_STAGES + NORMALIZED_LADDER_STAGES + LITERAL_LADDER_STAGES)
+# v6.7: A1 augmentation noise magnitude. The paper's Eq. (7) has no multiplier,
+# so 1.0 is canonical and anything else is a declared sensitivity experiment.
+SCALE_LADDER_STAGES = ("A1-PS-s50", "A1-PS-s20", "A1-PS-s05")
+STAGE_PERTURBATION_SCALES = {"A1-PS-s50": 0.5, "A1-PS-s20": 0.2, "A1-PS-s05": 0.05}
+ALL_STAGES = (CANONICAL_STAGES + DIAGNOSTIC_STAGES + CONFOUND_STAGES + INPUT_STAGES
+              + NORMALIZED_LADDER_STAGES + LITERAL_LADDER_STAGES + SCALE_LADDER_STAGES)
 CANONICAL_FEATURE_STAGES = ("A2-semantic", "A2-paper-literal", "A3")
 FEATURE_STAGES = CANONICAL_FEATURE_STAGES + (
     "A2-stab", "A2-stab-PS", "A3-PS", "A2-lit-PS", "A3-lit-PS")
 CANONICAL_AUGMENTED_STAGES = ("A1",) + CANONICAL_FEATURE_STAGES
-AUGMENTED_STAGES = ("A1", "A1-stab-PS") + FEATURE_STAGES
+AUGMENTED_STAGES = ("A1", "A1-stab-PS") + SCALE_LADDER_STAGES + FEATURE_STAGES
 CANONICAL_IMPLEMENTATION_VERSION = "CDCNN_v6.3_A3_numerical_stabilization"
 CONFOUND_IMPLEMENTATION_VERSION = "CDCNN_v6.3_A3_confound_ablation"
 INPUT_IMPLEMENTATION_VERSION = "CDCNN_v6.4_input_normalization"
@@ -85,6 +89,8 @@ NORMALIZED_IMPLEMENTATION_VERSION = "CDCNN_v6.5_cdcnn_on_normalized_inputs"
 NORMALIZED_EXPERIMENT_STAGES = ("B0-LN-PS", "B0-stab-PS", "A2-stab-PS", "A3-PS")
 LITERAL_IMPLEMENTATION_VERSION = "CDCNN_v6.6_paper_literal_and_augmentation"
 LITERAL_EXPERIMENT_STAGES = ("B0-stab-PS", "A1-stab-PS", "A2-lit-PS", "A3-lit-PS")
+SCALE_IMPLEMENTATION_VERSION = "CDCNN_v6.7_augmentation_scale"
+SCALE_EXPERIMENT_STAGES = ("A1-PS-s50", "A1-PS-s20", "A1-PS-s05")
 # Each shipped configuration pins the stage lists it was written with, as frozen
 # literals rather than references to the growing module tuples: a config file is
 # an immutable artifact whose hash is recorded in completed runs, so adding a
@@ -95,6 +101,8 @@ V65_AUGMENTED_STAGES = V63_AUGMENTED_STAGES + ("A2-stab-PS", "A3-PS")
 V65_FEATURE_STAGES = V63_FEATURE_STAGES + ("A2-stab-PS", "A3-PS")
 V66_AUGMENTED_STAGES = ("A1", "A1-stab-PS") + V65_FEATURE_STAGES + ("A2-lit-PS", "A3-lit-PS")
 V66_FEATURE_STAGES = V65_FEATURE_STAGES + ("A2-lit-PS", "A3-lit-PS")
+V67_AUGMENTED_STAGES = ("A1", "A1-stab-PS") + SCALE_LADDER_STAGES + V66_FEATURE_STAGES
+V67_FEATURE_STAGES = V66_FEATURE_STAGES
 
 # implementation_version -> (stages, diagnostic_stages, augmented, feature-generating)
 STAGE_SETS = {
@@ -109,6 +117,8 @@ STAGE_SETS = {
         NORMALIZED_EXPERIMENT_STAGES, (), V65_AUGMENTED_STAGES, V65_FEATURE_STAGES),
     LITERAL_IMPLEMENTATION_VERSION: (
         LITERAL_EXPERIMENT_STAGES, (), V66_AUGMENTED_STAGES, V66_FEATURE_STAGES),
+    SCALE_IMPLEMENTATION_VERSION: (
+        SCALE_EXPERIMENT_STAGES, (), V67_AUGMENTED_STAGES, V67_FEATURE_STAGES),
 }
 CONFOUND_ABLATION_DEFINITION = {
     "B0-LN": "B0 with LayerNorm(128) replacing BatchNorm1d(128)",
@@ -223,10 +233,14 @@ def validate_config(cfg: dict) -> None:
     stages, diagnostic_stages, augmented_stages, feature_stages = STAGE_SETS[version]
     _require_equal(cfg.get("stages"), list(stages), "stages")
     _require_equal(cfg.get("diagnostic_stages"), list(diagnostic_stages), "diagnostic_stages")
+    if version == SCALE_IMPLEMENTATION_VERSION:
+        _require_equal(cfg.get("a1_perturbation_scales"),
+                       {stage: perturbation_scale_for(stage) for stage in stages},
+                       "a1_perturbation_scales")
     if version == CONFOUND_IMPLEMENTATION_VERSION:
         _require_equal(cfg.get("confound_ablation"), CONFOUND_ABLATION_DEFINITION, "confound_ablation")
     if version in (INPUT_IMPLEMENTATION_VERSION, NORMALIZED_IMPLEMENTATION_VERSION,
-                   LITERAL_IMPLEMENTATION_VERSION):
+                   LITERAL_IMPLEMENTATION_VERSION, SCALE_IMPLEMENTATION_VERSION):
         _require_equal(cfg.get("input_normalization"),
                        {stage: input_transform_for(stage) for stage in stages},
                        "input_normalization")
@@ -345,6 +359,11 @@ class DataAccessGuard:
         return loaded
 
 
+def perturbation_scale_for(stage: str) -> float:
+    """Canonical 1.0 unless the stage declares a sensitivity scale."""
+    return STAGE_PERTURBATION_SCALES.get(stage, 1.0)
+
+
 def generate_a1_views(
     standardized_x: np.ndarray,
     y: np.ndarray,
@@ -352,6 +371,7 @@ def generate_a1_views(
     line_numbers: np.ndarray,
     seed: int,
     context: str,
+    perturbation_scale: float = 1.0,
 ) -> tuple[np.ndarray, pd.DataFrame]:
     """Generate one fixed v6 A1 view using variance mixing, never std mixing."""
     if standardized_x.shape != (len(y), 128):
@@ -375,7 +395,8 @@ def generate_a1_views(
         mu_mix = lam * mu_j + (1.0 - lam) * mu_k
         var_mix = lam * var_j + (1.0 - lam) * var_k
         noise = rng.normal(loc=mu_mix, scale=math.sqrt(var_mix), size=128)
-        result[anchor] = standardized_x[anchor] + noise
+        # Canonical scale is exactly 1.0, so this multiplication is a no-op there.
+        result[anchor] = standardized_x[anchor] + perturbation_scale * noise
         anchor_source = int(source_indices[anchor])
         partner_source = int(source_indices[partner])
         rows.append({
@@ -388,6 +409,7 @@ def generate_a1_views(
             "anchor_variance": var_j, "partner_variance": var_k,
             "mixed_mean": mu_mix, "mixed_variance": var_mix,
             "normal_api_scale": math.sqrt(var_mix), "seed": seed,
+            "perturbation_scale": perturbation_scale,
             "same_class": bool(y[anchor] == y[partner]),
             "non_self": bool(anchor_source != partner_source),
             "generated_label": int(y[anchor]),
@@ -588,7 +610,8 @@ def _training_arrays(
     if stage not in AUGMENTED_STAGES:
         return scaled, y, pd.DataFrame()
     augmented, provenance = generate_a1_views(
-        scaled, y, source_indices, line_numbers, augmentation_seed, context)
+        scaled, y, source_indices, line_numbers, augmentation_seed, context,
+        perturbation_scale_for(stage))
     return np.concatenate([scaled, augmented]), np.concatenate([y, y]), provenance
 
 

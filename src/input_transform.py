@@ -38,6 +38,10 @@ STAGE_INPUT_TRANSFORMS = {
     "A1-stab-PS": "per_sample",
     "A2-lit-PS": "per_sample",
     "A3-lit-PS": "per_sample",
+    # v6.7: A1 augmentation at reduced noise magnitude.
+    "A1-PS-s50": "per_sample",
+    "A1-PS-s20": "per_sample",
+    "A1-PS-s05": "per_sample",
 }
 
 

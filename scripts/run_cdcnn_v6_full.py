@@ -34,6 +34,7 @@ from src.cdcnn_ablation import (
     INPUT_IMPLEMENTATION_VERSION,
     LITERAL_IMPLEMENTATION_VERSION,
     NORMALIZED_IMPLEMENTATION_VERSION,
+    SCALE_IMPLEMENTATION_VERSION,
     LAYERNORM_STAGES,
     ProtocolError,
     STABILIZED_STAGES,
@@ -62,6 +63,7 @@ RUN_SUFFIXES = {
     INPUT_IMPLEMENTATION_VERSION: "cdcnn_v6_4_input_norm_full",
     NORMALIZED_IMPLEMENTATION_VERSION: "cdcnn_v6_5_normalized_ladder_full",
     LITERAL_IMPLEMENTATION_VERSION: "cdcnn_v6_6_paper_literal_full",
+    SCALE_IMPLEMENTATION_VERSION: "cdcnn_v6_7_augmentation_scale_full",
 }
 REPORT_TITLES = {
     CANONICAL_IMPLEMENTATION_VERSION: "CDCNN v6.3 full experiment report",
@@ -69,11 +71,13 @@ REPORT_TITLES = {
     INPUT_IMPLEMENTATION_VERSION: "CDCNN v6.4 input-normalization report",
     NORMALIZED_IMPLEMENTATION_VERSION: "CDCNN v6.5 normalized-input ladder report",
     LITERAL_IMPLEMENTATION_VERSION: "CDCNN v6.6 paper-literal and augmentation report",
+    SCALE_IMPLEMENTATION_VERSION: "CDCNN v6.7 augmentation-scale report",
 }
 # Optional per-experiment descriptor block: config key -> report section heading.
 REPORT_DESCRIPTORS = {
     "confound_ablation": "Confound ablation definitions",
     "input_normalization": "Input transform per stage",
+    "a1_perturbation_scales": "A1 augmentation noise scale per stage",
 }
 
 
