@@ -109,3 +109,42 @@ class InputTransformTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ReportGenerationTests(unittest.TestCase):
+    """Every shipped configuration must be able to render its final report."""
+
+    def test_write_report_succeeds_for_every_config(self):
+        import tempfile
+
+        import pandas as pd
+
+        from scripts.run_cdcnn_v6_full import config_stages, write_report
+
+        for name in ("cdcnn_v6.json", "cdcnn_v6_3_a3_confound.json",
+                     "cdcnn_v6_4_input_norm.json"):
+            cfg = json.loads((ROOT / "configs" / name).read_text(encoding="utf-8"))
+            stages, seeds = config_stages(cfg), cfg["seeds"]
+            metrics = pd.DataFrame([
+                {"stage": s, "seed": seed, "batch": b, "samples": 10, "correct": 5,
+                 "accuracy": 0.5}
+                for s in stages for seed in seeds for b in range(2, 11)])
+            predictions = pd.DataFrame([
+                {"stage": s, "seed": seed, "batch": b, "sample_id": f"{s}{seed}{b}",
+                 "correct": True}
+                for s in stages for seed in seeds for b in range(2, 11)])
+            cv = pd.DataFrame([
+                {"stage": s, "seed": seed, "fold": f, "accuracy": 0.9}
+                for s in stages for seed in seeds for f in range(1, 6)])
+            confusions = pd.DataFrame([
+                {"stage": s, "seed": seed, "batch": b, "true_gas_label": t,
+                 "predicted_gas_label": p, "count": 1}
+                for s in stages for seed in seeds for b in range(2, 11)
+                for t in range(1, 7) for p in range(1, 7)])
+            with tempfile.TemporaryDirectory() as tmp:
+                write_report(Path(tmp), metrics, predictions, cv, confusions, [], cfg)
+                report = (Path(tmp) / "experiment_report_v6_3.md").read_text(encoding="utf-8")
+            self.assertIn(stages[0], report, name)
+            for key in ("confound_ablation", "input_normalization"):
+                if cfg.get(key):
+                    self.assertIn(next(iter(cfg[key])), report, f"{name}:{key}")

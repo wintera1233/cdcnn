@@ -59,6 +59,30 @@ RUN_SUFFIXES = {
     CONFOUND_IMPLEMENTATION_VERSION: "cdcnn_v6_3_a3_confound_full",
     INPUT_IMPLEMENTATION_VERSION: "cdcnn_v6_4_input_norm_full",
 }
+REPORT_TITLES = {
+    CANONICAL_IMPLEMENTATION_VERSION: "CDCNN v6.3 full experiment report",
+    CONFOUND_IMPLEMENTATION_VERSION: "CDCNN v6.3 A3 confound ablation report",
+    INPUT_IMPLEMENTATION_VERSION: "CDCNN v6.4 input-normalization report",
+}
+# Optional per-experiment descriptor block: config key -> report section heading.
+REPORT_DESCRIPTORS = {
+    "confound_ablation": "Confound ablation definitions",
+    "input_normalization": "Input transform per stage",
+}
+
+
+def describe_experiment(cfg: dict) -> str:
+    """Render whichever experiment descriptor block the config carries."""
+    sections = []
+    for key, heading in REPORT_DESCRIPTORS.items():
+        block = cfg.get(key)
+        if not block:
+            continue
+        sections.append(
+            f"## {heading}\n\n"
+            + "\n".join(f"- `{name}`: {value}" for name, value in block.items())
+            + "\n\nAll other settings are identical to the canonical v6.3 configuration.\n")
+    return "\n".join(sections) + "\n" if sections else ""
 
 
 def stage_slug(stage: str) -> str:
@@ -480,12 +504,9 @@ def write_report(out: Path, metrics: pd.DataFrame, predictions: pd.DataFrame,
         failure_text = "No failures were recorded."
 
     stages = config_stages(cfg)
-    canonical = cfg["implementation_version"] == CANONICAL_IMPLEMENTATION_VERSION
-    title = "CDCNN v6.3 full experiment report" if canonical else "CDCNN v6.3 A3 confound ablation report"
-    confound_text = "" if canonical else (
-        "## Confound ablation definitions\n\n"
-        + "\n".join(f"- `{key}`: {value}" for key, value in cfg["confound_ablation"].items())
-        + "\n\nAll other settings are identical to the canonical v6.3 configuration.\n\n")
+    version = cfg["implementation_version"]
+    title = REPORT_TITLES.get(version, f"CDCNN experiment report ({version})")
+    confound_text = describe_experiment(cfg)
     report = f"""# {title}
 
 ## Outcome

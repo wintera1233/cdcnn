@@ -1,6 +1,6 @@
 # Exploratory PCA for the UCI Gas Sensor Array Drift Dataset
 
-The repository covers exploratory PCA and dataset validation, two retained historical SVM baselines, and the CDCNN v6.3 drift experiments. A completed five-seed v6.3 four-stage run is retained (`20260911T092326995583Z_cdcnn_v6_3_full`), and a completed A3 confound ablation (`20260915T025701880293Z_cdcnn_v6_3_a3_confound_full`) shows that A3's target-accuracy gain comes from its LayerNorm swap rather than from contrastive learning. Retained results are not authorization to train or tune further; each new training run needs an explicit request. Baseline settings are project settings, not verified settings from the paper.
+The repository covers exploratory PCA and dataset validation, two retained historical SVM baselines, and the CDCNN v6.3 drift experiments. A completed five-seed v6.3 four-stage run is retained (`20260911T092326995583Z_cdcnn_v6_3_full`), a completed A3 confound ablation (`20260915T025701880293Z_cdcnn_v6_3_a3_confound_full`) showing that A3's target-accuracy gain comes from its LayerNorm swap rather than from contrastive learning, and a completed input-normalization ladder whose best stage `B0-LN-PS` reaches 0.5569 target mean with no CDCNN component at all. A running record of changes is in [`docs/change-log.md`](docs/change-log.md). Retained results are not authorization to train or tune further; each new training run needs an explicit request. Baseline settings are project settings, not verified settings from the paper.
 
 ## Environment
 
@@ -53,6 +53,11 @@ The following table is the complete inventory of retained directories under `run
 | `20260915T025623543707Z_cdcnn_v6_3_batch1_smoke` | Passed; Batch-1-only mode smoke | Eight-mode check including the confound stages |
 | `20260915T025641199413Z_v6_3_b0_batch1_gpu_smoke` | Passed; Batch-1-only CUDA gate | Gate for the A3 confound ablation |
 | `20260915T025701880293Z_cdcnn_v6_3_a3_confound_full` | **Completed; six-stage A3 confound ablation** | Attributes A3's gain: LayerNorm +0.0845, contrastive loss +0.0029 target mean |
+| `20260920T165723700086Z_cdcnn_v6_3_batch1_smoke` | Passed; Batch-1-only mode smoke | Twelve-mode check after the A3 code split |
+| `20260920T172614291493Z_cdcnn_v6_3_batch1_smoke` | Passed; Batch-1-only mode smoke | Twelve-mode check including the v6.4 input stages |
+| `20260920T172700916776Z_v6_3_b0_batch1_gpu_smoke` | Passed; Batch-1-only CUDA gate | Gate for the v6.4 input-normalization run |
+| `20260920T172721243924Z_cdcnn_v6_4_input_norm_full` | Source phase complete; target phase failed | All 30 checkpoints frozen and evaluated; report generation raised `KeyError` and the attempt is retained as evidence |
+| `20260920T181354711407Z_cdcnn_v6_4_input_norm_eval` | **Completed; v6.4 input-normalization evaluation** | Best result in the project: `B0-LN-PS` 0.5569 target mean, 0.9933 Batch 1 CV |
 | `GAS4_predict` | Completed; inference only | Non-timestamped legacy inference directory |
 
 ### Run cleanup record
@@ -150,6 +155,15 @@ python scripts/run_cdcnn_v6_full.py launch \
   --max-workers 1 \
   --gpu-smoke-run runs/<passing_b0_batch1_gpu_smoke>
 ```
+
+### Input normalization (v6.4)
+
+Per-sample input normalization, applied after the Batch-1 scaler, is the
+strongest single change measured here: +0.1087 target mean on 5/5 seeds, and
++0.1492 when combined with LayerNorm. Bounding extreme values instead
+(signed-log, clip) does nothing. Configuration
+`configs/cdcnn_v6_4_input_norm.json`; details and tables in
+[`docs/input-normalization.md`](docs/input-normalization.md).
 
 ### A3 confound ablation
 
