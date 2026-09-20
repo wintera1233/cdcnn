@@ -29,7 +29,7 @@ Page numbers refer to `Sensors and Actuators: A. Physical 372 (2024) 115314`.
 | Momentum 0.9, lr 0.001, StepLR 0.5 every 25 epochs | No exact value shown in the provided paper/appendix | Project-controlled settings |
 | Input augmentation and variance mixing | Main text Section 3, Eqs. (5)–(7); Appendix Fig. S5 | Paper-supported at equation level; same-class pairing is a project assumption |
 | A2 MSE consistency | Appendix S1 Eq. (S4); S2 | Paper-supported; computed on softmax probabilities |
-| Contrastive projection and unit-sphere normalization | Appendix S1 Eq. (S5) | Paper-supported at objective level; head architecture and temperature are project choices |
+| Contrastive projection and unit-sphere normalization | Appendix S1 Eq. (S5); main text Fig. 2 | Paper-supported at objective level. Fig. 2 applies the contrast loss to the ResNet-5 output before FC128 and shows no learned head; this project projects the post-FC128 feature through a learned linear head. Head architecture and temperature are project choices |
 | Batch 1 source and Batches 2–10 targets | Main text Section 5.2, p. 5; Fig. S7; Appendix S4 | Paper-supported; the strict load-order audit is project protocol |
 
 ## A2 Dual-Implementation Definition
@@ -162,8 +162,12 @@ $$\mu_{low}=\operatorname{mean}(z_{low},\operatorname{axis}=\mathrm{length}),$$
 $$\sigma_{low}=\sqrt{\operatorname{var}(z_{low},\operatorname{axis}=\mathrm{length})+\epsilon}.$$
 
 The resulting shapes are `[B, 128, 1]`, using population variance (`ddof=0`).
-This is the A2-semantic AdaIN adaptation; it is not a literal implementation of
-the paper's printed Eqs. (10)–(11), which reduce over both channel and length.
+This is the A2-semantic AdaIN adaptation. The paper is not self-consistent here:
+its printed Eqs. (10)–(11) reduce over both channel and length, giving one scalar
+per sample, while the sentence that follows states that the same quantities live
+in $\mathbb{R}^{B\times CH}$, i.e. one value per channel-length element. The
+project's per-channel `[B, 128, 1]` form is neither literal reading and is a
+declared adaptation. See `docs/paper-vs-implementation.md`.
 
 ### Positivity-guaranteed style sampling
 
@@ -188,6 +192,12 @@ $$\sigma'=\exp(\log\sigma').$$
 
 Softplus and clipping are not alternative canonical implementations. All sampled
 statistics must be generated from source-training data only.
+
+The paper's own rule is Eq. (14), $\delta'_s\sim\mathcal{N}(\tilde\mu^L_s,\tilde\delta^L_s)$,
+an ordinary Gaussian that can return a negative scale; the log-normal rule above
+is the project's positivity-guaranteed replacement. The paper's Eq. (16) also
+divides by $\delta^L_s$, which its Eq. (11) defines as a variance, whereas this
+project divides by $\sqrt{\operatorname{var}+\epsilon}$.
 
 ### Restyling and recombination
 
