@@ -4,6 +4,28 @@ Branch `exp/a3-confound-ablation`, newest first. Each entry records what changed
 why, and what was verified. Run directories are never overwritten; each
 experiment writes its own.
 
+## v6.5 normalized-input ladder — results (2026-09-20)
+
+**Result.** The CDCNN components do not help even on per-sample-normalized
+inputs. Augmentation plus feature generation costs −0.0224 (1/5 seeds improved),
+the contrastive loss costs −0.0049 (2/5), and together they cost −0.0229 against
+the plain normalized backbone. Input conditioning was therefore not what held
+them back: the same steps measured −0.0328 and +0.0029 on unnormalized inputs.
+Per-sample inputs do lift the full CDCNN model by +0.0738 (A3 0.4602 to A3-PS
+0.5340), confirming the effect is the normalization, not the method. Selected
+stage under the source-only rule remains `B0-LN-PS` (best CV 0.9933).
+Details in `docs/normalized-input-ladder.md`.
+
+## v6.5 normalized-input ladder — implementation (commit `5e36d9e`)
+
+Stages `B0-LN-PS -> B0-stab-PS -> A2-stab-PS -> A3-PS`, one component per step,
+all on per-sample-normalized inputs; `A3-PS` equals v6.3 A3 plus the transform.
+The projection head and contrastive term now follow a `CONTRASTIVE_STAGES`
+membership tuple. Each shipped config pins its stage lists as frozen literals so
+that adding a stage later cannot change what an older config must contain; the
+three existing configs keep their hashes. Verified 42/42 tests, all twelve
+pre-existing stages bit-identical, fifteen-mode smoke suite.
+
 ## v6.4 input normalization — results (2026-09-20)
 
 **Result.** Per-sample input normalization is the strongest single change

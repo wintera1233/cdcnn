@@ -99,12 +99,14 @@ stage: B8 (+0.450), B6 (+0.444), B5 (+0.331), B7 (+0.234).
 
 Each is source-only and fits the existing ladder.
 
-1. **Input normalization.** The unspecified "Normal" block is the most likely
-   home of the 0.23 baseline gap, and the confound ablation already showed that
-   per-sample normalization at FC128 (LayerNorm) is worth +0.0845 by itself. Try
-   per-sample normalization of the 128-dim input, and a Batch-1-fixed signed-log
-   or clipping transform for the extreme values (Batch 2 reaches `|z| = 14757`
-   under the current scaler). Cheapest and highest expected value.
+1. ~~**Input normalization.**~~ **Done (v6.4, v6.5).** Per-sample input
+   normalization is worth +0.1087 target mean on 5/5 seeds and +0.1492 combined
+   with LayerNorm, taking the project best from 0.4922 to 0.5569; signed-log and
+   clipping do nothing, so the mechanism is removing each sample's offset and
+   gain rather than bounding extreme values. Repeating the ablation ladder on
+   normalized inputs (v6.5) showed the CDCNN components remain
+   neutral-to-negative, so poor input conditioning was not what held them back.
+   See `docs/input-normalization.md` and `docs/normalized-input-ladder.md`.
 2. **Run the paper-literal decomposition at five seeds.** Add an
    `A3-paper-literal` stage and run it alongside `A2-paper-literal`. Until then
    no canonical result in this project restyles the branch the paper restyles.

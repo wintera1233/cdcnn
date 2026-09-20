@@ -58,6 +58,9 @@ The following table is the complete inventory of retained directories under `run
 | `20260920T172700916776Z_v6_3_b0_batch1_gpu_smoke` | Passed; Batch-1-only CUDA gate | Gate for the v6.4 input-normalization run |
 | `20260920T172721243924Z_cdcnn_v6_4_input_norm_full` | Source phase complete; target phase failed | All 30 checkpoints frozen and evaluated; report generation raised `KeyError` and the attempt is retained as evidence |
 | `20260920T181354711407Z_cdcnn_v6_4_input_norm_eval` | **Completed; v6.4 input-normalization evaluation** | Best result in the project: `B0-LN-PS` 0.5569 target mean, 0.9933 Batch 1 CV |
+| `20260920T182017231402Z_cdcnn_v6_3_batch1_smoke` | Passed; Batch-1-only mode smoke | Fifteen-mode check including the v6.5 ladder stages |
+| `20260920T182044094409Z_v6_3_b0_batch1_gpu_smoke` | Passed; Batch-1-only CUDA gate | Gate for the v6.5 normalized-input ladder |
+| `20260920T182057522943Z_cdcnn_v6_5_normalized_ladder_full` | **Completed; four-stage normalized-input ladder** | CDCNN components remain neutral-to-negative once inputs are normalized |
 | `GAS4_predict` | Completed; inference only | Non-timestamped legacy inference directory |
 
 ### Run cleanup record
@@ -164,6 +167,14 @@ strongest single change measured here: +0.1087 target mean on 5/5 seeds, and
 (signed-log, clip) does nothing. Configuration
 `configs/cdcnn_v6_4_input_norm.json`; details and tables in
 [`docs/input-normalization.md`](docs/input-normalization.md).
+
+### Normalized-input ladder (v6.5)
+
+Repeating each v6.3 ablation step on per-sample-normalized inputs shows the
+CDCNN components are still neutral-to-negative: augmentation plus feature
+generation −0.0224, contrastive loss −0.0049. Input conditioning was not what
+held them back. Configuration `configs/cdcnn_v6_5_normalized_ladder.json`;
+details in [`docs/normalized-input-ladder.md`](docs/normalized-input-ladder.md).
 
 ### A3 confound ablation
 
