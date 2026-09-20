@@ -4,6 +4,26 @@ Branch `exp/a3-confound-ablation`, newest first. Each entry records what changed
 why, and what was verified. Run directories are never overwritten; each
 experiment writes its own.
 
+## v6.6 paper-literal and augmentation ladder — results (2026-09-20)
+
+**Result.** Augmentation alone is the harmful component: −0.0131 target mean,
+improving on 1/5 seeds. The paper's own restyled branch beats this project's
+semantic choice on 5/5 seeds (+0.0137 for A2, +0.0201 for A3), so the
+physical-semantic renaming in the v6 specification costs accuracy. Feature
+generation turns mildly positive on the paper's branch (+0.0044, 4/5), and the
+contrastive loss stays neutral (+0.0016, 3/5). The full paper-literal model is
+still −0.0071 against the plain backbone because augmentation dominates.
+`B0-stab-PS` reproduced bit-identically across the v6.5 and v6.6 runs, evidence
+that cross-run stage comparisons in this environment are exact.
+Details in `docs/paper-literal-ladder.md`.
+
+## v6.6 paper-literal ladder — implementation (commit `64eb69f`)
+
+Stages `B0-stab-PS -> A1-stab-PS -> A2-lit-PS -> A3-lit-PS`, isolating
+augmentation for the first time and measuring the paper's residual-restyling
+branch at five seeds. Branch choice follows a `PAPER_LITERAL_STAGES` membership
+tuple. Verified 47/47 tests, fifteen pre-existing stages bit-identical.
+
 ## v6.5 normalized-input ladder — results (2026-09-20)
 
 **Result.** The CDCNN components do not help even on per-sample-normalized

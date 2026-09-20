@@ -61,6 +61,9 @@ The following table is the complete inventory of retained directories under `run
 | `20260920T182017231402Z_cdcnn_v6_3_batch1_smoke` | Passed; Batch-1-only mode smoke | Fifteen-mode check including the v6.5 ladder stages |
 | `20260920T182044094409Z_v6_3_b0_batch1_gpu_smoke` | Passed; Batch-1-only CUDA gate | Gate for the v6.5 normalized-input ladder |
 | `20260920T182057522943Z_cdcnn_v6_5_normalized_ladder_full` | **Completed; four-stage normalized-input ladder** | CDCNN components remain neutral-to-negative once inputs are normalized |
+| `20260920T191600735756Z_cdcnn_v6_3_batch1_smoke` | Passed; Batch-1-only mode smoke | Eighteen-mode check including the v6.6 stages |
+| `20260920T191622505529Z_v6_3_b0_batch1_gpu_smoke` | Passed; Batch-1-only CUDA gate | Gate for the v6.6 paper-literal ladder |
+| `20260920T191634939156Z_cdcnn_v6_6_paper_literal_full` | **Completed; paper-literal and augmentation ladder** | Augmentation alone −0.0131; the paper's restyled branch beats the project's semantic branch on 5/5 seeds |
 | `GAS4_predict` | Completed; inference only | Non-timestamped legacy inference directory |
 
 ### Run cleanup record
@@ -167,6 +170,14 @@ strongest single change measured here: +0.1087 target mean on 5/5 seeds, and
 (signed-log, clip) does nothing. Configuration
 `configs/cdcnn_v6_4_input_norm.json`; details and tables in
 [`docs/input-normalization.md`](docs/input-normalization.md).
+
+### Paper-literal and augmentation ladder (v6.6)
+
+Isolating A1 augmentation shows it is the component that hurts (−0.0131), and
+restyling the branch the paper actually restyles — the residual, its L — beats
+this project's semantic pooled-branch choice on 5/5 seeds (+0.0137 for A2,
++0.0201 for A3). Configuration `configs/cdcnn_v6_6_paper_literal.json`; details
+in [`docs/paper-literal-ladder.md`](docs/paper-literal-ladder.md).
 
 ### Normalized-input ladder (v6.5)
 

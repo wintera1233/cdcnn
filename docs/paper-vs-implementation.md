@@ -107,9 +107,13 @@ Each is source-only and fits the existing ladder.
    normalized inputs (v6.5) showed the CDCNN components remain
    neutral-to-negative, so poor input conditioning was not what held them back.
    See `docs/input-normalization.md` and `docs/normalized-input-ladder.md`.
-2. **Run the paper-literal decomposition at five seeds.** Add an
-   `A3-paper-literal` stage and run it alongside `A2-paper-literal`. Until then
-   no canonical result in this project restyles the branch the paper restyles.
+2. ~~**Run the paper-literal decomposition at five seeds.**~~ **Done (v6.6).**
+   Restyling the paper's residual branch beats this project's semantic pooled
+   branch on 5/5 seeds: +0.0137 target mean for A2 and +0.0201 for A3. Feature
+   generation also turns mildly positive (+0.0044) once the paper's branch is
+   used. The same run isolated A1 augmentation for the first time and found it
+   is the component that hurts (−0.0131, 1/5 seeds).
+   See `docs/paper-literal-ladder.md`.
 3. **Move the contrastive loss to `z_f` and drop the learned head**, matching
    Fig. 2 and S1. Cheap, and it changes what the term actually regularizes.
 4. **Test the statistics axis**: scalar per sample (the literal equations)

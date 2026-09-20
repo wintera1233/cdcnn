@@ -55,6 +55,14 @@ and restyles $z_{\mathrm{low}}$. These are different generated-feature
 procedures because they restyle different branches; they are not merely different
 variable names.
 
+**Empirical note (2026-09-20).** The paper-literal procedure is the more accurate
+of the two. Measured on per-sample-normalized inputs over five seeds, restyling
+the paper's residual branch beats restyling the pooled branch by +0.0137 target
+mean at the A2 stage and +0.0201 at the A3 stage, improving on 5/5 seeds in both
+cases (`docs/paper-literal-ladder.md`). The canonical stage definitions above are
+unchanged pending a decision, but the physical-semantic choice should no longer
+be described as cost-free.
+
 ## Experiment Sequence
 
 | ID | Model | Added component | Objective |
