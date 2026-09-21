@@ -106,8 +106,11 @@ SCALE_EXPERIMENT_STAGES = ("A1-PS-s50", "A1-PS-s20", "A1-PS-s05")
 DUPLICATION_IMPLEMENTATION_VERSION = "CDCNN_v6.8_duplication_control"
 DUPLICATION_EXPERIMENT_STAGES = ("A1-PS-s00",)
 ALIGNED_IMPLEMENTATION_VERSION = "CDCNN_v6.9_epoch_aligned"
+# A1-stab-PS is the unaligned counterpart of A1-aln-PS and is trained in the same
+# run so that the aligned-versus-unaligned comparison is not made across software
+# environments; see docs/gpu-fault-20260921.md.
 ALIGNED_EXPERIMENT_STAGES = (
-    "B0-stab-PS", "A1-aln-PS", "A2-lit-aln-PS", "A3-lit-aln-PS")
+    "B0-stab-PS", "A1-stab-PS", "A1-aln-PS", "A2-lit-aln-PS", "A3-lit-aln-PS")
 # Each shipped configuration pins the stage lists it was written with, as frozen
 # literals rather than references to the growing module tuples: a config file is
 # an immutable artifact whose hash is recorded in completed runs, so adding a

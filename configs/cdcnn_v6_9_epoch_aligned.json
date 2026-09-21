@@ -35,6 +35,7 @@
   "output_root": "runs",
   "stages": [
     "B0-stab-PS",
+    "A1-stab-PS",
     "A1-aln-PS",
     "A2-lit-aln-PS",
     "A3-lit-aln-PS"
@@ -42,12 +43,14 @@
   "diagnostic_stages": [],
   "input_normalization": {
     "B0-stab-PS": "per_sample",
+    "A1-stab-PS": "per_sample",
     "A1-aln-PS": "per_sample",
     "A2-lit-aln-PS": "per_sample",
     "A3-lit-aln-PS": "per_sample"
   },
   "epoch_alignment": {
     "B0-stab-PS": false,
+    "A1-stab-PS": false,
     "A1-aln-PS": true,
     "A2-lit-aln-PS": true,
     "A3-lit-aln-PS": true
@@ -57,6 +60,7 @@
     "fix": "aligned stages draw one source-sized subset (445 rows) of the augmented pool per epoch, without repeats inside an epoch",
     "unchanged": "100 epochs, batch size 64, SGD and StepLR settings, seeds, folds, and the epoch-100 checkpoint",
     "coverage": "every pooled row is drawn across the 100 epochs; each row is seen about half as often as under the unaligned schedule",
+    "in_run_control": "A1-stab-PS is the unaligned counterpart of A1-aln-PS, trained in this run so the comparison is within one environment",
     "evidence": "docs/duplication-control.md"
   },
   "seeds": [
