@@ -26,7 +26,7 @@ When evidence still conflicts, stop and present the conflict instead of silently
 - `src/cv_folds.py`: validates saved Batch 1 folds, sample identities, labels, line numbers, full coverage, and duplicate-group isolation.
 - `runs/20260906T085010Z_pca_svm/cv_fold_assignments.csv`: persisted source-fold dependency used by v6.3. Verify it through `load_folds`; do not regenerate casually.
 
-Gas mapping: 1 Ethanol, 2 Ethylene, 3 Ammonia, 4 Acetaldehyde, 5 Acetone, 6 Toluene.
+Gas mapping: 1 Acetone, 2 Acetaldehyde, 3 Ethanol, 4 Ethylene, 5 Ammonia, 6 Toluene. Verified against the paper's Table 2 per-gas counts in all ten batches (`docs/per-class-failure.md`). An earlier mapping here, in `configs/pca.json` and in two plotting scripts was wrong, so gas names and figure legends in artifacts produced before 2026-09-22 are mislabelled. Accuracy numbers are unaffected: nothing in the training or evaluation path uses gas names.
 
 ## Current CDCNN surfaces
 

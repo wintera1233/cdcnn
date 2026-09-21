@@ -29,11 +29,13 @@ STAGE = "A3"
 TARGET_BATCH = 2
 TARGET_LABEL = 4
 GAS_NAMES = {
-    1: "Ethanol",
-    2: "Ethylene",
-    3: "Ammonia",
-    4: "Acetaldehyde",
-    5: "Acetone",
+    # Verified against the paper's Table 2 counts in all ten batches;
+    # see docs/per-class-failure.md. The earlier mapping here was wrong.
+    1: "Acetone",
+    2: "Acetaldehyde",
+    3: "Ethanol",
+    4: "Ethylene",
+    5: "Ammonia",
     6: "Toluene",
 }
 
