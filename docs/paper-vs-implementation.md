@@ -95,6 +95,16 @@ stage: B8 (+0.450), B6 (+0.444), B5 (+0.331), B7 (+0.234).
    reading. This project's `A2-semantic` renames them; `A2-paper-literal`
    preserves the paper's assignment.
 
+## The paper's own per-class result
+
+Fig. S3's CDCNN confusion matrix has one class with a zero diagonal. Matching
+both readings of its labels against the paper's per-batch accuracies favours the
+reading in which that class is **Ethylene** — the same class this project never
+predicts, and which the SVM baselines also miss. Under that reading the paper
+holds Ammonia at 0.94 and Toluene at 0.92 where this project loses both after
+Batch 5, and its CDCNN-over-CDWC gain is concentrated in Toluene (0.27 to 0.92).
+See `docs/per-class-failure.md`.
+
 ## Improvement points, ranked
 
 Each is source-only and fits the existing ladder.

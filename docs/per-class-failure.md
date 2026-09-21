@@ -98,6 +98,58 @@ Nothing in this project has yet addressed class imbalance. Batch 1 is imbalanced
 augmentation generates one view per sample, so it preserves the imbalance exactly
 rather than correcting it.
 
+## The paper has a dead class too
+
+Fig. S3 of the supplement (extracted to `docs/paper/figS3_confusion.png`) gives
+the confusion matrices of CDCNN and CDWC. The CDCNN matrix has **one class with a
+zero diagonal**: the row printed as Acetaldehyde puts 1.00 of its mass in the
+column printed as Ethanol.
+
+Which class that actually is depends on whether their figure uses the same
+label-to-gas mapping this project had wrong. Testing both readings against their
+own per-batch accuracies:
+
+| Reading | Dead class | Implied target mean | Mean abs error vs their per-batch row |
+|---|---|---:|---:|
+| labels as printed | Acetaldehyde | 0.741 | 0.147 |
+| their plot used the wrong mapping | **Ethylene** | 0.805 | **0.097** |
+
+The second reading fits better everywhere and reproduces their Batch 6 exactly
+(0.93 implied, 0.9318 reported). Neither reading can match every batch, because a
+matrix pooled over all batches averages away per-batch drift — but the ordering
+of fit is clear.
+
+Under that reading, the paper's per-gas recalls are:
+
+| Gas | paper CDCNN | paper CDWC | this project (`B0-stab-PS`) |
+|---|---:|---:|---:|
+| Acetone | 0.97 | 0.88 | ~0.90 |
+| Acetaldehyde | 0.95 | 0.87 | ~0.80 |
+| Ethanol | 0.91 | 0.87 | ~0.87 |
+| **Ethylene** | **0.00** | **0.00** | **0.00** |
+| Ammonia | 0.94 | 0.85 | 0.11–0.99, collapsing after Batch 5 |
+| Toluene | 0.92 | 0.27 | 0.00–0.13 after Batch 5 |
+
+Three things follow.
+
+1. **Ethylene is dead for them too.** The class this project never predicts is
+   also absent from the paper's CDCNN diagonal, and from its CDWC. Our
+   9,530-sample zero is not an implementation failure; it reproduces their
+   result.
+2. **The real gap is Ammonia and Toluene.** They hold both near 0.9 across all
+   batches; this project holds them until Batch 5 and then loses them. That, not
+   Ethylene, is what separates 0.56 from 0.72.
+3. **Their contrastive gain is one class.** CDCNN improves on CDWC mostly through
+   Toluene, 0.27 to 0.92, with smaller gains elsewhere. In this project the
+   contrastive term moves nothing (−0.005 to +0.003) and Toluene stays near
+   zero. Whatever recovers Toluene in their run is the specific thing this
+   reproduction has not reproduced.
+
+This reframes the remaining work: the question is not "why is our CDCNN weak"
+but "what keeps Ammonia and Toluene alive after Batch 5", which is where the
+paper's advantage is concentrated and where its own contrastive ablation shows
+the largest single-class difference.
+
 ## Next step this suggests
 
 Class-balanced training, selectable on Batch 1 CV alone and therefore inside the
