@@ -1230,6 +1230,10 @@ def main() -> None:
     pilot_launch.add_argument("--max-workers", type=int, default=1)
     pilot_launch.add_argument("--max-attempts", type=int, default=2)
     pilot_launch.add_argument("--gpu-smoke-run", required=True)
+    pilot_launch.add_argument(
+        "--foreground", action="store_true",
+        help="Run the controller in this process instead of detaching it, so a "
+             "container stays alive for the duration of the run.")
     smoke = sub.add_parser("gpu-smoke")
     smoke.add_argument("--config", default="configs/cdcnn_v6.json")
     worker = sub.add_parser("source-worker")
@@ -1263,7 +1267,7 @@ def main() -> None:
     elif args.command == "pilot-launch":
         out, pid = launch(
             args.config, args.max_workers, args.max_attempts, args.gpu_smoke_run,
-            seeds=(args.seed,), report_kind="one_seed_pilot")
+            seeds=(args.seed,), report_kind="one_seed_pilot", foreground=args.foreground)
         print(json.dumps({"run_dir": str(out), "controller_pid": pid}))
     elif args.command == "gpu-smoke":
         print(run_gpu_smoke(args.config))
