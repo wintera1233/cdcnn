@@ -70,6 +70,8 @@ The following table is the complete inventory of retained directories under `run
 | `20260920T204952623150Z_cdcnn_v6_3_batch1_smoke` | Passed; Batch-1-only mode smoke | Twenty-two-mode check including the duplication control |
 | `20260920T205025054689Z_v6_3_b0_batch1_gpu_smoke` | Passed; Batch-1-only CUDA gate | Gate for the v6.8 duplication control |
 | `20260920T205038327586Z_cdcnn_v6_8_duplication_control_full` | **Completed; duplication control** | Exact duplicates cost the same as augmentation: the A1 penalty is a doubled-schedule artefact |
+| `20260921T014945430161Z_cdcnn_v6_9_epoch_aligned_full` | Failed; GPU fault | Five anchor checkpoints completed, then an Xid 31 MMU fault killed every aligned task; retained as evidence ([`docs/gpu-fault-20260921.md`](docs/gpu-fault-20260921.md)) |
+| `20260921T145852844886Z_cdcnn_v6_9_epoch_aligned_full` | **Completed; epoch-aligned ladder (container)** | Step alignment recovers about a third of the augmentation penalty; CDCNN components become mildly positive and seed variance drops |
 | `GAS4_predict` | Completed; inference only | Non-timestamped legacy inference directory |
 
 ### Run cleanup record
@@ -176,6 +178,18 @@ strongest single change measured here: +0.1087 target mean on 5/5 seeds, and
 (signed-log, clip) does nothing. Configuration
 `configs/cdcnn_v6_4_input_norm.json`; details and tables in
 [`docs/input-normalization.md`](docs/input-normalization.md).
+
+### Epoch alignment (v6.9)
+
+Aligned stages draw one source-sized subset of the augmented pool per epoch, so
+they take the same optimizer and scheduler steps as an un-augmented stage.
+Matching steps recovers about a third of the augmentation penalty; the remainder
+reflects halved per-sample exposure, which cannot be held constant at the same
+time. Under alignment the CDCNN components stop being negative and seed variance
+drops sharply. Not adopted as canonical; see
+[`docs/epoch-alignment.md`](docs/epoch-alignment.md). Training now runs in the
+pinned container (`docker/Dockerfile`); see
+[`docs/gpu-fault-20260921.md`](docs/gpu-fault-20260921.md).
 
 ### Duplication control (v6.8) — protocol issue
 

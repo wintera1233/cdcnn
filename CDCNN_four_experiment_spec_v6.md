@@ -125,6 +125,16 @@ A3 are unaffected, because all of those arms are augmented. Resolving this
 requires a protocol decision — matched optimizer steps, matched rows per epoch,
 or a declared step-matched sensitivity arm — and none has been adopted.
 
+A step-matched schedule has since been measured as the separate implementation
+version `CDCNN_v6.9_epoch_aligned`, in which augmented stages draw one
+source-sized subset of their pool per epoch. It recovers about a third of the
+augmentation penalty (+0.0043 target mean), leaves augmentation −0.0089 against
+no augmentation, turns the feature-generation and contrastive steps mildly
+positive, and reduces the seed spread from 0.0364 to 0.0136. It is not canonical:
+with twice the data at a fixed epoch budget, optimizer steps and per-sample
+exposure cannot both be held constant, so each schedule holds a different
+quantity fixed (`docs/epoch-alignment.md`).
+
 ## A1 Input Data Augmentation
 
 This section follows the paper's Section 3 and Eqs. (5)–(7). For each source

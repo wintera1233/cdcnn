@@ -20,11 +20,11 @@ also tightens the seed spread monotonically, from 0.0364 for the anchor to
 0.0136 for the full aligned model — the most stable stage trained here.
 
 The alignment is a separate implementation version and has **not** been adopted
-as canonical;  records both schedules and what each
+as canonical; `docs/epoch-alignment.md` records both schedules and what each
 holds constant.
 
 **Environment.** Run in the pinned container after the Xid 31 fault; the anchor
- reproduced bit-identically against the host stack (torch
+`B0-stab-PS` reproduced bit-identically against the host stack (torch
 2.8.0+cu126 vs 2.5.1+cu121), all five seeds and all folds.
 
 ## v6.8 duplication control — results (2026-09-20)
