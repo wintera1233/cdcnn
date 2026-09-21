@@ -10,7 +10,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
-from src.a3_stage import CONTRASTIVE_STAGES
+from src.a3_stage import CONTRASTIVE_ON_ZF_STAGES, CONTRASTIVE_STAGES
 from src.cdcnn_ablation import (
     ALL_STAGES,
     CDCNNModel,
@@ -98,7 +98,11 @@ class ConfigAndProtocolTests(unittest.TestCase):
             self.assertEqual(tuple(z.shape), (2, 128, 128))
             self.assertEqual(tuple(logits.shape), (2, 6))
             self.assertEqual(sum(isinstance(m, torch.nn.Conv2d) for m in model.modules()), 0)
-            self.assertEqual(model.projection is not None, stage in CONTRASTIVE_STAGES)
+            # A learned head exists only for this project's post-FC128 placement;
+            # the paper's pre-FC128 placement normalizes the latent directly.
+            self.assertEqual(
+                model.projection is not None,
+                stage in CONTRASTIVE_STAGES and stage not in CONTRASTIVE_ON_ZF_STAGES)
 
     def test_same_seed_gives_identical_shared_initialization(self):
         states = {}

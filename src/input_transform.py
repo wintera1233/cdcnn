@@ -48,6 +48,8 @@ STAGE_INPUT_TRANSFORMS = {
     "A1-aln-PS": "per_sample",
     "A2-lit-aln-PS": "per_sample",
     "A3-lit-aln-PS": "per_sample",
+    # v6.10: the paper's pre-FC128 contrastive placement.
+    "A3-zf-aln-PS": "per_sample",
 }
 
 

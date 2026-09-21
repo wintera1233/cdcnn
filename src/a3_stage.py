@@ -27,20 +27,25 @@ LAYERNORM_STAGES = (
     "B0-stab-PS", "A2-stab-PS", "A3-PS",
     "A1-stab-PS", "A2-lit-PS", "A3-lit-PS",
     "A1-PS-s50", "A1-PS-s20", "A1-PS-s05", "A1-PS-s00",
-    "A1-aln-PS", "A2-lit-aln-PS", "A3-lit-aln-PS",
+    "A1-aln-PS", "A2-lit-aln-PS", "A3-lit-aln-PS", "A3-zf-aln-PS",
 )
 STABILIZED_STAGES = (
     "A3", "B0-stab", "A2-stab", "B0-stab-PS", "A2-stab-PS", "A3-PS",
     "A1-stab-PS", "A2-lit-PS", "A3-lit-PS",
     "A1-PS-s50", "A1-PS-s20", "A1-PS-s05", "A1-PS-s00",
-    "A1-aln-PS", "A2-lit-aln-PS", "A3-lit-aln-PS",
+    "A1-aln-PS", "A2-lit-aln-PS", "A3-lit-aln-PS", "A3-zf-aln-PS",
 )
 # Stages carrying the supervised contrastive term and its projection head.
-CONTRASTIVE_STAGES = ("A3", "A3-PS", "A3-lit-PS", "A3-lit-aln-PS")
+CONTRASTIVE_STAGES = ("A3", "A3-PS", "A3-lit-PS", "A3-lit-aln-PS", "A3-zf-aln-PS")
+# Fig. 2 feeds the ResNet-5 output z_f, before FC128, into the contrast loss, and
+# S1 describes P only as a map to the unit sphere. These stages follow that
+# placement; the others use this project's learned post-FC128 projection head.
+CONTRASTIVE_ON_ZF_STAGES = ("A3-zf-aln-PS",)
 # Stages restyling the residual branch the paper prints as L (Eqs. 8-9, 15-16),
 # rather than this project's physical-semantic pooled branch.
 PAPER_LITERAL_STAGES = (
-    "A2-paper-literal", "A2-lit-PS", "A3-lit-PS", "A2-lit-aln-PS", "A3-lit-aln-PS")
+    "A2-paper-literal", "A2-lit-PS", "A3-lit-PS", "A2-lit-aln-PS", "A3-lit-aln-PS",
+    "A3-zf-aln-PS")
 
 A3_STABILITY_DEFAULTS = {
     "applies_to_stage": "A3",
@@ -110,13 +115,19 @@ def supervised_contrastive_mean(
 
 
 def contrastive_term(model, outputs: dict, y: torch.Tensor, cfg: dict) -> torch.Tensor:
-    """Project both branches into one 2B set and return the A3 contrastive loss.
+    """Combine both branches into one 2B set and return the A3 contrastive loss.
 
     The generated view carries the anchor's ground-truth label; no pseudo-label
-    is ever produced.
+    is ever produced. Stages in `CONTRASTIVE_ON_ZF_STAGES` take the paper's
+    pre-FC128 latent and rely on the unit-sphere normalization inside
+    `supervised_contrastive_mean`; the others use the learned projection head.
     """
-    projected = model.project_contrastive(torch.cat(
-        [outputs["original_features"], outputs["generated_features"]], dim=0))
+    if model.stage in CONTRASTIVE_ON_ZF_STAGES:
+        projected = model.bound_contrastive(torch.cat(
+            [outputs["original_latent"], outputs["generated_latent"]], dim=0))
+    else:
+        projected = model.project_contrastive(torch.cat(
+            [outputs["original_features"], outputs["generated_features"]], dim=0))
     contrastive_labels = torch.cat([y, y], dim=0)
     return supervised_contrastive_mean(
         projected, contrastive_labels, cfg["loss"]["contrastive_temperature"])

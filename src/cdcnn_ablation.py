@@ -35,6 +35,7 @@ from torch.utils.data import DataLoader, RandomSampler, TensorDataset
 from src.a3_stage import (
     A3_STABILITY_DEFAULTS,
     A3NumericalStabilizer,
+    CONTRASTIVE_ON_ZF_STAGES,
     CONTRASTIVE_STAGES,
     PAPER_LITERAL_STAGES,
     LAYERNORM_STAGES,
@@ -76,7 +77,9 @@ SCALE_LADDER_STAGES = ("A1-PS-s50", "A1-PS-s20", "A1-PS-s05", "A1-PS-s00")
 # per epoch, so they take the same number of optimizer and scheduler steps as an
 # un-augmented stage. Without this, 890 training rows under a fixed 100-epoch
 # budget give augmented stages twice the updates; see docs/duplication-control.md.
-EPOCH_ALIGNED_STAGES = ("A1-aln-PS", "A2-lit-aln-PS", "A3-lit-aln-PS")
+# v6.10 adds A3-zf-aln-PS, which puts the contrastive loss where Fig. 2 does:
+# on the pre-FC128 latent, with no learned projection head.
+EPOCH_ALIGNED_STAGES = ("A1-aln-PS", "A2-lit-aln-PS", "A3-lit-aln-PS", "A3-zf-aln-PS")
 # Scale 0.0 is the duplication control: the generated view is an exact copy of
 # its anchor, so it isolates the doubled dataset and optimizer-step count from
 # the augmentation noise itself.
@@ -88,7 +91,7 @@ ALL_STAGES = (CANONICAL_STAGES + DIAGNOSTIC_STAGES + CONFOUND_STAGES + INPUT_STA
 CANONICAL_FEATURE_STAGES = ("A2-semantic", "A2-paper-literal", "A3")
 FEATURE_STAGES = CANONICAL_FEATURE_STAGES + (
     "A2-stab", "A2-stab-PS", "A3-PS", "A2-lit-PS", "A3-lit-PS",
-    "A2-lit-aln-PS", "A3-lit-aln-PS")
+    "A2-lit-aln-PS", "A3-lit-aln-PS", "A3-zf-aln-PS")
 CANONICAL_AUGMENTED_STAGES = ("A1",) + CANONICAL_FEATURE_STAGES
 AUGMENTED_STAGES = (
     ("A1", "A1-stab-PS", "A1-aln-PS") + SCALE_LADDER_STAGES + FEATURE_STAGES)
@@ -111,6 +114,8 @@ ALIGNED_IMPLEMENTATION_VERSION = "CDCNN_v6.9_epoch_aligned"
 # environments; see docs/gpu-fault-20260921.md.
 ALIGNED_EXPERIMENT_STAGES = (
     "B0-stab-PS", "A1-stab-PS", "A1-aln-PS", "A2-lit-aln-PS", "A3-lit-aln-PS")
+ZF_IMPLEMENTATION_VERSION = "CDCNN_v6.10_contrastive_placement"
+ZF_EXPERIMENT_STAGES = ("A2-lit-aln-PS", "A3-lit-aln-PS", "A3-zf-aln-PS")
 # Each shipped configuration pins the stage lists it was written with, as frozen
 # literals rather than references to the growing module tuples: a config file is
 # an immutable artifact whose hash is recorded in completed runs, so adding a
@@ -128,8 +133,10 @@ V68_AUGMENTED_STAGES = (
     "A1", "A1-stab-PS", "A1-PS-s50", "A1-PS-s20", "A1-PS-s05",
     "A1-PS-s00") + V66_FEATURE_STAGES
 V68_FEATURE_STAGES = V66_FEATURE_STAGES
-V69_AUGMENTED_STAGES = AUGMENTED_STAGES
-V69_FEATURE_STAGES = FEATURE_STAGES
+V69_AUGMENTED_STAGES = tuple(s for s in AUGMENTED_STAGES if s != "A3-zf-aln-PS")
+V69_FEATURE_STAGES = tuple(s for s in FEATURE_STAGES if s != "A3-zf-aln-PS")
+V610_AUGMENTED_STAGES = AUGMENTED_STAGES
+V610_FEATURE_STAGES = FEATURE_STAGES
 
 # implementation_version -> (stages, diagnostic_stages, augmented, feature-generating)
 STAGE_SETS = {
@@ -150,6 +157,8 @@ STAGE_SETS = {
         DUPLICATION_EXPERIMENT_STAGES, (), V68_AUGMENTED_STAGES, V68_FEATURE_STAGES),
     ALIGNED_IMPLEMENTATION_VERSION: (
         ALIGNED_EXPERIMENT_STAGES, (), V69_AUGMENTED_STAGES, V69_FEATURE_STAGES),
+    ZF_IMPLEMENTATION_VERSION: (
+        ZF_EXPERIMENT_STAGES, (), V610_AUGMENTED_STAGES, V610_FEATURE_STAGES),
 }
 CONFOUND_ABLATION_DEFINITION = {
     "B0-LN": "B0 with LayerNorm(128) replacing BatchNorm1d(128)",
@@ -264,7 +273,13 @@ def validate_config(cfg: dict) -> None:
     stages, diagnostic_stages, augmented_stages, feature_stages = STAGE_SETS[version]
     _require_equal(cfg.get("stages"), list(stages), "stages")
     _require_equal(cfg.get("diagnostic_stages"), list(diagnostic_stages), "diagnostic_stages")
-    if version == ALIGNED_IMPLEMENTATION_VERSION:
+    if version == ZF_IMPLEMENTATION_VERSION:
+        _require_equal(cfg.get("contrastive_placement"),
+                       {stage: ("pre_fc128_unit_sphere" if stage in CONTRASTIVE_ON_ZF_STAGES
+                                else "post_fc128_projection_head" if stage in CONTRASTIVE_STAGES
+                                else "none") for stage in stages},
+                       "contrastive_placement")
+    if version in (ALIGNED_IMPLEMENTATION_VERSION, ZF_IMPLEMENTATION_VERSION):
         _require_equal(cfg.get("epoch_alignment"),
                        {stage: stage in EPOCH_ALIGNED_STAGES for stage in stages},
                        "epoch_alignment")
@@ -276,7 +291,8 @@ def validate_config(cfg: dict) -> None:
         _require_equal(cfg.get("confound_ablation"), CONFOUND_ABLATION_DEFINITION, "confound_ablation")
     if version in (INPUT_IMPLEMENTATION_VERSION, NORMALIZED_IMPLEMENTATION_VERSION,
                    LITERAL_IMPLEMENTATION_VERSION, SCALE_IMPLEMENTATION_VERSION,
-                   DUPLICATION_IMPLEMENTATION_VERSION, ALIGNED_IMPLEMENTATION_VERSION):
+                   DUPLICATION_IMPLEMENTATION_VERSION, ALIGNED_IMPLEMENTATION_VERSION,
+                   ZF_IMPLEMENTATION_VERSION):
         _require_equal(cfg.get("input_normalization"),
                        {stage: input_transform_for(stage) for stage in stages},
                        "input_normalization")
@@ -485,7 +501,8 @@ class CDCNNModel(nn.Module):
         self.fc128 = nn.Sequential(nn.Linear(128 * 128, 128), feature_norm)
         self.fc6 = nn.Linear(128, 6)
         self.projection = (
-            nn.Linear(128, projection_dim) if stage in CONTRASTIVE_STAGES else None)
+            nn.Linear(128, projection_dim)
+            if stage in CONTRASTIVE_STAGES and stage not in CONTRASTIVE_ON_ZF_STAGES else None)
         forbidden_layer = getattr(nn, "Conv" + "2d")
         if any(isinstance(module, forbidden_layer) for module in self.modules()):
             raise ProtocolError("CDCNN v6 forbids two-dimensional convolution layers")
@@ -497,12 +514,16 @@ class CDCNNModel(nn.Module):
                 x = self.a3_stabilizer.clamp_residual(x)
         return x
 
-    def forward_tail_features(self, z: torch.Tensor) -> torch.Tensor:
+    def forward_tail_latent(self, z: torch.Tensor) -> torch.Tensor:
+        """Flattened ResNet-5 output: the paper's z_f, before FC128."""
         for block in self.blocks[3:]:
             z = block(z)
             if self.a3_stabilizer is not None:
                 z = self.a3_stabilizer.clamp_residual(z)
-        return self.fc128(self.flatten(z))
+        return self.flatten(z)
+
+    def forward_tail_features(self, z: torch.Tensor) -> torch.Tensor:
+        return self.fc128(self.forward_tail_latent(z))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.fc6(self.forward_tail_features(self.forward_to_block3(x)))
@@ -580,6 +601,12 @@ class CDCNNModel(nn.Module):
             "untouched_component_name": untouched_name,
         }
 
+    def bound_contrastive(self, features: torch.Tensor) -> torch.Tensor:
+        """Bound the paper's pre-FC128 latent; no learned head, as in Fig. 2."""
+        if self.a3_stabilizer is None:
+            return features
+        return self.a3_stabilizer.clamp_contrastive(features)
+
     def project_contrastive(self, features: torch.Tensor) -> torch.Tensor:
         """Bound both sides of the A3 projection to keep similarities finite."""
         if self.a3_stabilizer is None or self.projection is None:
@@ -595,15 +622,21 @@ class CDCNNModel(nn.Module):
             raise ValueError("Feature stages require an explicit torch.Generator")
         original_z = self.forward_to_block3(x)
         generated_z, details = self.generate_features(original_z, generator)
-        combined_features = self.forward_tail_features(torch.cat([original_z, generated_z], dim=0))
+        combined_latent = self.forward_tail_latent(torch.cat([original_z, generated_z], dim=0))
+        combined_features = self.fc128(combined_latent)
         original_features, generated_features = combined_features.split(len(x), dim=0)
-        return {
+        outputs = {
             "original_logits": self.fc6(original_features),
             "generated_logits": self.fc6(generated_features),
             "original_features": original_features,
             "generated_features": generated_features,
             "generation": details,
         }
+        if self.stage in CONTRASTIVE_ON_ZF_STAGES:
+            original_latent, generated_latent = combined_latent.split(len(x), dim=0)
+            outputs["original_latent"] = original_latent
+            outputs["generated_latent"] = generated_latent
+        return outputs
 
 
 def probability_consistency_mse(original_logits: torch.Tensor, generated_logits: torch.Tensor) -> torch.Tensor:
