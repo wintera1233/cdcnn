@@ -1,6 +1,10 @@
 # Exploratory PCA for the UCI Gas Sensor Array Drift Dataset
 
-The repository covers exploratory PCA and dataset validation, two retained historical SVM baselines, and the CDCNN v6.3 drift experiments. A completed five-seed v6.3 four-stage run is retained (`20260911T092326995583Z_cdcnn_v6_3_full`), a completed A3 confound ablation (`20260915T025701880293Z_cdcnn_v6_3_a3_confound_full`) showing that A3's target-accuracy gain comes from its LayerNorm swap rather than from contrastive learning, and a completed input-normalization ladder whose best stage `B0-LN-PS` reaches 0.5569 target mean with no CDCNN component at all. A running record of changes is in [`docs/change-log.md`](docs/change-log.md). Retained results are not authorization to train or tune further; each new training run needs an explicit request. Baseline settings are project settings, not verified settings from the paper.
+The repository covers exploratory PCA and dataset validation, two retained historical SVM baselines, and the CDCNN v6.3 drift experiments. A completed five-seed v6.3 four-stage run is retained (`20260911T092326995583Z_cdcnn_v6_3_full`), a completed A3 confound ablation (`20260915T025701880293Z_cdcnn_v6_3_a3_confound_full`) showing that A3's target-accuracy gain comes from its LayerNorm swap rather than from contrastive learning, and a completed input-normalization ladder whose best stage `B0-LN-PS` reaches 0.5569 target mean with no CDCNN component at all. The narrative of how the reproduction went is in
+[`docs/development-journal.md`](docs/development-journal.md), the consolidated
+Batches 2-10 results for every approach in
+[`docs/all-results.md`](docs/all-results.md), and a running record of changes in
+[`docs/change-log.md`](docs/change-log.md). Retained results are not authorization to train or tune further; each new training run needs an explicit request. Baseline settings are project settings, not verified settings from the paper.
 
 ## Environment
 
