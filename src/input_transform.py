@@ -50,6 +50,9 @@ STAGE_INPUT_TRANSFORMS = {
     "A3-lit-aln-PS": "per_sample",
     # v6.10: the paper's pre-FC128 contrastive placement.
     "A3-zf-aln-PS": "per_sample",
+    # v6.11: class-imbalance handling on the best backbone.
+    "B0-wce-PS": "per_sample",
+    "B0-bal-PS": "per_sample",
 }
 
 

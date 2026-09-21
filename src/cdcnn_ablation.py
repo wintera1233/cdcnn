@@ -30,7 +30,7 @@ import torch.nn.functional as F
 from sklearn.metrics import accuracy_score, confusion_matrix
 from sklearn.preprocessing import StandardScaler
 from torch import nn
-from torch.utils.data import DataLoader, RandomSampler, TensorDataset
+from torch.utils.data import DataLoader, RandomSampler, TensorDataset, WeightedRandomSampler
 
 from src.a3_stage import (
     A3_STABILITY_DEFAULTS,
@@ -77,6 +77,13 @@ SCALE_LADDER_STAGES = ("A1-PS-s50", "A1-PS-s20", "A1-PS-s05", "A1-PS-s00")
 # per epoch, so they take the same number of optimizer and scheduler steps as an
 # un-augmented stage. Without this, 890 training rows under a fixed 100-epoch
 # budget give augmented stages twice the updates; see docs/duplication-control.md.
+# v6.11: Batch 1 is imbalanced (30 to 98 samples per gas) and nothing in this
+# project has addressed that. Ethylene, its smallest class, is never predicted on
+# any target batch; see docs/per-class-failure.md.
+CLASS_WEIGHTED_STAGES = ("B0-wce-PS",)
+BALANCED_SAMPLING_STAGES = ("B0-bal-PS",)
+BALANCED_STAGES = CLASS_WEIGHTED_STAGES + BALANCED_SAMPLING_STAGES
+
 # v6.10 adds A3-zf-aln-PS, which puts the contrastive loss where Fig. 2 does:
 # on the pre-FC128 latent, with no learned projection head.
 EPOCH_ALIGNED_STAGES = ("A1-aln-PS", "A2-lit-aln-PS", "A3-lit-aln-PS", "A3-zf-aln-PS")
@@ -87,7 +94,7 @@ STAGE_PERTURBATION_SCALES = {
     "A1-PS-s50": 0.5, "A1-PS-s20": 0.2, "A1-PS-s05": 0.05, "A1-PS-s00": 0.0}
 ALL_STAGES = (CANONICAL_STAGES + DIAGNOSTIC_STAGES + CONFOUND_STAGES + INPUT_STAGES
               + NORMALIZED_LADDER_STAGES + LITERAL_LADDER_STAGES + SCALE_LADDER_STAGES
-              + EPOCH_ALIGNED_STAGES)
+              + EPOCH_ALIGNED_STAGES + BALANCED_STAGES)
 CANONICAL_FEATURE_STAGES = ("A2-semantic", "A2-paper-literal", "A3")
 FEATURE_STAGES = CANONICAL_FEATURE_STAGES + (
     "A2-stab", "A2-stab-PS", "A3-PS", "A2-lit-PS", "A3-lit-PS",
@@ -116,6 +123,8 @@ ALIGNED_EXPERIMENT_STAGES = (
     "B0-stab-PS", "A1-stab-PS", "A1-aln-PS", "A2-lit-aln-PS", "A3-lit-aln-PS")
 ZF_IMPLEMENTATION_VERSION = "CDCNN_v6.10_contrastive_placement"
 ZF_EXPERIMENT_STAGES = ("A2-lit-aln-PS", "A3-lit-aln-PS", "A3-zf-aln-PS")
+BALANCE_IMPLEMENTATION_VERSION = "CDCNN_v6.11_class_balance"
+BALANCE_EXPERIMENT_STAGES = ("B0-stab-PS", "B0-wce-PS", "B0-bal-PS")
 # Each shipped configuration pins the stage lists it was written with, as frozen
 # literals rather than references to the growing module tuples: a config file is
 # an immutable artifact whose hash is recorded in completed runs, so adding a
@@ -159,6 +168,8 @@ STAGE_SETS = {
         ALIGNED_EXPERIMENT_STAGES, (), V69_AUGMENTED_STAGES, V69_FEATURE_STAGES),
     ZF_IMPLEMENTATION_VERSION: (
         ZF_EXPERIMENT_STAGES, (), V610_AUGMENTED_STAGES, V610_FEATURE_STAGES),
+    BALANCE_IMPLEMENTATION_VERSION: (
+        BALANCE_EXPERIMENT_STAGES, (), V610_AUGMENTED_STAGES, V610_FEATURE_STAGES),
 }
 CONFOUND_ABLATION_DEFINITION = {
     "B0-LN": "B0 with LayerNorm(128) replacing BatchNorm1d(128)",
@@ -273,6 +284,12 @@ def validate_config(cfg: dict) -> None:
     stages, diagnostic_stages, augmented_stages, feature_stages = STAGE_SETS[version]
     _require_equal(cfg.get("stages"), list(stages), "stages")
     _require_equal(cfg.get("diagnostic_stages"), list(diagnostic_stages), "diagnostic_stages")
+    if version == BALANCE_IMPLEMENTATION_VERSION:
+        _require_equal(cfg.get("class_balance"),
+                       {stage: ("weighted_cross_entropy" if stage in CLASS_WEIGHTED_STAGES
+                                else "balanced_sampling" if stage in BALANCED_SAMPLING_STAGES
+                                else "none") for stage in stages},
+                       "class_balance")
     if version == ZF_IMPLEMENTATION_VERSION:
         _require_equal(cfg.get("contrastive_placement"),
                        {stage: ("pre_fc128_unit_sphere" if stage in CONTRASTIVE_ON_ZF_STAGES
@@ -292,7 +309,7 @@ def validate_config(cfg: dict) -> None:
     if version in (INPUT_IMPLEMENTATION_VERSION, NORMALIZED_IMPLEMENTATION_VERSION,
                    LITERAL_IMPLEMENTATION_VERSION, SCALE_IMPLEMENTATION_VERSION,
                    DUPLICATION_IMPLEMENTATION_VERSION, ALIGNED_IMPLEMENTATION_VERSION,
-                   ZF_IMPLEMENTATION_VERSION):
+                   ZF_IMPLEMENTATION_VERSION, BALANCE_IMPLEMENTATION_VERSION):
         _require_equal(cfg.get("input_normalization"),
                        {stage: input_transform_for(stage) for stage in stages},
                        "input_normalization")
@@ -639,17 +656,34 @@ class CDCNNModel(nn.Module):
         return outputs
 
 
+def class_weights_for(stage: str, y: np.ndarray, device: torch.device) -> torch.Tensor | None:
+    """Inverse-frequency weights from the source training labels, mean 1.
+
+    Returns None unless the stage asks for weighting, so every other stage keeps
+    the unweighted cross-entropy exactly.
+    """
+    if stage not in CLASS_WEIGHTED_STAGES:
+        return None
+    counts = np.array([(y == gas).sum() for gas in range(1, 7)], dtype=np.float64)
+    if (counts == 0).any():
+        raise ProtocolError(f"{stage} needs every gas present in the training split")
+    weights = counts.sum() / (len(counts) * counts)
+    weights = weights / weights.mean()
+    return torch.tensor(weights, dtype=torch.float32, device=device)
+
+
 def probability_consistency_mse(original_logits: torch.Tensor, generated_logits: torch.Tensor) -> torch.Tensor:
     delta = original_logits.softmax(dim=1) - generated_logits.softmax(dim=1)
     return delta.square().sum(dim=1).mean()
 
 
-def compute_loss(model: CDCNNModel, outputs: dict, y: torch.Tensor, cfg: dict) -> dict[str, torch.Tensor]:
-    ce_original = F.cross_entropy(outputs["original_logits"], y)
+def compute_loss(model: CDCNNModel, outputs: dict, y: torch.Tensor, cfg: dict,
+                 class_weight: torch.Tensor | None = None) -> dict[str, torch.Tensor]:
+    ce_original = F.cross_entropy(outputs["original_logits"], y, weight=class_weight)
     zero = ce_original.new_zeros(())
     if model.stage not in FEATURE_STAGES:
         return {"total": ce_original, "ce": ce_original, "mse": zero, "contrastive": zero}
-    ce_generated = F.cross_entropy(outputs["generated_logits"], y)
+    ce_generated = F.cross_entropy(outputs["generated_logits"], y, weight=class_weight)
     ce = 0.5 * (ce_original + ce_generated)
     mse = probability_consistency_mse(outputs["original_logits"], outputs["generated_logits"])
     contrastive = zero
@@ -687,10 +721,21 @@ def _training_arrays(
 def _make_loader(
     x: np.ndarray, y: np.ndarray, batch_size: int, seed: int, shuffle: bool,
     pin_memory: bool = False, samples_per_epoch: int | None = None,
+    balanced: bool = False,
 ) -> DataLoader:
     dataset = TensorDataset(
         torch.from_numpy(reshape(x)), torch.from_numpy(y.astype(np.int64) - 1))
     generator = torch.Generator().manual_seed(seed)
+    if balanced:
+        # Draw each gas equally often per epoch; the epoch keeps its usual size,
+        # so the step count is unchanged and only the class mix differs.
+        counts = np.array([(y == gas).sum() for gas in np.unique(y)], dtype=np.float64)
+        per_class = dict(zip(np.unique(y), counts))
+        weights = torch.tensor([1.0 / per_class[label] for label in y], dtype=torch.double)
+        sampler = WeightedRandomSampler(
+            weights, num_samples=samples_per_epoch or len(x), replacement=True,
+            generator=generator)
+        return DataLoader(dataset, batch_size=batch_size, sampler=sampler, pin_memory=pin_memory)
     if samples_per_epoch is None:
         return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, pin_memory=pin_memory,
                           generator=generator)
@@ -743,7 +788,9 @@ def train_model(
     loader = _make_loader(
         x, y, cfg["training"]["batch_size"], seed, cfg["training"]["shuffle"],
         pin_memory=True, samples_per_epoch=samples_per_epoch,
+        balanced=stage in BALANCED_SAMPLING_STAGES,
     )
+    class_weight = class_weights_for(stage, y, device)
     style_generator = torch.Generator(device=device).manual_seed(seed + 2_000_000)
     epochs_to_run = cfg["training"]["epochs"] if epochs is None else epochs
     history: list[dict] = []
@@ -812,7 +859,7 @@ def train_model(
                 }, sort_keys=True), flush=True)
             optimizer.zero_grad(set_to_none=True)
             outputs = model.training_outputs(xb, style_generator if stage in FEATURE_STAGES else None)
-            losses = compute_loss(model, outputs, yb, cfg)
+            losses = compute_loss(model, outputs, yb, cfg, class_weight)
             if not torch.isfinite(losses["total"]):
                 raise ProtocolError(f"Non-finite {stage} loss at epoch {epoch}, batch {batch_index}")
             losses["total"].backward()
@@ -853,6 +900,8 @@ def train_model(
             "training_original_accuracy": correct / seen, "learning_rate": lr,
             "learning_rate_after_step": float(optimizer.param_groups[0]["lr"]),
             "checkpoint_epoch": epoch == cfg["training"]["checkpoint_epoch"],
+            "class_weighted": class_weight is not None,
+            "balanced_sampling": stage in BALANCED_SAMPLING_STAGES,
             "restyled_component": restyled_component_name,
             "sampled_sigma_min": sampled_sigma_min if stage in FEATURE_STAGES else None,
             "sampled_sigma_max": sampled_sigma_max if stage in FEATURE_STAGES else None,

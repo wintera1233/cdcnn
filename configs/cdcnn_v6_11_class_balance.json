@@ -1,0 +1,205 @@
+{
+  "protocol_version": "CDCNN_four_experiment_spec_v6",
+  "implementation_version": "CDCNN_v6.11_class_balance",
+  "specification": "CDCNN_four_experiment_spec_v6.md",
+  "dataset": {
+    "path": "Dataset",
+    "batch_file_pattern": "batch{batch_id}.dat",
+    "feature_count": 128,
+    "source_batch": 1,
+    "target_batches": [
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "expected_hashes": {
+      "1": "f346beee8e0c5e31ac5961845b6d96a70dc1ccf799481592fb2f0d96a81952e6",
+      "2": "07f7e94a9bf4377240f9b230d20c750932fc785d4766b6a4b7fc370a035c825a",
+      "3": "a4c7a1a6744df32f0ca139c75c3b4dade7cc99f57a7785d28cb0f62577dd2061",
+      "4": "bd76f86be34ffe89f46a27c6fc2b5b8c6ebfcf984dff4b3e5befc76d98034b7f",
+      "5": "3f95cb6e4a39a94bbacd2f1984f1754c9fb5eb3221812975ad70edbcea7abaec",
+      "6": "83348c504105a5aa5264d1209f2a5d7ba7d9c8bcae60290395f201ac4708ff95",
+      "7": "3168cb56d5c9bc29c36184e2e73c9f3474adb3c4a893b1ce0d88b6c47698cfdb",
+      "8": "296346b932893ea18c513e23ac5b660f35e1c499fde8254d4804a2ce8a1b4ca7",
+      "9": "e019f11f4fa8336ab1f41f7503eb456b3679da0a84eb8032fe6cef90f0547826",
+      "10": "30011067c7c05c2b01038f84c73af0c6f1820b622fa2b0ad89111cb4c649f791"
+    }
+  },
+  "saved_cv_folds": "runs/20260906T085010Z_pca_svm/cv_fold_assignments.csv",
+  "output_root": "runs",
+  "stages": [
+    "B0-stab-PS",
+    "B0-wce-PS",
+    "B0-bal-PS"
+  ],
+  "diagnostic_stages": [],
+  "input_normalization": {
+    "B0-stab-PS": "per_sample",
+    "B0-wce-PS": "per_sample",
+    "B0-bal-PS": "per_sample"
+  },
+  "epoch_alignment": {
+    "B0-stab-PS": false,
+    "B0-wce-PS": false,
+    "B0-bal-PS": false
+  },
+  "class_balance": {
+    "B0-stab-PS": "none",
+    "B0-wce-PS": "weighted_cross_entropy",
+    "B0-bal-PS": "balanced_sampling"
+  },
+  "class_balance_notes": {
+    "problem": "Batch 1 holds 30 to 98 samples per gas; Ethylene, the smallest class, is never predicted on any target batch",
+    "weighted_cross_entropy": "inverse-frequency weights from the source training split, normalized to mean 1 (Ethylene gets 2.12)",
+    "balanced_sampling": "each gas drawn equally often per epoch, same epoch size and step count",
+    "fitted_on": "source training labels only; no target information",
+    "evidence": "docs/per-class-failure.md"
+  },
+  "seeds": [
+    1042,
+    2024,
+    3407,
+    42,
+    123
+  ],
+  "seed_policy": {
+    "model_dataloader_and_a1": "listed experiment seed",
+    "feature_generation": "listed experiment seed + 2000000"
+  },
+  "architecture": {
+    "convolution_dimension": 1,
+    "input_layout": [
+      1,
+      128
+    ],
+    "reshape_16x8": false,
+    "block_channels": [
+      32,
+      64,
+      128,
+      256,
+      128
+    ],
+    "main_kernel_size": 3,
+    "shortcut_kernel_size": 1,
+    "fc_hidden": 128,
+    "classes": 6,
+    "feature_generation_after_block": 3
+  },
+  "training": {
+    "epochs": 100,
+    "early_stopping": false,
+    "checkpoint_epoch": 100,
+    "batch_size": 64,
+    "optimizer": "SGD",
+    "learning_rate": 0.001,
+    "momentum": 0.9,
+    "weight_decay": 0.0001,
+    "scheduler": {
+      "type": "StepLR",
+      "step_size": 25,
+      "gamma": 0.5
+    },
+    "shuffle": true,
+    "device": "cuda:0",
+    "num_threads": 4
+  },
+  "augmentation": {
+    "enabled_stages": [
+      "A1",
+      "A1-stab-PS",
+      "A1-aln-PS",
+      "A1-PS-s50",
+      "A1-PS-s20",
+      "A1-PS-s05",
+      "A1-PS-s00",
+      "A2-semantic",
+      "A2-paper-literal",
+      "A3",
+      "A2-stab",
+      "A2-stab-PS",
+      "A3-PS",
+      "A2-lit-PS",
+      "A3-lit-PS",
+      "A2-lit-aln-PS",
+      "A3-lit-aln-PS",
+      "A3-zf-aln-PS"
+    ],
+    "views_per_source_sample": 1,
+    "partner": "same-class non-self",
+    "lambda_distribution": "Uniform(0,1)",
+    "statistic": "population variance over 128 features",
+    "perturbation_scale": 1.0,
+    "schedule": "fixed once per source training context",
+    "include_originals": true,
+    "target_data_allowed": false
+  },
+  "feature_generation": {
+    "enabled_stages": [
+      "A2-semantic",
+      "A2-paper-literal",
+      "A3",
+      "A2-stab",
+      "A2-stab-PS",
+      "A3-PS",
+      "A2-lit-PS",
+      "A3-lit-PS",
+      "A2-lit-aln-PS",
+      "A3-lit-aln-PS",
+      "A3-zf-aln-PS"
+    ],
+    "semantic_restyled_component": "pooled_upsampled_low_frequency_like",
+    "paper_literal_restyled_component": "residual_paper_L",
+    "pool_kernel_size": 2,
+    "pool_stride": 2,
+    "upsample_mode": "nearest",
+    "statistics_axis": "length",
+    "population_variance": true,
+    "batch_spread_unbiased": false,
+    "epsilon": 1e-05,
+    "style_sampling": "canonical log-normal",
+    "detach_sampled_style_statistics": true,
+    "target_data_allowed": false
+  },
+  "loss": {
+    "lambda_mse": 0.5,
+    "mse_on": "softmax probabilities",
+    "lambda_contrastive": 0.5,
+    "contrastive_temperature": 0.07,
+    "projection_dimension": 128,
+    "contrastive_reduction": "mean over anchors"
+  },
+  "a3_numerical_stability": {
+    "applies_to_stage": "A3",
+    "normalization": "LayerNorm",
+    "normalization_feature_dimension": 128,
+    "normalization_tracks_running_stats": false,
+    "sigma_min": 0.001,
+    "sigma_max": 10.0,
+    "log_sigma_dispersion_min": 0.0,
+    "log_sigma_dispersion_max": 2.0,
+    "residual_output_min": -20.0,
+    "residual_output_max": 20.0,
+    "contrastive_feature_min": -20.0,
+    "contrastive_feature_max": 20.0,
+    "gradient_max_norm": 1.0,
+    "gradient_error_if_nonfinite": true
+  },
+  "smoke": {
+    "epochs": 1,
+    "folds": [
+      1
+    ],
+    "seeds": [
+      1042
+    ],
+    "max_training_batches": 1,
+    "target_loading": false
+  }
+}

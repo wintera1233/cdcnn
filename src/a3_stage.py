@@ -28,12 +28,14 @@ LAYERNORM_STAGES = (
     "A1-stab-PS", "A2-lit-PS", "A3-lit-PS",
     "A1-PS-s50", "A1-PS-s20", "A1-PS-s05", "A1-PS-s00",
     "A1-aln-PS", "A2-lit-aln-PS", "A3-lit-aln-PS", "A3-zf-aln-PS",
+    "B0-wce-PS", "B0-bal-PS",
 )
 STABILIZED_STAGES = (
     "A3", "B0-stab", "A2-stab", "B0-stab-PS", "A2-stab-PS", "A3-PS",
     "A1-stab-PS", "A2-lit-PS", "A3-lit-PS",
     "A1-PS-s50", "A1-PS-s20", "A1-PS-s05", "A1-PS-s00",
     "A1-aln-PS", "A2-lit-aln-PS", "A3-lit-aln-PS", "A3-zf-aln-PS",
+    "B0-wce-PS", "B0-bal-PS",
 )
 # Stages carrying the supervised contrastive term and its projection head.
 CONTRASTIVE_STAGES = ("A3", "A3-PS", "A3-lit-PS", "A3-lit-aln-PS", "A3-zf-aln-PS")
