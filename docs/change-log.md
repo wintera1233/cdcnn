@@ -4,6 +4,24 @@ Branch `exp/a3-confound-ablation`, newest first. Each entry records what changed
 why, and what was verified. Run directories are never overwritten; each
 experiment writes its own.
 
+## v6.10 contrastive placement — results (2026-09-22)
+
+**Result.** Moving the contrastive loss to the paper's position — the pre-FC128
+latent, unit-sphere normalized, no learned head — leaves it worth +0.0002 against
+the same model without it (2/5 seeds), against +0.0025 for this project's
+post-FC128 learned head (3/5). The two placements differ by −0.0023 (1/5), so the
+head was not what held the term back.
+
+Five independent measurements now agree: across v6.3, v6.5, v6.6, v6.9 and v6.10
+the supervised contrastive term measures between −0.005 and +0.003 target mean.
+Under this protocol its effect is consistently indistinguishable from zero.
+Likely because Batch 1 features are already near-separable, so a term that pulls
+same-label samples together has little left to do — and nothing in it sees the
+target domains. Details in `docs/contrastive-placement.md`.
+
+**Determinism.** Both in-run controls reproduced their v6.9 target means to ten
+decimal places across separate container launches.
+
 ## v6.9 epoch alignment — results (2026-09-21)
 
 **Result.** Matching the optimizer-step count recovers about a third of the

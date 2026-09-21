@@ -114,8 +114,12 @@ Each is source-only and fits the existing ladder.
    used. The same run isolated A1 augmentation for the first time and found it
    is the component that hurts (−0.0131, 1/5 seeds).
    See `docs/paper-literal-ladder.md`.
-3. **Move the contrastive loss to `z_f` and drop the learned head**, matching
-   Fig. 2 and S1. Cheap, and it changes what the term actually regularizes.
+3. ~~**Move the contrastive loss to `z_f` and drop the learned head**~~
+   **Done (v6.10).** At the paper's placement the term is worth +0.0002 (2/5
+   seeds) against +0.0025 for this project's placement, and the two differ by
+   −0.0023. The placement was not the explanation; the contrastive effect is
+   indistinguishable from zero under either.
+   See `docs/contrastive-placement.md`.
 4. **Test the statistics axis**: scalar per sample (the literal equations)
    against the current per-channel form. Resolves ambiguity 1 empirically.
 5. **Smaller faithfulness items**: Gaussian sigma sampling with a positivity

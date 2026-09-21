@@ -179,6 +179,15 @@ strongest single change measured here: +0.1087 target mean on 5/5 seeds, and
 `configs/cdcnn_v6_4_input_norm.json`; details and tables in
 [`docs/input-normalization.md`](docs/input-normalization.md).
 
+### Contrastive placement (v6.10)
+
+Applying the contrastive loss where Fig. 2 puts it — on the pre-FC128 latent
+with no learned head — leaves it worth +0.0002, against +0.0025 for this
+project's post-FC128 learned head. Neither is distinguishable from zero, and
+the placement was not the explanation. Configuration
+`configs/cdcnn_v6_10_contrastive_placement.json`; details in
+[`docs/contrastive-placement.md`](docs/contrastive-placement.md).
+
 ### Epoch alignment (v6.9)
 
 Aligned stages draw one source-sized subset of the augmented pool per epoch, so
