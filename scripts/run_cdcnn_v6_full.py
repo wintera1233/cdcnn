@@ -27,6 +27,7 @@ from sklearn.preprocessing import StandardScaler
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from src.cdcnn_ablation import (
     ALIGNED_IMPLEMENTATION_VERSION,
+    BALANCE_IMPLEMENTATION_VERSION,
     ZF_IMPLEMENTATION_VERSION,
     ALL_STAGES,
     CANONICAL_IMPLEMENTATION_VERSION,
@@ -70,6 +71,7 @@ RUN_SUFFIXES = {
     DUPLICATION_IMPLEMENTATION_VERSION: "cdcnn_v6_8_duplication_control_full",
     ALIGNED_IMPLEMENTATION_VERSION: "cdcnn_v6_9_epoch_aligned_full",
     ZF_IMPLEMENTATION_VERSION: "cdcnn_v6_10_contrastive_placement_full",
+    BALANCE_IMPLEMENTATION_VERSION: "cdcnn_v6_11_class_balance_full",
 }
 REPORT_TITLES = {
     CANONICAL_IMPLEMENTATION_VERSION: "CDCNN v6.3 full experiment report",
@@ -81,6 +83,7 @@ REPORT_TITLES = {
     DUPLICATION_IMPLEMENTATION_VERSION: "CDCNN v6.8 duplication-control report",
     ALIGNED_IMPLEMENTATION_VERSION: "CDCNN v6.9 epoch-aligned report",
     ZF_IMPLEMENTATION_VERSION: "CDCNN v6.10 contrastive-placement report",
+    BALANCE_IMPLEMENTATION_VERSION: "CDCNN v6.11 class-balance report",
 }
 # Optional per-experiment descriptor block: config key -> report section heading.
 REPORT_DESCRIPTORS = {
@@ -89,6 +92,7 @@ REPORT_DESCRIPTORS = {
     "a1_perturbation_scales": "A1 augmentation noise scale per stage",
     "epoch_alignment": "Per-epoch sample budget matched to the source set",
     "contrastive_placement": "Where the supervised contrastive loss is applied",
+    "class_balance": "Class-imbalance handling per stage",
 }
 
 
