@@ -26,6 +26,7 @@ from sklearn.preprocessing import StandardScaler
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from src.cdcnn_ablation import (
+    ALIGNED_IMPLEMENTATION_VERSION,
     ALL_STAGES,
     CANONICAL_IMPLEMENTATION_VERSION,
     CDCNNModel,
@@ -66,6 +67,7 @@ RUN_SUFFIXES = {
     LITERAL_IMPLEMENTATION_VERSION: "cdcnn_v6_6_paper_literal_full",
     SCALE_IMPLEMENTATION_VERSION: "cdcnn_v6_7_augmentation_scale_full",
     DUPLICATION_IMPLEMENTATION_VERSION: "cdcnn_v6_8_duplication_control_full",
+    ALIGNED_IMPLEMENTATION_VERSION: "cdcnn_v6_9_epoch_aligned_full",
 }
 REPORT_TITLES = {
     CANONICAL_IMPLEMENTATION_VERSION: "CDCNN v6.3 full experiment report",
@@ -75,12 +77,14 @@ REPORT_TITLES = {
     LITERAL_IMPLEMENTATION_VERSION: "CDCNN v6.6 paper-literal and augmentation report",
     SCALE_IMPLEMENTATION_VERSION: "CDCNN v6.7 augmentation-scale report",
     DUPLICATION_IMPLEMENTATION_VERSION: "CDCNN v6.8 duplication-control report",
+    ALIGNED_IMPLEMENTATION_VERSION: "CDCNN v6.9 epoch-aligned report",
 }
 # Optional per-experiment descriptor block: config key -> report section heading.
 REPORT_DESCRIPTORS = {
     "confound_ablation": "Confound ablation definitions",
     "input_normalization": "Input transform per stage",
     "a1_perturbation_scales": "A1 augmentation noise scale per stage",
+    "epoch_alignment": "Per-epoch sample budget matched to the source set",
 }
 
 

@@ -30,7 +30,7 @@ import torch.nn.functional as F
 from sklearn.metrics import accuracy_score, confusion_matrix
 from sklearn.preprocessing import StandardScaler
 from torch import nn
-from torch.utils.data import DataLoader, TensorDataset
+from torch.utils.data import DataLoader, RandomSampler, TensorDataset
 
 from src.a3_stage import (
     A3_STABILITY_DEFAULTS,
@@ -72,18 +72,26 @@ LITERAL_LADDER_STAGES = ("A1-stab-PS", "A2-lit-PS", "A3-lit-PS")
 # v6.7: A1 augmentation noise magnitude. The paper's Eq. (7) has no multiplier,
 # so 1.0 is canonical and anything else is a declared sensitivity experiment.
 SCALE_LADDER_STAGES = ("A1-PS-s50", "A1-PS-s20", "A1-PS-s05", "A1-PS-s00")
+# v6.9: augmented stages that draw one source-sized subset of the augmented pool
+# per epoch, so they take the same number of optimizer and scheduler steps as an
+# un-augmented stage. Without this, 890 training rows under a fixed 100-epoch
+# budget give augmented stages twice the updates; see docs/duplication-control.md.
+EPOCH_ALIGNED_STAGES = ("A1-aln-PS", "A2-lit-aln-PS", "A3-lit-aln-PS")
 # Scale 0.0 is the duplication control: the generated view is an exact copy of
 # its anchor, so it isolates the doubled dataset and optimizer-step count from
 # the augmentation noise itself.
 STAGE_PERTURBATION_SCALES = {
     "A1-PS-s50": 0.5, "A1-PS-s20": 0.2, "A1-PS-s05": 0.05, "A1-PS-s00": 0.0}
 ALL_STAGES = (CANONICAL_STAGES + DIAGNOSTIC_STAGES + CONFOUND_STAGES + INPUT_STAGES
-              + NORMALIZED_LADDER_STAGES + LITERAL_LADDER_STAGES + SCALE_LADDER_STAGES)
+              + NORMALIZED_LADDER_STAGES + LITERAL_LADDER_STAGES + SCALE_LADDER_STAGES
+              + EPOCH_ALIGNED_STAGES)
 CANONICAL_FEATURE_STAGES = ("A2-semantic", "A2-paper-literal", "A3")
 FEATURE_STAGES = CANONICAL_FEATURE_STAGES + (
-    "A2-stab", "A2-stab-PS", "A3-PS", "A2-lit-PS", "A3-lit-PS")
+    "A2-stab", "A2-stab-PS", "A3-PS", "A2-lit-PS", "A3-lit-PS",
+    "A2-lit-aln-PS", "A3-lit-aln-PS")
 CANONICAL_AUGMENTED_STAGES = ("A1",) + CANONICAL_FEATURE_STAGES
-AUGMENTED_STAGES = ("A1", "A1-stab-PS") + SCALE_LADDER_STAGES + FEATURE_STAGES
+AUGMENTED_STAGES = (
+    ("A1", "A1-stab-PS", "A1-aln-PS") + SCALE_LADDER_STAGES + FEATURE_STAGES)
 CANONICAL_IMPLEMENTATION_VERSION = "CDCNN_v6.3_A3_numerical_stabilization"
 CONFOUND_IMPLEMENTATION_VERSION = "CDCNN_v6.3_A3_confound_ablation"
 INPUT_IMPLEMENTATION_VERSION = "CDCNN_v6.4_input_normalization"
@@ -97,6 +105,9 @@ SCALE_IMPLEMENTATION_VERSION = "CDCNN_v6.7_augmentation_scale"
 SCALE_EXPERIMENT_STAGES = ("A1-PS-s50", "A1-PS-s20", "A1-PS-s05")
 DUPLICATION_IMPLEMENTATION_VERSION = "CDCNN_v6.8_duplication_control"
 DUPLICATION_EXPERIMENT_STAGES = ("A1-PS-s00",)
+ALIGNED_IMPLEMENTATION_VERSION = "CDCNN_v6.9_epoch_aligned"
+ALIGNED_EXPERIMENT_STAGES = (
+    "B0-stab-PS", "A1-aln-PS", "A2-lit-aln-PS", "A3-lit-aln-PS")
 # Each shipped configuration pins the stage lists it was written with, as frozen
 # literals rather than references to the growing module tuples: a config file is
 # an immutable artifact whose hash is recorded in completed runs, so adding a
@@ -110,8 +121,12 @@ V66_FEATURE_STAGES = V65_FEATURE_STAGES + ("A2-lit-PS", "A3-lit-PS")
 V67_AUGMENTED_STAGES = (
     "A1", "A1-stab-PS", "A1-PS-s50", "A1-PS-s20", "A1-PS-s05") + V66_FEATURE_STAGES
 V67_FEATURE_STAGES = V66_FEATURE_STAGES
-V68_AUGMENTED_STAGES = ("A1", "A1-stab-PS") + SCALE_LADDER_STAGES + V66_FEATURE_STAGES
+V68_AUGMENTED_STAGES = (
+    "A1", "A1-stab-PS", "A1-PS-s50", "A1-PS-s20", "A1-PS-s05",
+    "A1-PS-s00") + V66_FEATURE_STAGES
 V68_FEATURE_STAGES = V66_FEATURE_STAGES
+V69_AUGMENTED_STAGES = AUGMENTED_STAGES
+V69_FEATURE_STAGES = FEATURE_STAGES
 
 # implementation_version -> (stages, diagnostic_stages, augmented, feature-generating)
 STAGE_SETS = {
@@ -130,6 +145,8 @@ STAGE_SETS = {
         SCALE_EXPERIMENT_STAGES, (), V67_AUGMENTED_STAGES, V67_FEATURE_STAGES),
     DUPLICATION_IMPLEMENTATION_VERSION: (
         DUPLICATION_EXPERIMENT_STAGES, (), V68_AUGMENTED_STAGES, V68_FEATURE_STAGES),
+    ALIGNED_IMPLEMENTATION_VERSION: (
+        ALIGNED_EXPERIMENT_STAGES, (), V69_AUGMENTED_STAGES, V69_FEATURE_STAGES),
 }
 CONFOUND_ABLATION_DEFINITION = {
     "B0-LN": "B0 with LayerNorm(128) replacing BatchNorm1d(128)",
@@ -244,6 +261,10 @@ def validate_config(cfg: dict) -> None:
     stages, diagnostic_stages, augmented_stages, feature_stages = STAGE_SETS[version]
     _require_equal(cfg.get("stages"), list(stages), "stages")
     _require_equal(cfg.get("diagnostic_stages"), list(diagnostic_stages), "diagnostic_stages")
+    if version == ALIGNED_IMPLEMENTATION_VERSION:
+        _require_equal(cfg.get("epoch_alignment"),
+                       {stage: stage in EPOCH_ALIGNED_STAGES for stage in stages},
+                       "epoch_alignment")
     if version in (SCALE_IMPLEMENTATION_VERSION, DUPLICATION_IMPLEMENTATION_VERSION):
         _require_equal(cfg.get("a1_perturbation_scales"),
                        {stage: perturbation_scale_for(stage) for stage in stages},
@@ -252,7 +273,7 @@ def validate_config(cfg: dict) -> None:
         _require_equal(cfg.get("confound_ablation"), CONFOUND_ABLATION_DEFINITION, "confound_ablation")
     if version in (INPUT_IMPLEMENTATION_VERSION, NORMALIZED_IMPLEMENTATION_VERSION,
                    LITERAL_IMPLEMENTATION_VERSION, SCALE_IMPLEMENTATION_VERSION,
-                   DUPLICATION_IMPLEMENTATION_VERSION):
+                   DUPLICATION_IMPLEMENTATION_VERSION, ALIGNED_IMPLEMENTATION_VERSION):
         _require_equal(cfg.get("input_normalization"),
                        {stage: input_transform_for(stage) for stage in stages},
                        "input_normalization")
@@ -629,12 +650,19 @@ def _training_arrays(
 
 def _make_loader(
     x: np.ndarray, y: np.ndarray, batch_size: int, seed: int, shuffle: bool,
-    pin_memory: bool = False,
+    pin_memory: bool = False, samples_per_epoch: int | None = None,
 ) -> DataLoader:
     dataset = TensorDataset(
         torch.from_numpy(reshape(x)), torch.from_numpy(y.astype(np.int64) - 1))
-    return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, pin_memory=pin_memory,
-                      generator=torch.Generator().manual_seed(seed))
+    generator = torch.Generator().manual_seed(seed)
+    if samples_per_epoch is None:
+        return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, pin_memory=pin_memory,
+                          generator=generator)
+    # Draw a fresh subset of this size each epoch, without repeats inside an
+    # epoch, so the step count matches an un-augmented stage.
+    sampler = RandomSampler(dataset, replacement=False, num_samples=samples_per_epoch,
+                            generator=generator)
+    return DataLoader(dataset, batch_size=batch_size, sampler=sampler, pin_memory=pin_memory)
 
 
 @torch.no_grad()
@@ -668,9 +696,17 @@ def train_model(
         raise ProtocolError(
             f"Model placement failed: selected={device}, parameter={model_parameter_device}")
     optimizer, scheduler = build_optimizer_and_scheduler(model, cfg["training"])
+    samples_per_epoch = None
+    if stage in EPOCH_ALIGNED_STAGES:
+        # The pool is one generated view per source row plus the originals, so
+        # half of it is exactly one source-sized epoch.
+        if len(x) % 2:
+            raise ProtocolError(
+                f"{stage} expects an originals-plus-views pool of even length; received {len(x)}")
+        samples_per_epoch = len(x) // 2
     loader = _make_loader(
         x, y, cfg["training"]["batch_size"], seed, cfg["training"]["shuffle"],
-        pin_memory=True,
+        pin_memory=True, samples_per_epoch=samples_per_epoch,
     )
     style_generator = torch.Generator(device=device).manual_seed(seed + 2_000_000)
     epochs_to_run = cfg["training"]["epochs"] if epochs is None else epochs
@@ -775,6 +811,7 @@ def train_model(
         scheduler.step()
         row = {
             "epoch": epoch, "samples_seen": seen, "batches_seen": batches_seen,
+            "samples_per_epoch_budget": samples_per_epoch,
             "training_loss": sums["total"] / seen, "ce_loss": sums["ce"] / seen,
             "mse_loss": sums["mse"] / seen, "contrastive_loss": sums["contrastive"] / seen,
             "training_original_accuracy": correct / seen, "learning_rate": lr,

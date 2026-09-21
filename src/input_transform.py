@@ -44,6 +44,10 @@ STAGE_INPUT_TRANSFORMS = {
     "A1-PS-s05": "per_sample",
     # v6.8: duplication control, scale 0.0.
     "A1-PS-s00": "per_sample",
+    # v6.9: epoch-aligned augmented stages.
+    "A1-aln-PS": "per_sample",
+    "A2-lit-aln-PS": "per_sample",
+    "A3-lit-aln-PS": "per_sample",
 }
 
 
