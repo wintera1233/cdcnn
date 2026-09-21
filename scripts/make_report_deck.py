@@ -217,16 +217,65 @@ def build() -> None:
         "TDACNN：4 個分類器的集成，54 K 參數，測試時仍需存取源域",
     ])
 
-    content = content_slide(prs, "文獻回顧：CDCNN 的三個機制")
+    figure_slide(prs, "文獻回顧：域泛化與對比學習的概念", FIG / "paper_fig1_concept.png",
+                 [("(a) 一般深度學習", "key"),
+                  "訓練與測試來自同一分布 P",
+                  ("(b) 域泛化", "key"),
+                  "多個訓練域 P1…Pn，測試域從未被看過",
+                  ("(c) 對比學習", "key"),
+                  "同標籤樣本在單位球上被拉近，異標籤被推開"],
+                 kicker="論文 Fig. 1")
+
+    figure_slide(prs, "文獻回顧：CDCNN 架構", FIG / "paper_fig2_framework.png",
+                 [("五個 ResNet 區塊，Conv1d", "key"),
+                  "特徵生成插在第 3 與第 4 區塊之間",
+                  ("對比損失接在 FC128 之前的 z_f", "key"),
+                  "分類頭僅 0.77 K 參數",
+                  "L2 loss 約束兩分支輸出一致"],
+                 kicker="論文 Fig. 2 — 我們的實作差異見後續")
+
+    slide = content_slide(prs, "文獻回顧：機制① 資料擴充", "論文 Fig. S5 與 Fig. 4")
+    slide.shapes.add_picture(str(FIG / "paper_figS5_augment.png"), MARGIN, Inches(1.95),
+                             width=Inches(5.6))
+    slide.shapes.add_picture(str(FIG / "paper_fig4_aug_pca.png"), Inches(7.0), Inches(1.75),
+                             height=Inches(4.3))
+    tf = textbox(slide, MARGIN, Inches(4.5), Inches(5.6), Inches(2.2))
+    run(tf.paragraphs[0], "混合兩個樣本的均值與變異數，生成新的高斯分布後抽樣雜訊疊加到原訊號。",
+        size=15)
+    par = tf.add_paragraph(); par.space_before = Pt(10)
+    run(par, "右圖：相較白高斯雜訊與常數雜訊，CDCNN 的擴充在 PCA 空間產生明顯更大的分散。",
+        size=15, color=MUTED)
+
+    slide = content_slide(prs, "文獻回顧：機制② 特徵生成", "論文 Fig. S4(b) 與 Fig. 5")
+    slide.shapes.add_picture(str(FIG / "paper_figS4_blocks.png"), MARGIN, Inches(2.0),
+                             width=Inches(5.9))
+    slide.shapes.add_picture(str(FIG / "paper_fig5_featgen.png"), Inches(7.1), Inches(2.0),
+                             width=Inches(5.5))
+    tf = textbox(slide, MARGIN, Inches(4.7), Inches(5.9), Inches(2.0))
+    run(tf.paragraphs[0], "最大池化與最近鄰上採樣把隱特徵拆成高頻與低頻，替換低頻的風格統計量後重組。",
+        size=15)
+    par = tf.add_paragraph(); par.space_before = Pt(10)
+    run(par, "右圖：橘色為生成特徵，覆蓋範圍遠大於原始特徵——這是他們宣稱能模擬未見漂移的依據。",
+        size=15, color=MUTED)
+
+    content = content_slide(prs, "文獻回顧：機制③ 監督式對比學習")
     bullets(content, [
-        ("① 資料擴充（VAE 式）", "head"),
-        "混合兩樣本的均值與變異數生成新高斯分布，抽樣雜訊疊加到原訊號",
-        ("② 特徵生成（頻率分離 + 風格轉換）", "head"),
-        "最大池化與最近鄰上採樣把隱特徵拆成高頻（氣體類別）與低頻（漂移風格）",
-        "抽樣未見域的風格參數，在隱空間合成未來可能的漂移特徵",
-        ("③ 監督式對比學習", "head"),
-        "拉近同標籤特徵、推開異標籤特徵，L = L_ce + λ_MSE·L_MSE + λ_con·L_con",
+        ("聯合損失", "head"),
+        "L = L_ce + λ_MSE · L_MSE + λ_con · L_con",
+        "L_ce 維持分類能力；L_MSE 確保風格轉換前後標籤一致；L_con 整理特徵空間",
+        ("論文的消融（CDWC = 移除對比學習）", "head"),
+        ("0.6705 → 0.7230，對比學習貢獻 +5.25%", "key"),
+        "其中最大的單類改善是 Toluene：0.27 → 0.92",
+        ("論文未提供 τ、λ_con 與投影維度的數值", "sub"),
     ])
+
+    figure_slide(prs, "文獻回顧：論文的方法比較", FIG / "paper_fig6_comparison.png",
+                 [("CDCNN 0.7230，所有比較方法中最高", "key"),
+                  "TDACNN 0.7221 次之，但需 54 K 參數與集成",
+                  "CDWC（移除對比學習）0.6705",
+                  "ResNet 骨幹 0.6344",
+                  ("多數深度網路（VGG、GoogLeNet）在此資料集低於 0.25", "sub")],
+                 kicker="論文 Fig. 6")
 
     table_slide(prs, "文獻回顧：論文宣稱的表現",
                 ["方法", "平均準確率", "備註"],

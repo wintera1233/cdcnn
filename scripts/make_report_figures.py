@@ -227,15 +227,56 @@ def fig_balance() -> None:
     fig.tight_layout(); fig.savefig(OUT / "fig6_class_balance.png", dpi=200); plt.close(fig)
 
 
+# Figures lifted straight from the paper, for the literature-review slides.
+# PDF images are numbered in page order by pdfimages; the docx keeps its own
+# media order. Both are verified by size and page in the mapping below.
+PAPER_PDF_FIGURES = {
+    "paper_fig1_concept.png": 0,      # Fig 1  deep learning vs domain generalization, contrastive sphere
+    "paper_fig4_aug_pca.png": 3,      # Fig 4  PCA of raw / gauss / constant / CDCNN augmentation
+    "paper_fig5_featgen.png": 4,      # Fig 5  original vs artificial feature space per gas
+    "paper_fig6_comparison.png": 5,   # Fig 6  accuracy of every compared algorithm
+}
+PAPER_DOCX_FIGURES = {
+    "paper_figS4_blocks.png": "image35.png",   # Fig S4  conv block and feature generation block
+    "paper_figS5_augment.png": "image36.png",  # Fig S5  data augmentation block
+    "paper_figS3_confusion.png": "image34.png",  # Fig S3  CDCNN and CDWC confusion matrices
+}
+
+
+def extract_paper_figures() -> None:
+    """Pull the paper's own figures out of the PDF and the supplement."""
+    import shutil
+    import subprocess
+    import tempfile
+    import zipfile
+
+    pdf = ROOT / "docs/paper/1-s2.0-S0924424724003078-main.pdf"
+    docx = ROOT / "docs/paper/1-s2.0-S0924424724003078-mmc1.docx"
+    if not (pdf.is_file() and docx.is_file()):
+        print("  paper sources missing; skipping paper figures")
+        return
+    with tempfile.TemporaryDirectory() as tmp:
+        subprocess.run(["pdfimages", "-png", "-f", "2", "-l", "8", str(pdf),
+                        str(Path(tmp) / "fig")], check=True)
+        for name, index in PAPER_PDF_FIGURES.items():
+            src = Path(tmp) / f"fig-{index:03d}.png"
+            if src.is_file():
+                shutil.copyfile(src, OUT / name)
+        with zipfile.ZipFile(docx) as archive:
+            for name, member in PAPER_DOCX_FIGURES.items():
+                (OUT / name).write_bytes(archive.read(f"word/media/{member}"))
+    framework = ROOT / "docs/paper/fig2_cdcnn.png"
+    if framework.is_file():
+        shutil.copyfile(framework, OUT / "paper_fig2_framework.png")
+
+
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     stages = stage_table()
-    fig_progress(stages)
-    fig_contribution()
     fig_per_batch(stages)
     fig_class_recall()
     fig_confusion()
-    fig_balance()
+    extract_paper_figures()
     paper = ROOT / "docs/paper/figS3_confusion.png"
     if paper.is_file():
         (OUT / "fig7_paper_confusion.png").write_bytes(paper.read_bytes())

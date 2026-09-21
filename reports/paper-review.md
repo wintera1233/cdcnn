@@ -78,3 +78,25 @@ $$\min(L_{ce} + \lambda_{MSE} L_{MSE} + \lambda_{con} L_{con})$$
 
 
 * **長期漂移抗性**：在跨度較遠、漂移嚴重的後期測試集中（如 Batch 6 與 Batch 10），CDCNN 分別維持在 **93.18%** 與 **56.63%** 的水準，顯著高於傳統深度學習（ResNet 在 Batch 10 僅 43.02%）與傳統機器學習模型。
+
+---
+
+## 6. 圖表索引（自原文與補充資料擷取）
+
+由 `scripts/make_report_figures.py` 從 `docs/paper/` 的 PDF 與 docx 直接抽出，存於 `reports/figures/`。
+
+| 檔案 | 出處 | 內容 |
+|---|---|---|
+| `paper_fig1_concept.png` | Fig. 1 | (a) 一般深度學習 vs (b) 域泛化；(c) 對比學習在單位球上的 pull / push |
+| `paper_fig2_framework.png` | Fig. 2 | CDCNN 整體架構：五個 ResNet 區塊、特徵生成位置、對比損失接在 FC128 之前 |
+| `paper_figS5_augment.png` | Fig. S5 | 資料擴充區塊：均值與變異數混合後抽樣雜訊 |
+| `paper_fig4_aug_pca.png` | Fig. 4 | 原始 / 白高斯 / 常數雜訊 / CDCNN 擴充的 PCA 對照 |
+| `paper_figS4_blocks.png` | Fig. S4 | (a) 一維卷積區塊；(b) 特徵生成區塊的高低頻分離與重組 |
+| `paper_fig5_featgen.png` | Fig. 5 | 各氣體的原始特徵空間 vs 生成特徵空間 |
+| `paper_fig6_comparison.png` | Fig. 6 | 所有比較演算法的準確率長條圖 |
+| `paper_figS3_confusion.png` | Fig. S3 | CDCNN 與 CDWC 的混淆矩陣 |
+
+**讀圖時要注意的兩點**
+
+1. **Fig. 5 的 Toluene 只有約 5 個原始特徵點**，與其他氣體數百點不成比例——與 Batch 1 只有 74 筆 Toluene 一致，也呼應我們觀察到的小類別脆弱性。
+2. **Fig. S3 的 CDCNN 混淆矩陣有一列對角線為 0**，質量全部落在隔壁欄；比對其逐批次數字後，最吻合的讀法是該類別為 Ethylene（見 `docs/per-class-failure.md`）。
