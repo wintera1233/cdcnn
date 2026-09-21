@@ -183,6 +183,15 @@ strongest single change measured here: +0.1087 target mean on 5/5 seeds, and
 `configs/cdcnn_v6_4_input_norm.json`; details and tables in
 [`docs/input-normalization.md`](docs/input-normalization.md).
 
+### Class balance (v6.11, one-seed screen)
+
+Class weighting and balanced sampling raise Ethylene's Batch 1 recall from 0.667
+to 0.867 and overall CV to 0.9865, but neither reaches the target batches:
+Ethylene stays at 0.000 and target mean does not improve. Screened at one seed
+and not promoted to a five-seed run; see
+[`docs/class-balance.md`](docs/class-balance.md), which also records that Batch 1
+CV ranked the three stages in reverse order of target accuracy.
+
 ### Contrastive placement (v6.10)
 
 Applying the contrastive loss where Fig. 2 puts it — on the pre-FC128 latent

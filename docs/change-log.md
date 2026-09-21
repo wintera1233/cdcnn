@@ -4,6 +4,24 @@ Branch `exp/a3-confound-ablation`, newest first. Each entry records what changed
 why, and what was verified. Run directories are never overwritten; each
 experiment writes its own.
 
+## v6.11 class balance — one-seed screen (2026-09-22)
+
+**Result: screened and rejected.** Inverse-frequency class weights and balanced
+sampling both work in-domain — Ethylene's Batch 1 recall rises from 0.667 to
+0.800 and 0.867, overall CV from 0.9686 to 0.9865 — and neither transfers.
+Ethylene stays at exactly 0.000 on the targets under both, with the label still
+never emitted. Target mean does not improve (0.5521 → 0.5485 → 0.5454).
+
+**Ethylene's target failure is therefore not an imbalance problem** but domain
+shift: its drifted samples land in the region the model learned as Acetone.
+
+**Protocol warning recorded**: Batch 1 CV ranked these three stages in the exact
+reverse of target accuracy, so the source-only selection rule would have picked
+the worst. Details in `docs/class-balance.md`.
+
+One seed, three checkpoints, six minutes against thirty-five for a five-seed run.
+No five-seed run was launched.
+
 ## v6.10 contrastive placement — results (2026-09-22)
 
 **Result.** Moving the contrastive loss to the paper's position — the pre-FC128
