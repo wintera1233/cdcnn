@@ -4,6 +4,29 @@ Branch `exp/a3-confound-ablation`, newest first. Each entry records what changed
 why, and what was verified. Run directories are never overwritten; each
 experiment writes its own.
 
+## v6.9 epoch alignment — results (2026-09-21)
+
+**Result.** Matching the optimizer-step count recovers about a third of the
+augmentation penalty (+0.0043); augmentation still costs −0.0089 against no
+augmentation. The doubled schedule was a real confound but not the whole story:
+with twice the data at a fixed epoch budget, step count and per-sample exposure
+cannot both be matched, and the aligned arm sees each row ~50 times instead of
+100 (its Batch 1 CV falls to 0.9622 from 0.9708).
+
+Under the aligned schedule the CDCNN components stop being negative: feature
+generation on the paper's branch +0.0014, contrastive loss +0.0025, and the full
+aligned model sits level with the plain backbone (−0.0050, 2/5 seeds). Alignment
+also tightens the seed spread monotonically, from 0.0364 for the anchor to
+0.0136 for the full aligned model — the most stable stage trained here.
+
+The alignment is a separate implementation version and has **not** been adopted
+as canonical;  records both schedules and what each
+holds constant.
+
+**Environment.** Run in the pinned container after the Xid 31 fault; the anchor
+ reproduced bit-identically against the host stack (torch
+2.8.0+cu126 vs 2.5.1+cu121), all five seeds and all folds.
+
 ## v6.8 duplication control — results (2026-09-20)
 
 **Result, and the most consequential finding of the session.** With
