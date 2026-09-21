@@ -1001,7 +1001,13 @@ def controller(run_dir: str, config_path: str, max_workers: int, max_attempts: i
 
 def launch(config_path: str, max_workers: int, max_attempts: int,
            gpu_smoke_run: str, seeds: tuple[int, ...] = SEEDS,
-           report_kind: str = "full") -> tuple[Path, int]:
+           report_kind: str = "full", foreground: bool = False) -> tuple[Path, int]:
+    """Prepare a run directory and start its controller.
+
+    The controller is normally detached so an interactive shell can exit. Inside
+    a container that would stop the container and kill the run, so `foreground`
+    runs the controller in this process instead.
+    """
     root = Path.cwd().resolve()
     config_file, cfg = read_config(root, config_path)
     enforce_cuda_worker_strategy(cfg, max_workers)
@@ -1030,6 +1036,16 @@ def launch(config_path: str, max_workers: int, max_attempts: int,
         "config_path": str(config_file.relative_to(root)), "config_sha256": sha256(config_file),
         "python_executable": sys.executable,
     })
+    if foreground:
+        save_json(out / "launch_manifest.json", {
+            "launched_utc": utc_now(), "controller_pid": os.getpid(), "detached": False,
+            "controller_log": "stdout of this process",
+            "execution": "controller runs in the launching process (container mode)",
+        })
+        controller(str(out), config_path, max_workers, max_attempts, str(verified_smoke),
+                   seeds=seeds, report_kind=report_kind)
+        return out, os.getpid()
+
     log_path = out / "logs" / "controller.log"
     controller_command = "pilot-controller" if report_kind == "one_seed_pilot" else "controller"
     command = [sys.executable, str(Path(__file__).resolve()), controller_command,
@@ -1200,6 +1216,10 @@ def main() -> None:
     launch_parser.add_argument("--max-workers", type=int, default=1)
     launch_parser.add_argument("--max-attempts", type=int, default=2)
     launch_parser.add_argument("--gpu-smoke-run", required=True)
+    launch_parser.add_argument(
+        "--foreground", action="store_true",
+        help="Run the controller in this process instead of detaching it, so a "
+             "container stays alive for the duration of the run.")
     pilot_launch = sub.add_parser("pilot-launch")
     pilot_launch.add_argument("--config", default="configs/cdcnn_v6.json")
     pilot_launch.add_argument("--seed", required=True, type=int, choices=SEEDS)
@@ -1233,7 +1253,8 @@ def main() -> None:
     evaluation.add_argument("--failures")
     args = parser.parse_args()
     if args.command == "launch":
-        out, pid = launch(args.config, args.max_workers, args.max_attempts, args.gpu_smoke_run)
+        out, pid = launch(args.config, args.max_workers, args.max_attempts, args.gpu_smoke_run,
+                          foreground=args.foreground)
         print(json.dumps({"run_dir": str(out), "controller_pid": pid}))
     elif args.command == "pilot-launch":
         out, pid = launch(
