@@ -41,9 +41,11 @@ The alignment is a separate implementation version and has **not** been adopted
 as canonical; `docs/epoch-alignment.md` records both schedules and what each
 holds constant.
 
-**Environment.** Run in the pinned container after the Xid 31 fault; the anchor
-`B0-stab-PS` reproduced bit-identically against the host stack (torch
-2.8.0+cu126 vs 2.5.1+cu121), all five seeds and all folds.
+**Environment.** Run in the pinned container after the Xid 31 fault. The anchor
+`B0-stab-PS` reproduced its source CV folds bit-identically against the host
+stack (torch 2.8.0+cu126 vs 2.5.1+cu121), all five seeds; its target mean
+differs in the fourth decimal (0.561334 against 0.561300), so cross-stack
+target differences below about 0.004 are environment, not effect.
 
 ## v6.8 duplication control — results (2026-09-20)
 

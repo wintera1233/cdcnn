@@ -23,7 +23,8 @@ comparison sits inside one environment.
 ## Results
 
 Run: `20260921T145852844886Z_cdcnn_v6_9_epoch_aligned_full`, 25 checkpoints, audit `passed`,
-container stack torch 2.5.1+cu121.
+container stack torch 2.5.1+cu121. The anchor's source CV folds reproduce the
+host-stack run bit-identically; its target mean differs by 0.00003.
 
 | Stage | Aligned | Batch 1 CV | Target mean | SD |
 |---|---|---:|---:|---:|
