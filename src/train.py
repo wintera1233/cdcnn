@@ -20,7 +20,7 @@ from torch.utils.data import DataLoader, TensorDataset
 from src import normalize
 from src.data import N_CLASSES
 from src.loss import EpochLoss, cross_entropy
-from src.model import build, parameter_breakdown, to_input
+from src.model import VARIANTS, build, parameter_breakdown, to_input
 from src.protocol import ProtocolError, utc_now
 
 
@@ -53,8 +53,12 @@ def train_one(variant: str, seed: int, config: dict, source_x: np.ndarray,
     optimizer_config = config["optimizer"]
     scheduler_config = config["scheduler"]
 
+    if variant not in VARIANTS:
+        raise ProtocolError(f"unknown variant {variant!r}")
     seed_everything(seed)
-    normalizer = normalize.fit(config["normalizer"], source_x)
+    # The Normal block is part of the variant's definition, not a free knob:
+    # the 2x2 in proposal.md section 6 crosses it with the head.
+    normalizer = normalize.fit(VARIANTS[variant]["normalizer"], source_x)
     x = to_input(normalize.apply(normalizer, source_x))
     # Labels on disk are 1..6; the model has 6 outputs indexed from zero.
     y = torch.as_tensor(source_y, dtype=torch.int64) - 1
@@ -98,6 +102,7 @@ def train_one(variant: str, seed: int, config: dict, source_x: np.ndarray,
     _save(checkpoint_dir / "final.pt", model, normalizer, variant, seed,
           training["epochs"], config)
     summary = {"variant": variant, "seed": seed, "device": device,
+               "normalizer": normalizer["kind"],
                "finished_at": utc_now(),
                "parameters": parameter_breakdown(model),
                "source_rows": int(len(source_y)),

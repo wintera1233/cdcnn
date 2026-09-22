@@ -36,7 +36,7 @@ EXPECTED_PARAMETERS = {
 
 
 def _smoke_config(**overrides):
-    config = {"implementation_version": "test", "normalizer": "standard_scaler",
+    config = {"implementation_version": "test",
               "training": {"epochs": 2, "batch_size": 64},
               "optimizer": {"lr": 0.001, "momentum": 0.9, "weight_decay": 1e-4},
               "scheduler": {"step_size": 25, "gamma": 0.5}}
@@ -271,12 +271,23 @@ class TrainingTests(unittest.TestCase):
         self.assertEqual(summary["batches_per_epoch"], 7)
         self.assertEqual(summary["source_rows"], 445)
 
+    def test_the_normalizer_comes_from_the_variant_not_the_config(self):
+        x, y = load_source()
+        expected = {"R-txt": "standard_scaler", "R-txt-ps": "per_sample",
+                    "R-lite": "standard_scaler", "R-lite-ps": "per_sample"}
+        for variant, kind in expected.items():
+            with tempfile.TemporaryDirectory() as directory:
+                summary = train_one(variant, 1042, _smoke_config(), x, y,
+                                    Path(directory) / "ck", "cpu",
+                                    save_every_epoch=False)
+            self.assertEqual(summary["normalizer"], kind, variant)
+
     def test_checkpoints_carry_the_normalizer_and_are_written_per_epoch(self):
         x, y = load_source()
         with tempfile.TemporaryDirectory() as directory:
             checkpoints = Path(directory) / "ck"
-            train_one("R-lite-ps", 1042, _smoke_config(normalizer="per_sample"),
-                      x, y, checkpoints, "cpu", save_every_epoch=True)
+            train_one("R-lite-ps", 1042, _smoke_config(), x, y, checkpoints,
+                      "cpu", save_every_epoch=True)
             names = sorted(path.name for path in checkpoints.glob("*.pt"))
             self.assertEqual(names, ["epoch_001.pt", "epoch_002.pt", "final.pt"])
             payload = torch.load(checkpoints / "final.pt", weights_only=False)
