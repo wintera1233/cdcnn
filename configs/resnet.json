@@ -1,6 +1,0 @@
-{
-  "status": "disabled",
-  "reason": "The legacy 16x8 two-dimensional ResNet is banned and has no runnable settings.",
-  "canonical_launcher": "scripts/run_cdcnn_v6_full.py",
-  "canonical_config": "configs/cdcnn_v6.json"
-}
