@@ -32,6 +32,8 @@ EXPECTED_PARAMETERS = {
     "R-txt-ps": {"backbone": 336_416, "head": 2_098_310, "total": 2_434_726},
     "R-lite": {"backbone": 336_416, "head": 17_542, "total": 353_958},
     "R-lite-ps": {"backbone": 336_416, "head": 17_542, "total": 353_958},
+    "R-fig": {"backbone": 1_058_080, "head": 2_098_310, "total": 3_156_390},
+    "R-fig-ps": {"backbone": 1_058_080, "head": 2_098_310, "total": 3_156_390},
 }
 
 
@@ -104,15 +106,23 @@ class ModelTests(unittest.TestCase):
                              torch.nn.AdaptiveAvgPool1d, torch.nn.AdaptiveMaxPool1d),
                     f"{variant}: the backbone must not pool")
 
-    def test_the_variants_form_a_complete_two_by_two(self):
-        from src.model import VARIANTS as spec
-        grid = {(entry["head"], entry["normalizer"]) for entry in spec.values()}
-        self.assertEqual(grid, {("flatten", "standard_scaler"),
-                                ("flatten", "per_sample"),
-                                ("gap", "standard_scaler"),
-                                ("gap", "per_sample")})
-        channels = {entry["channels"] for entry in spec.values()}
-        self.assertEqual(len(channels), 1, "all four share one backbone")
+    def test_the_v7_0_ladder_is_a_complete_two_by_two_on_one_backbone(self):
+        from src.model import TEXT_CAPPED_128, VARIANTS as spec
+        cells = {(entry["head"], entry["normalizer"]) for name, entry in spec.items()
+                 if entry["channels"] == TEXT_CAPPED_128}
+        self.assertEqual(cells, {("flatten", "standard_scaler"),
+                                 ("flatten", "per_sample"),
+                                 ("gap", "standard_scaler"),
+                                 ("gap", "per_sample")})
+
+    def test_the_figure_widths_differ_only_where_the_sources_conflict(self):
+        from src.model import FIGURE_WIDTHS, TEXT_CAPPED_128
+        self.assertEqual(FIGURE_WIDTHS[:3], TEXT_CAPPED_128[:3])
+        self.assertEqual(FIGURE_WIDTHS[3], (128, 256, 256))
+        self.assertEqual(FIGURE_WIDTHS[4], (256, 512, 128))
+        # Resnet1's main path is never narrower than its shortcut: `3 Conv 2` is
+        # read as 32; see proposal.md section 2.2.
+        self.assertEqual(FIGURE_WIDTHS[0], (1, 32, 32))
 
     def test_heads_differ_only_in_the_reduction(self):
         self.assertEqual(parameter_breakdown(build("R-txt"))["backbone"],
@@ -128,7 +138,7 @@ class ModelTests(unittest.TestCase):
 
     def test_unknown_variant_is_refused(self):
         with self.assertRaisesRegex(ProtocolError, "unknown variant"):
-            build("R-fig")
+            build("R-nonexistent")
 
 
 class LossTests(unittest.TestCase):
@@ -208,9 +218,20 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(self.config["seeds"], [1042, 2024, 3407])
         self.assertEqual(self.config["training"], {"epochs": 100, "batch_size": 64})
 
+    def test_retired_variants_are_refused_in_a_new_configuration(self):
+        changed = copy.deepcopy(self.config)
+        changed["implementation_version"] = "CDCNN_v7.1_something"
+        with self.assertRaisesRegex(ProtocolError, "retired variant"):
+            validate(changed)
+
+    def test_the_completed_ladder_still_validates(self):
+        # The v7.0 config is the record of a finished run; it keeps validating so
+        # its checkpoints stay loadable.
+        validate(self.config)
+
     def test_undeclared_variant_is_rejected(self):
         changed = copy.deepcopy(self.config)
-        changed["variants"].append("R-fig")
+        changed["variants"].append("R-nonexistent")
         with self.assertRaisesRegex(ProtocolError, "undeclared variant"):
             validate(changed)
 
@@ -228,6 +249,50 @@ class ConfigTests(unittest.TestCase):
         changed["seeds"] = [1042, 1042, 2024]
         with self.assertRaisesRegex(ProtocolError, "listed twice"):
             validate(changed)
+
+
+class LearningRateSweepTests(unittest.TestCase):
+    def test_the_sweep_config_is_valid_and_declares_six_cells(self):
+        config = load_config(ROOT / "configs" / "channel_restore.json")
+        self.assertEqual(config["variants"], ["R-txt-ps", "R-fig-ps"])
+        self.assertEqual(config["learning_rates"], [0.001, 0.0003, 0.0001])
+        self.assertEqual(len(config["variants"]) * len(config["learning_rates"]), 6)
+
+    def test_the_sweep_version_pins_its_learning_rates(self):
+        config = load_config(ROOT / "configs" / "channel_restore.json")
+        changed = copy.deepcopy(config)
+        changed["learning_rates"] = [0.001, 0.0005]
+        with self.assertRaisesRegex(ProtocolError, "fixes learning_rates"):
+            validate(changed)
+
+    def test_the_learning_rate_reaches_the_optimizer_and_the_checkpoint(self):
+        x, y = load_source()
+        with tempfile.TemporaryDirectory() as directory:
+            checkpoints = Path(directory) / "ck"
+            summary = train_one("R-txt-ps", 1042, _smoke_config(), x, y, checkpoints,
+                                "cpu", save_every_epoch=False, learning_rate=0.0003)
+            self.assertEqual(summary["learning_rate"], 0.0003)
+            payload = torch.load(checkpoints / "final.pt", weights_only=False)
+            self.assertEqual(payload["learning_rate"], 0.0003)
+            # StepLR(25, 0.5) has not stepped after two epochs.
+            self.assertAlmostEqual(summary["history"][-1]["learning_rate"], 0.0003)
+
+    def test_a_smaller_rate_gives_a_different_trajectory(self):
+        x, y = load_source()
+        histories = []
+        for rate in (0.001, 0.0001):
+            with tempfile.TemporaryDirectory() as directory:
+                histories.append(train_one(
+                    "R-txt-ps", 1042, _smoke_config(), x, y, Path(directory) / "ck",
+                    "cpu", save_every_epoch=False, learning_rate=rate)["history"])
+        self.assertLess(histories[1][-1]["accuracy"], histories[0][-1]["accuracy"])
+
+    def test_the_checkpoint_schedule_is_dense_early_and_sparse_late(self):
+        from src.train import epoch_is_saved
+        saved = [e for e in range(1, 101) if epoch_is_saved(e)]
+        self.assertEqual(saved[:20], list(range(1, 21)))
+        self.assertEqual(saved[20:], list(range(25, 101, 5)))
+        self.assertEqual(len(saved), 36)
 
 
 class TrainingTests(unittest.TestCase):

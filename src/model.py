@@ -28,10 +28,18 @@ N_CLASSES = 6
 TEXT_CAPPED_128 = ((1, 32, 32), (32, 64, 64), (64, 128, 128),
                    (128, 128, 128), (128, 128, 128))
 
+# Fig. 2 as printed, with `3 Conv 2` in Resnet1 read as 32. The figure reaches
+# 256 in Resnet4 and 512 inside Resnet5, contradicting Section 5.2's "from 1 to
+# 128 step by step". Restored 2026-09-23: both flatten cells of the v7.0 ladder
+# scored 0.032 and 0.049 below their counterparts on the previous project's
+# wider backbone, which is evidence for the figure; see docs/baseline-ladder.md.
+FIGURE_WIDTHS = ((1, 32, 32), (32, 64, 64), (64, 128, 128),
+                 (128, 256, 256), (256, 512, 128))
+
 HEADS = ("flatten", "gap")
 
-# A 2x2 factorial: {flatten, GAP} head x {StandardScaler, per-sample} Normal
-# block, on one backbone. Both main effects and their interaction are estimable.
+# The 2x2 factorial of the v7.0 ladder: {flatten, GAP} head x {StandardScaler,
+# per-sample} Normal block, on one backbone.
 VARIANTS: dict[str, dict] = {
     "R-txt": {"channels": TEXT_CAPPED_128, "head": "flatten",
               "normalizer": "standard_scaler"},
@@ -41,7 +49,21 @@ VARIANTS: dict[str, dict] = {
                "normalizer": "standard_scaler"},
     "R-lite-ps": {"channels": TEXT_CAPPED_128, "head": "gap",
                   "normalizer": "per_sample"},
+    # v7.1: the same two normalizers on Fig. 2's channel widths.
+    "R-fig": {"channels": FIGURE_WIDTHS, "head": "flatten",
+              "normalizer": "standard_scaler"},
+    "R-fig-ps": {"channels": FIGURE_WIDTHS, "head": "flatten",
+                 "normalizer": "per_sample"},
 }
+
+
+# Retired 2026-09-23. Global average pooling cost -0.078 target mean, separable
+# on both levels of the other factor; see docs/baseline-ladder.md. The paper's
+# "this network doesn't apply the pooling layer" is load-bearing. These two stay
+# defined so the 400 frozen epoch checkpoints of the v7.0 ladder remain loadable
+# and that result stays reproducible; `src.config` refuses them in a new
+# configuration.
+RETIRED_VARIANTS = ("R-lite", "R-lite-ps")
 
 
 class ResidualBlock1D(nn.Module):

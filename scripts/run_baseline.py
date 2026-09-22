@@ -45,6 +45,12 @@ def _write(path: Path, payload) -> None:
                     encoding="utf-8")
 
 
+def _learning_rates(config: dict) -> list[float]:
+    """The declared sweep, or the single rate in the optimizer block."""
+    return [float(v) for v in config.get("learning_rates",
+                                         [config["optimizer"]["lr"]])]
+
+
 def _train_all(run_dir: Path, config: dict, variants, seeds, device: str,
                epochs: int | None, per_epoch_seed) -> list[Path]:
     source_x, source_y = load_source()
@@ -52,24 +58,28 @@ def _train_all(run_dir: Path, config: dict, variants, seeds, device: str,
     if epochs is not None:
         training["epochs"] = epochs
     effective = {**config, "training": training}
+    rates = _learning_rates(config)
 
     checkpoints: list[Path] = []
     summaries = []
-    total = len(variants) * len(seeds)
+    total = len(variants) * len(rates) * len(seeds)
     index = 0
     for variant in variants:
-        for seed in seeds:
-            index += 1
-            target = run_dir / "checkpoints" / f"{variant}_seed{seed}"
-            print(f"[{index}/{total}] {variant} seed {seed} -> {target.name}", flush=True)
-            summary = train_one(
-                variant, seed, effective, source_x, source_y, target, device,
-                save_every_epoch=(seed == per_epoch_seed))
-            summaries.append(summary)
-            checkpoints.extend(sorted(target.glob("*.pt")))
-            print(f"    train acc {summary['final_train_accuracy']:.4f}  "
-                  f"loss {summary['final_train_loss_s2']:.4f}  "
-                  f"params {summary['parameters']['total']:,}", flush=True)
+        for rate in rates:
+            for seed in seeds:
+                index += 1
+                name = f"{variant}_lr{rate:g}_seed{seed}"
+                target = run_dir / "checkpoints" / name
+                print(f"[{index}/{total}] {variant} lr {rate:g} seed {seed}",
+                      flush=True)
+                summary = train_one(
+                    variant, seed, effective, source_x, source_y, target, device,
+                    save_every_epoch=(seed == per_epoch_seed), learning_rate=rate)
+                summaries.append(summary)
+                checkpoints.extend(sorted(target.glob("*.pt")))
+                print(f"    train acc {summary['final_train_accuracy']:.4f}  "
+                      f"loss {summary['final_train_loss_s2']:.4f}  "
+                      f"params {summary['parameters']['total']:,}", flush=True)
     _write(run_dir / "training_summaries.json", summaries)
     return checkpoints
 
@@ -163,9 +173,9 @@ def _evaluate(run_dir: Path, access_log: TargetAccessLog, device: str) -> int:
     report = audit.leakage_audit(run_dir, access_log)
 
     print(f"\nleakage audit: {report['status']}\n")
-    print(f"{'variant':12s} {'source':>7s} {'target mean':>12s} {'sd':>8s}")
-    for variant, entry in summary.items():
-        print(f"{variant:12s} {entry['source_accuracy']:7.4f} "
+    print(f"{'cell':22s} {'source':>7s} {'target mean':>12s} {'sd':>8s}")
+    for variant, entry in sorted(summary.items()):
+        print(f"{variant:22s} {entry['source_accuracy']:7.4f} "
               f"{entry['target_mean']:12.4f} {entry['target_mean_sd']:8.4f}")
     print(f"\npaper ResNet target mean: 0.6344\n{run_dir}")
     return 0
@@ -173,6 +183,11 @@ def _evaluate(run_dir: Path, access_log: TargetAccessLog, device: str) -> int:
 
 def command_evaluate(args) -> int:
     run_dir = Path(args.run)
+    return _evaluate(run_dir, _reload_freezes(run_dir), _device(require_cuda=True))
+
+
+def _reload_freezes(run_dir: Path) -> TargetAccessLog:
+    """Re-hash every frozen checkpoint and verify it is unchanged."""
     digests_path = run_dir / "checkpoint_digests.json"
     if not digests_path.exists():
         raise ProtocolError(f"{run_dir} has no frozen checkpoints")
@@ -180,11 +195,28 @@ def command_evaluate(args) -> int:
     access_log = TargetAccessLog()
     for path_text, digest in sorted(recorded.items()):
         path = Path(path_text)
-        current = audit.sha256_path(path)
-        if current != digest:
+        if audit.sha256_path(path) != digest:
             raise ProtocolError(f"{path} changed since it was frozen")
-        access_log.record_freeze(path, current)
-    return _evaluate(run_dir, access_log, _device(require_cuda=True))
+        access_log.record_freeze(path, digest)
+    return access_log
+
+
+def command_epoch_curve(args) -> int:
+    """Batch 1 and target accuracy per epoch, from already frozen checkpoints."""
+    run_dir = Path(args.run)
+    access_log = _reload_freezes(run_dir)
+    device = _device(require_cuda=False)
+    print(f"{len(access_log.freezes)} checkpoints verified; computing curves on {device}",
+          flush=True)
+    curves = evaluation.epoch_curves(run_dir, access_log, device)
+    _write(run_dir / "epoch_curves.json", curves)
+    audit.leakage_audit(run_dir, access_log)
+    for name, points in curves.items():
+        last = points[-1]
+        print(f"{name:22s} {len(points):3d} epochs  final source {last['source_accuracy']:.4f} "
+              f"target {last['target_mean']:.4f}")
+    print(f"\n{run_dir / 'epoch_curves.json'}")
+    return 0
 
 
 def main(argv=None) -> int:
@@ -217,6 +249,10 @@ def main(argv=None) -> int:
     evaluate_parser = sub.add_parser("evaluate", help="the target pass for a frozen run")
     evaluate_parser.add_argument("--run", required=True)
     evaluate_parser.set_defaults(handler=command_evaluate)
+
+    curve = sub.add_parser("epoch-curve", help="per-epoch curves from frozen checkpoints")
+    curve.add_argument("--run", required=True)
+    curve.set_defaults(handler=command_epoch_curve)
 
     args = parser.parse_args(argv)
     try:

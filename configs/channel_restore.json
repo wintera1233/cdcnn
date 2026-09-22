@@ -1,0 +1,35 @@
+{
+  "implementation_version": "CDCNN_v7.1_channel_restore",
+  "description": "Two factors on the flatten head with per-sample inputs: backbone channel widths (the prose capped at 128 against Fig. 2's 256 and 512) crossed with three learning rates. GAP and StandardScaler are retired.",
+  "variants": ["R-txt-ps", "R-fig-ps"],
+  "learning_rates": [0.001, 0.0003, 0.0001],
+  "seeds": [1042, 2024, 3407],
+  "reserve_seeds": [42, 123],
+  "training": {
+    "epochs": 100,
+    "batch_size": 64
+  },
+  "optimizer": {
+    "lr": 0.001,
+    "momentum": 0.9,
+    "weight_decay": 0.0001
+  },
+  "scheduler": {
+    "step_size": 25,
+    "gamma": 0.5
+  },
+  "per_epoch_checkpoint_seed": 1042,
+  "escalation": {
+    "target_mean_sd_threshold": 0.02,
+    "rung_difference_standard_errors": 2.0
+  },
+  "compare_against": {
+    "run": "20260922T180104804597Z_baseline_ladder_full",
+    "note": "R-txt-ps at lr 0.001 re-runs a v7.0 cell that scored 0.4673, so the whole grid is comparable inside one software version.",
+    "R-txt-ps@lr0.001": 0.4673
+  },
+  "paper_reference": {
+    "model": "ResNet (the backbone of CDCNN), Table 3",
+    "printed_average": 0.6344
+  }
+}

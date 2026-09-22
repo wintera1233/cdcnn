@@ -40,9 +40,19 @@ def _loader(x: torch.Tensor, y: torch.Tensor, batch_size: int,
                       drop_last=False, num_workers=0, generator=generator)
 
 
+def epoch_is_saved(epoch: int, dense_until: int = 20, then_every: int = 5) -> bool:
+    """Every epoch early, then every fifth.
+
+    The v7.0 curves put `R-txt`'s target peak at epoch 4 and its decay inside the
+    first forty, so resolution matters early and not late. Saving all 100 epochs
+    of every run would cost 14 GB against 28 GB free.
+    """
+    return epoch <= dense_until or epoch % then_every == 0
+
+
 def train_one(variant: str, seed: int, config: dict, source_x: np.ndarray,
               source_y: np.ndarray, checkpoint_dir: Path, device: str,
-              save_every_epoch: bool) -> dict:
+              save_every_epoch: bool, learning_rate: float | None = None) -> dict:
     """Train one variant at one seed for `config['training']['epochs']` epochs.
 
     Returns the history; writes `epoch_XXX.pt` when `save_every_epoch` and always
@@ -66,8 +76,9 @@ def train_one(variant: str, seed: int, config: dict, source_x: np.ndarray,
         raise ProtocolError("labels outside 1..6 after the zero-based shift")
 
     model = build(variant).to(device)
+    lr = optimizer_config["lr"] if learning_rate is None else float(learning_rate)
     optimizer = torch.optim.SGD(
-        model.parameters(), lr=optimizer_config["lr"],
+        model.parameters(), lr=lr,
         momentum=optimizer_config["momentum"],
         weight_decay=optimizer_config["weight_decay"])
     scheduler = torch.optim.lr_scheduler.StepLR(
@@ -95,14 +106,14 @@ def train_one(variant: str, seed: int, config: dict, source_x: np.ndarray,
         record = {"epoch": epoch, "learning_rate": scheduler.get_last_lr()[0],
                   **accumulator.summary()}
         history.append(record)
-        if save_every_epoch:
+        if save_every_epoch and epoch_is_saved(epoch):
             _save(checkpoint_dir / f"epoch_{epoch:03d}.pt", model, normalizer,
-                  variant, seed, epoch, config)
+                  variant, seed, epoch, config, lr)
 
     _save(checkpoint_dir / "final.pt", model, normalizer, variant, seed,
-          training["epochs"], config)
+          training["epochs"], config, lr)
     summary = {"variant": variant, "seed": seed, "device": device,
-               "normalizer": normalizer["kind"],
+               "normalizer": normalizer["kind"], "learning_rate": lr,
                "finished_at": utc_now(),
                "parameters": parameter_breakdown(model),
                "source_rows": int(len(source_y)),
@@ -116,8 +127,9 @@ def train_one(variant: str, seed: int, config: dict, source_x: np.ndarray,
 
 
 def _save(path: Path, model: nn.Module, normalizer: dict, variant: str,
-          seed: int, epoch: int, config: dict) -> None:
+          seed: int, epoch: int, config: dict, learning_rate: float) -> None:
     torch.save({"state_dict": {k: v.cpu() for k, v in model.state_dict().items()},
                 "normalizer": normalizer, "variant": variant, "seed": seed,
-                "epoch": epoch, "implementation_version": config["implementation_version"],
+                "epoch": epoch, "learning_rate": learning_rate,
+                "implementation_version": config["implementation_version"],
                 "written_at": utc_now()}, path)

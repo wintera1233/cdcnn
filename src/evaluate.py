@@ -69,6 +69,8 @@ def evaluate_checkpoint(path: Path, access_log: TargetAccessLog, device: str) ->
 
     return {"checkpoint": str(path), "variant": payload["variant"],
             "seed": payload["seed"], "epoch": payload["epoch"],
+            "learning_rate": payload.get("learning_rate"),
+            "cell": cell_name(payload["variant"], payload.get("learning_rate")),
             "source_accuracy": source_accuracy,
             "per_batch_accuracy": per_batch,
             "target_mean": float(np.mean(list(per_batch.values()))),
@@ -76,11 +78,16 @@ def evaluate_checkpoint(path: Path, access_log: TargetAccessLog, device: str) ->
             "confusion": matrices}
 
 
+def cell_name(variant: str, learning_rate) -> str:
+    """One design cell: a variant at a learning rate."""
+    return variant if learning_rate is None else f"{variant}@lr{learning_rate:g}"
+
+
 def aggregate(results: list[dict]) -> dict:
-    """Mean and standard deviation of the target mean across seeds, per variant."""
+    """Mean and standard deviation of the target mean across seeds, per cell."""
     by_variant: dict[str, list[dict]] = {}
     for result in results:
-        by_variant.setdefault(result["variant"], []).append(result)
+        by_variant.setdefault(result.get("cell") or result["variant"], []).append(result)
     summary = {}
     for variant, entries in by_variant.items():
         means = np.array([entry["target_mean"] for entry in entries], dtype=np.float64)
@@ -88,6 +95,8 @@ def aggregate(results: list[dict]) -> dict:
                                        for entry in entries]))
                    for key in entries[0]["per_batch_accuracy"]}
         summary[variant] = {
+            "variant": entries[0]["variant"],
+            "learning_rate": entries[0].get("learning_rate"),
             "seeds": sorted(entry["seed"] for entry in entries),
             "target_mean": float(means.mean()),
             # Sample standard deviation: three seeds, so ddof=1.
@@ -100,6 +109,42 @@ def aggregate(results: list[dict]) -> dict:
                                               for entry in entries])),
             "per_batch_accuracy": batches}
     return summary
+
+
+def epoch_curves(run_dir: Path, access_log: TargetAccessLog, device: str) -> dict:
+    """Batch 1 and target accuracy at every saved epoch, for Fig. S1.
+
+    The target batches are parsed once and held, because re-parsing nine files
+    for each of four hundred checkpoints would dominate the runtime. Every
+    checkpoint must already be frozen: `access_log` carries the freeze events, so
+    `src.audit.leakage_audit` still sees the freezes preceding these accesses.
+    """
+    if not access_log.freezes:
+        raise ProtocolError("epoch curves require frozen checkpoints")
+    source_x, source_y = load_source()
+    targets = {index: load_target(index, access_log) for index in TARGET_BATCHES}
+
+    curves: dict[str, list[dict]] = {}
+    for directory in sorted((run_dir / "checkpoints").iterdir()):
+        epochs = sorted(directory.glob("epoch_*.pt"))
+        if not epochs:
+            continue
+        points = []
+        for path in epochs:
+            model, payload = load_checkpoint(path, device)
+            normalizer = payload["normalizer"]
+            per_batch = {}
+            for index, (x, y) in targets.items():
+                per_batch[str(index)] = float(
+                    (predict(model, normalizer, x, device) == y).mean())
+            points.append({
+                "epoch": payload["epoch"],
+                "source_accuracy": float(
+                    (predict(model, normalizer, source_x, device) == source_y).mean()),
+                "target_mean": float(np.mean(list(per_batch.values()))),
+                "per_batch_accuracy": per_batch})
+        curves[directory.name] = points
+    return curves
 
 
 def class_recall(matrix: list[list[int]]) -> dict[str, float]:
