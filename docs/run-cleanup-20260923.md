@@ -13,6 +13,22 @@ Per the quarantine protocol, no run directory was deleted. All were moved to
 `.trash/run-cleanup-20260923/`.
 
 
+## The quarantine is now empty
+
+Checked 2026-09-23 03:25: `.trash/` contains nothing. The forty directories moved
+there, and the failed baseline smoke moved there later, are gone. This session
+did not remove them; it only moved directories in. Whatever removed them, the
+consequence stands:
+
+**The v6 run outputs no longer exist anywhere.** `runs/` was gitignored, so the
+quarantine was their only copy. What survives of that work is the code, the
+documents and the review deck on `exp/a3-confound-ablation` at `95115a2`, and the
+numbers quoted in this branch's documents. The runs themselves cannot be
+re-inspected, only re-trained.
+
+The eleven root-owned directories listed above were among them and are also gone,
+so the `sudo mv` recorded there is no longer needed.
+
 ## Recovery
 
 `runs/` is gitignored, so the quarantine directory is the only copy of these
