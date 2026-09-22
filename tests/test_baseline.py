@@ -64,6 +64,46 @@ class DataTests(unittest.TestCase):
                 self.assertEqual(sum(1 for line in handle if line.strip()), rows,
                                  f"batch{index}.dat row count changed")
 
+    def test_the_label_mapping_matches_the_paper_table_2(self):
+        """Ties label integers to gas names through the paper's own Table 2.
+
+        Counting rows per label is dataset documentation, not feature access, so
+        it reads the files directly rather than through `load_target`. The
+        mapping is forced: Batch 1's six counts are pairwise distinct and so are
+        Table 2's, so only one assignment is possible.
+        """
+        gases = ["Ethanol", "Ethylene", "Ammonia", "Acetaldehyde", "Acetone",
+                 "Toluene"]
+        table2 = {1: [83, 30, 70, 98, 90, 74], 2: [100, 109, 532, 334, 164, 5],
+                  3: [216, 240, 275, 490, 365, 0], 4: [12, 30, 12, 43, 64, 0],
+                  5: [20, 46, 63, 40, 20, 0], 6: [110, 29, 606, 574, 514, 467],
+                  7: [360, 745, 630, 662, 649, 568], 8: [40, 33, 143, 30, 30, 18],
+                  9: [100, 75, 78, 55, 61, 101], 10: [600] * 6}
+        # The paper's own row sums contradict its printed totals in exactly these
+        # two cells, so the dataset is right and the table is wrong.
+        known_paper_errors = {(5, "Acetone"), (7, "Ethylene")}
+
+        counts = {}
+        for index in table2:
+            seen = {label: 0 for label in range(1, 7)}
+            with batch_path(index).open(encoding="utf-8") as handle:
+                for line in handle:
+                    if line.strip():
+                        seen[int(line.split(None, 1)[0])] += 1
+            counts[index] = seen
+
+        column = {gas: position for position, gas in enumerate(gases)}
+        for index, per_label in counts.items():
+            for label, gas in GAS_LABELS.items():
+                if (index, gas) in known_paper_errors:
+                    continue
+                self.assertEqual(per_label[label], table2[index][column[gas]],
+                                 f"batch {index}, label {label} ({gas})")
+
+        # Only one assignment reproduces Batch 1, because its counts are distinct.
+        self.assertEqual(len(set(table2[1])), 6)
+        self.assertEqual(sorted(counts[1].values()), sorted(table2[1]))
+
     def test_target_batches_cannot_be_read_without_an_access_log(self):
         with self.assertRaisesRegex(ProtocolError, "TargetAccessLog"):
             load_target(2, None)
