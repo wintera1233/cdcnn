@@ -20,7 +20,7 @@ with a LayerNorm head would keep both.
 
 ## Results
 
-| Input  | Head norm | Batch 1 | Target mean | SD |
+| Input `Normal` | Head norm | Batch 1 | Target mean | SD |
 |---|---|---:|---:|---:|
 | StandardScaler | BatchNorm | 0.9955 | 0.4105 | 0.0173 |
 | StandardScaler | LayerNorm | 1.0000 | 0.4760 | 0.0040 |
