@@ -77,9 +77,13 @@ retrieves any of it. Its run outputs are quarantined in
 - **The three CDCNN components were worth approximately zero** under this
   protocol: supervised contrastive loss −0.005 to +0.003, feature generation
   +0.001 to +0.014, augmentation −0.013 to −0.009 at every noise scale tested.
-- **Ethylene was never predicted**, by any stage or by either SVM baseline. It is
-  the smallest class in Batch 1 at 30 rows. The paper's own Fig. S3 confusion
-  matrix has a class with a zero diagonal.
+- **Ethylene is learned on Batch 1 and lost on the target.** `R-txt` reaches
+  1.000 source recall and 0.001 target recall; nothing either project has trained
+  exceeds 0.027 on target. It is the smallest class in Batch 1 at 30 rows, but
+  class weighting cannot help a class already learned perfectly at source.
+  The paper's Fig. S3 also has a zero-diagonal class, but it is **Acetaldehyde**,
+  sent entirely to Ethanol; the paper recovers Ethylene at 0.95. The two projects
+  fail on opposite classes. See `docs/dead-class.md`.
 - **A fixed epoch budget confounds augmentation**, because doubling the rows at a
   fixed epoch count doubles the gradient steps. Any comparison between augmented
   and unaugmented training must state which of step count and per-sample exposure
