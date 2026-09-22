@@ -48,8 +48,13 @@ def stratified_folds(y: np.ndarray, n_folds: int = N_FOLDS,
 
 def fold_curve(variant: str, seed: int, learning_rate: float, config: dict,
                x: np.ndarray, y: np.ndarray, train_index: np.ndarray,
-               held_out_index: np.ndarray, device: str) -> list[float]:
-    """Held-out accuracy after every epoch, for one fold.
+               held_out_index: np.ndarray, device: str) -> dict[str, list[float]]:
+    """Held-out accuracy **and cross-entropy** after every epoch, for one fold.
+
+    Accuracy on 89 held-out rows moves in steps of 1/89 and saturates within a
+    few epochs, so it is a blunt instrument. Cross-entropy is continuous and its
+    classic overfitting signature - a minimum followed by a rise while accuracy
+    stays flat - appears earlier. Both are recorded.
 
     The `Normal` block is fitted on the training part of the fold only, so the
     held-out part is never used to choose anything.
@@ -80,6 +85,7 @@ def fold_curve(variant: str, seed: int, learning_rate: float, config: dict,
                         num_workers=0, generator=torch.Generator().manual_seed(seed))
 
     accuracies: list[float] = []
+    losses: list[float] = []
     for _ in range(training["epochs"]):
         model.train()
         for batch_x, batch_y in loader:
@@ -90,19 +96,28 @@ def fold_curve(variant: str, seed: int, learning_rate: float, config: dict,
         scheduler.step()
         model.eval()
         with torch.no_grad():
-            predicted = model(held_x).argmax(dim=1)
-        accuracies.append(float((predicted == held_y).float().mean()))
-    return accuracies
+            logits = model(held_x)
+            accuracies.append(float((logits.argmax(dim=1) == held_y).float().mean()))
+            losses.append(float(cross_entropy(logits, held_y)))
+    return {"accuracy": accuracies, "loss": losses}
 
 
-def summarise(curves: list[list[float]]) -> dict:
-    """Mean held-out accuracy per epoch, and where it peaks."""
-    array = np.asarray(curves, dtype=np.float64)
-    mean = array.mean(axis=0)
-    peak = int(mean.argmax())
-    return {"per_epoch_mean": mean.tolist(),
-            "per_epoch_sd": array.std(axis=0, ddof=1).tolist(),
+def summarise(curves: list[dict[str, list[float]]]) -> dict:
+    """Mean held-out accuracy and loss per epoch, with the peak and the minimum."""
+    accuracy = np.asarray([c["accuracy"] for c in curves], dtype=np.float64)
+    loss = np.asarray([c["loss"] for c in curves], dtype=np.float64)
+    accuracy_mean = accuracy.mean(axis=0)
+    loss_mean = loss.mean(axis=0)
+    peak = int(accuracy_mean.argmax())
+    trough = int(loss_mean.argmin())
+    return {"accuracy_per_epoch_mean": accuracy_mean.tolist(),
+            "accuracy_per_epoch_sd": accuracy.std(axis=0, ddof=1).tolist(),
+            "loss_per_epoch_mean": loss_mean.tolist(),
+            "loss_per_epoch_sd": loss.std(axis=0, ddof=1).tolist(),
             "peak_epoch": peak + 1,
-            "peak_accuracy": float(mean[peak]),
-            "final_accuracy": float(mean[-1]),
+            "peak_accuracy": float(accuracy_mean[peak]),
+            "final_accuracy": float(accuracy_mean[-1]),
+            "min_loss_epoch": trough + 1,
+            "min_loss": float(loss_mean[trough]),
+            "final_loss": float(loss_mean[-1]),
             "folds": len(curves)}

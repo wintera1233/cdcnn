@@ -249,17 +249,20 @@ def command_cv(args) -> int:
             cell = f"{variant}@lr{rate:g}"
             results[cell] = summarise(curves)
             entry = results[cell]
-            print(f"    peak {entry['peak_accuracy']:.4f} at epoch "
-                  f"{entry['peak_epoch']}, final {entry['final_accuracy']:.4f}",
-                  flush=True)
+            print(f"    accuracy peak {entry['peak_accuracy']:.4f} at epoch "
+                  f"{entry['peak_epoch']}; loss minimum {entry['min_loss']:.4f} "
+                  f"at epoch {entry['min_loss_epoch']} (final "
+                  f"{entry['final_loss']:.4f})", flush=True)
     _write(run_dir / "cv_curves.json", results)
     report = audit.leakage_audit(run_dir, TargetAccessLog())
 
     print(f"\nleakage audit: {report['status']} (no target file was opened)\n")
-    print(f"{'cell':22s}{'CV peak':>9s}{'at epoch':>10s}{'CV @100':>9s}")
+    print(f"{'cell':22s}{'acc peak':>9s}{'at ep':>7s}{'acc@100':>9s}"
+          f"{'loss min':>10s}{'at ep':>7s}{'loss@100':>10s}")
     for cell, entry in sorted(results.items()):
-        print(f"{cell:22s}{entry['peak_accuracy']:9.4f}{entry['peak_epoch']:10d}"
-              f"{entry['final_accuracy']:9.4f}")
+        print(f"{cell:22s}{entry['peak_accuracy']:9.4f}{entry['peak_epoch']:7d}"
+              f"{entry['final_accuracy']:9.4f}{entry['min_loss']:10.4f}"
+              f"{entry['min_loss_epoch']:7d}{entry['final_loss']:10.4f}")
     print(f"\n{run_dir}")
     return 0
 

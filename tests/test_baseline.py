@@ -323,9 +323,21 @@ class CrossValidationTests(unittest.TestCase):
         train_index = np.concatenate(folds[1:])
         curve = fold_curve("R-fig-ps", 1042, 0.001, _smoke_config(), x, y,
                            train_index, held_out, "cpu")
-        self.assertEqual(len(curve), 2)
-        self.assertTrue(all(0.0 <= v <= 1.0 for v in curve))
+        self.assertEqual(sorted(curve), ["accuracy", "loss"])
+        self.assertEqual(len(curve["accuracy"]), 2)
+        self.assertEqual(len(curve["loss"]), 2)
+        self.assertTrue(all(0.0 <= v <= 1.0 for v in curve["accuracy"]))
+        self.assertTrue(all(v > 0.0 for v in curve["loss"]))
         self.assertEqual(len(set(train_index) & set(held_out.tolist())), 0)
+
+    def test_summarise_reports_both_the_accuracy_peak_and_the_loss_minimum(self):
+        from src.cv import summarise
+        entry = summarise([{"accuracy": [0.1, 0.5, 0.4], "loss": [2.0, 1.0, 1.5]},
+                           {"accuracy": [0.1, 0.5, 0.4], "loss": [2.0, 1.0, 1.5]}])
+        self.assertEqual(entry["peak_epoch"], 2)
+        self.assertEqual(entry["min_loss_epoch"], 2)
+        self.assertAlmostEqual(entry["min_loss"], 1.0)
+        self.assertAlmostEqual(entry["final_loss"], 1.5)
 
     def test_a_run_that_opens_no_target_needs_no_freeze(self):
         with tempfile.TemporaryDirectory() as directory:
