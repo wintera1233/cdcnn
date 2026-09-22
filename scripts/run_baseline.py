@@ -23,12 +23,14 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+import numpy as np  # noqa: E402
 import torch  # noqa: E402
 
 from src import audit, evaluate as evaluation  # noqa: E402
 from src.config import load as load_config  # noqa: E402
 from src.data import load_source  # noqa: E402
 from src.protocol import ProtocolError, TargetAccessLog, utc_now  # noqa: E402
+from src.cv import N_FOLDS, fold_curve, stratified_folds, summarise  # noqa: E402
 from src.train import train_one  # noqa: E402
 
 
@@ -219,6 +221,49 @@ def command_epoch_curve(args) -> int:
     return 0
 
 
+def command_cv(args) -> int:
+    """Held-out accuracy per epoch on Batch 1. Never opens a target batch."""
+    config = load_config(Path(args.config))
+    device = _device(require_cuda=args.require_cuda)
+    run_dir = audit.new_run_dir(args.name)
+    audit.write_manifest(run_dir, config)
+
+    x, y = load_source()
+    folds = stratified_folds(y, N_FOLDS)
+    rates = _learning_rates(config)
+    results: dict[str, dict] = {}
+    total = len(config["variants"]) * len(rates) * len(config["seeds"]) * N_FOLDS
+    index = 0
+    for variant in config["variants"]:
+        for rate in rates:
+            curves = []
+            for seed in config["seeds"]:
+                for number, held_out in enumerate(folds):
+                    index += 1
+                    train_index = np.concatenate(
+                        [f for k, f in enumerate(folds) if k != number])
+                    print(f"[{index}/{total}] {variant} lr {rate:g} seed {seed} "
+                          f"fold {number}", flush=True)
+                    curves.append(fold_curve(variant, seed, rate, config, x, y,
+                                             train_index, held_out, device))
+            cell = f"{variant}@lr{rate:g}"
+            results[cell] = summarise(curves)
+            entry = results[cell]
+            print(f"    peak {entry['peak_accuracy']:.4f} at epoch "
+                  f"{entry['peak_epoch']}, final {entry['final_accuracy']:.4f}",
+                  flush=True)
+    _write(run_dir / "cv_curves.json", results)
+    report = audit.leakage_audit(run_dir, TargetAccessLog())
+
+    print(f"\nleakage audit: {report['status']} (no target file was opened)\n")
+    print(f"{'cell':22s}{'CV peak':>9s}{'at epoch':>10s}{'CV @100':>9s}")
+    for cell, entry in sorted(results.items()):
+        print(f"{cell:22s}{entry['peak_accuracy']:9.4f}{entry['peak_epoch']:10d}"
+              f"{entry['final_accuracy']:9.4f}")
+    print(f"\n{run_dir}")
+    return 0
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -253,6 +298,12 @@ def main(argv=None) -> int:
     curve = sub.add_parser("epoch-curve", help="per-epoch curves from frozen checkpoints")
     curve.add_argument("--run", required=True)
     curve.set_defaults(handler=command_epoch_curve)
+
+    cv = sub.add_parser("cv", help="held-out accuracy per epoch, Batch 1 only")
+    cv.add_argument("--config", required=True)
+    cv.add_argument("--name", default="cv_early_stop")
+    cv.add_argument("--require-cuda", action="store_true")
+    cv.set_defaults(handler=command_cv)
 
     args = parser.parse_args(argv)
     try:

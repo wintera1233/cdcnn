@@ -105,8 +105,11 @@ def leakage_audit(run_dir: Path, access_log: TargetAccessLog) -> dict:
     last_freeze = max((event["frozen_at"] for event in freezes), default=None)
     first_access = min(accesses.values(), default=None)
     violations = []
-    if not freezes:
-        violations.append("no checkpoint was frozen")
+    # A run that never opened a target file cannot have leaked, so it needs no
+    # freeze: source-only runs such as the cross-validation sweep pass on that
+    # ground alone. A run that did open one must have frozen first.
+    if accesses and not freezes:
+        violations.append("a target file was opened but no checkpoint was frozen")
     if first_access is not None and last_freeze is not None and first_access < last_freeze:
         violations.append(
             f"a target file was opened at {first_access}, before the last "

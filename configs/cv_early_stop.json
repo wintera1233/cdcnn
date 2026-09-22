@@ -1,0 +1,28 @@
+{
+  "implementation_version": "CDCNN_v7.3_cv_early_stop",
+  "description": "Does held-out accuracy on Batch 1 locate the epoch at which target accuracy peaks? 5-fold stratified cross-validation, folds fixed by a constant so only the initialisation varies with seed. Batch 1 only; no target file is opened.",
+  "variants": ["R-fig", "R-fig-ps"],
+  "learning_rates": [0.001, 0.0003],
+  "seeds": [1042, 2024, 3407],
+  "training": {
+    "epochs": 100,
+    "batch_size": 64
+  },
+  "optimizer": {
+    "lr": 0.001,
+    "momentum": 0.9,
+    "weight_decay": 0.0001
+  },
+  "scheduler": {
+    "step_size": 25,
+    "gamma": 0.5
+  },
+  "folds": 5,
+  "fold_seed": 20260923,
+  "target_informed_reference": {
+    "note": "Peaks of the target curves at seed 1042, for comparison only. These were seen before this experiment was designed and are not available to any stopping rule.",
+    "R-fig@lr0.0003": {"peak_epoch": 7, "peak_target": 0.5605, "final_target": 0.3968},
+    "R-fig-ps@lr0.001": {"peak_epoch": 40, "peak_target": 0.5790, "final_target": 0.5134},
+    "R-fig-ps@lr0.0003": {"peak_epoch": 70, "peak_target": 0.5416, "final_target": 0.5379}
+  }
+}

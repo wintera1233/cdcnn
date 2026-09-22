@@ -291,6 +291,56 @@ class ConfigTests(unittest.TestCase):
             validate(changed)
 
 
+class CrossValidationTests(unittest.TestCase):
+    def test_folds_partition_the_source_and_keep_every_class_even(self):
+        from src.cv import N_FOLDS, stratified_folds
+        _, y = load_source()
+        folds = stratified_folds(y)
+        self.assertEqual(len(folds), N_FOLDS)
+        self.assertEqual(sorted(np.concatenate(folds).tolist()),
+                         list(range(len(y))))
+        for label in range(1, 7):
+            sizes = [int((y[f] == label).sum()) for f in folds]
+            self.assertLessEqual(max(sizes) - min(sizes), 1,
+                                 f"class {label} is unevenly split: {sizes}")
+        # Ethylene's 30 rows must not concentrate in one fold.
+        self.assertEqual([int((y[f] == 4).sum()) for f in folds], [6] * N_FOLDS)
+
+    def test_folds_are_fixed_independently_of_the_model_seed(self):
+        from src.cv import stratified_folds
+        _, y = load_source()
+        first = [f.tolist() for f in stratified_folds(y)]
+        second = [f.tolist() for f in stratified_folds(y)]
+        self.assertEqual(first, second)
+        different = [f.tolist() for f in stratified_folds(y, seed=1)]
+        self.assertNotEqual(first, different)
+
+    def test_a_fold_curve_has_one_entry_per_epoch_and_never_sees_the_held_out_part(self):
+        from src.cv import fold_curve, stratified_folds
+        x, y = load_source()
+        folds = stratified_folds(y)
+        held_out = folds[0]
+        train_index = np.concatenate(folds[1:])
+        curve = fold_curve("R-fig-ps", 1042, 0.001, _smoke_config(), x, y,
+                           train_index, held_out, "cpu")
+        self.assertEqual(len(curve), 2)
+        self.assertTrue(all(0.0 <= v <= 1.0 for v in curve))
+        self.assertEqual(len(set(train_index) & set(held_out.tolist())), 0)
+
+    def test_a_run_that_opens_no_target_needs_no_freeze(self):
+        with tempfile.TemporaryDirectory() as directory:
+            report = audit.leakage_audit(Path(directory), TargetAccessLog())
+            self.assertEqual(report["status"], "passed")
+            self.assertEqual(report["target_files_opened"], 0)
+
+    def test_a_run_that_opens_a_target_without_freezing_still_fails(self):
+        with tempfile.TemporaryDirectory() as directory:
+            log = TargetAccessLog()
+            log.record_access(batch_path(2))
+            with self.assertRaisesRegex(ProtocolError, "no checkpoint was frozen"):
+                audit.leakage_audit(Path(directory), log)
+
+
 class HeadNormalisationTests(unittest.TestCase):
     def test_the_four_cells_cross_both_normalisations_at_equal_cost(self):
         from src.model import VARIANTS as spec
