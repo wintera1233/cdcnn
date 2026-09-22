@@ -4,7 +4,7 @@ Branch `exp/v7-redesign`. Written 2026-09-23.
 
 ## 0. Work plan
 
-Twenty-nine items in five stages. Two stopping points, marked STOP, where the work
+Thirty items in five stages. Two stopping points, marked STOP, where the work
 pauses for review before continuing. Nothing is trained before the first one.
 
 ### Stage 0 — environment (1 item)
@@ -14,7 +14,7 @@ pauses for review before continuing. Nothing is trained before the first one.
    CUDA. The `.venv` on this machine holds 2.8.0+cu126, the build implicated in
    the Xid 31 MMU fault of 2026-09-21.
 
-### Stage 1 — code (10 items)
+### Stage 1 — code (11 items)
 
 2. `src/protocol.py` — `ProtocolError`, the target-access recorder.
 3. `src/data.py` — LIBSVM loader, Batch 1 gate, file hashing.
@@ -25,51 +25,57 @@ pauses for review before continuing. Nothing is trained before the first one.
 6. `src/loss.py` — `L_ce` exactly as Eq. (S2): mean within a batch, then mean
    across batches.
 7. `src/train.py` — 100 epochs, SGD, `StepLR`, fixed seeds, a checkpoint at every
-   epoch.
+   epoch for the seed named by `per_epoch_checkpoint_seed`, and a final
+   checkpoint for every seed. Saving all 900 epoch checkpoints would cost 3.8 GB
+   against 28 GB free; the Fig. S1 question in section 5 needs one seed per
+   variant, so only seed 1042 saves per epoch, for 1.3 GB.
 8. `src/evaluate.py` — post-freeze target evaluation, per-batch accuracy, target
    mean, confusion matrices.
 9. `src/audit.py` — leakage audit and the run manifest: code hash, config hash,
    library and driver versions.
-10. `scripts/run_baseline.py` — the single entry point: `smoke`, `gpu-smoke`,
+10. `src/config.py` — configuration loading, and validation that pins the
+    ladder's declared variants, seeds and protocol constants.
+11. `scripts/run_baseline.py` — the single entry point: `smoke`, `gpu-smoke`,
     `launch`, `evaluate`.
-11. `configs/` — one file per variant.
+12. `configs/baseline_ladder.json` — the declared experiment.
 
 ### Stage 2 — tests (8 items)
 
-12. The loader reproduces 445 rows and the 90 / 98 / 83 / 30 / 70 / 74 class
+13. The loader reproduces 445 rows and the 90 / 98 / 83 / 30 / 70 / 74 class
     histogram.
-13. `L_ce` equals `CrossEntropyLoss` when the batch size divides the row count,
+14. `L_ce` equals `CrossEntropyLoss` when the batch size divides the row count,
     and differs as predicted when it does not.
-14. Parameter counts match section 6 exactly for every variant.
-15. The backbone output is `[N, 128, 128]`; no pooling anywhere inside it.
-16. The audit raises if a target file is opened before the last checkpoint is
+15. Parameter counts match section 6 exactly for every variant.
+16. The backbone output is `[N, 128, 128]`; no pooling anywhere inside it.
+17. The audit raises if a target file is opened before the last checkpoint is
     frozen.
-17. The same seed reproduces bit-identical losses.
-18. Configuration validation rejects an undeclared variant.
-19. A run refuses to write into an existing run directory.
+18. The same seed reproduces bit-identical losses.
+19. Configuration validation rejects an undeclared variant.
+20. A run refuses to write into an existing run directory.
 
 **STOP.** Test output is reviewed before any GPU time is spent.
 
 ### Stage 3 — gates (2 items)
 
-20. CPU smoke: one seed, few epochs, end to end.
-21. GPU smoke artifact on Batch 1 only, as `CLAUDE.md` section 6 requires.
+21. CPU smoke: one seed, few epochs, end to end.
+22. GPU smoke artifact on Batch 1 only, as `CLAUDE.md` section 6 requires.
 
 ### Stage 4 — training and evaluation (4 items)
 
-22. 9 training runs: 3 variants x 3 seeds x 100 epochs, saving every epoch.
-23. Freeze and hash all 9 final checkpoints and all 900 epoch checkpoints.
-24. One target evaluation pass: Batches 2-10 opened once, per-batch accuracy and
+23. 9 training runs: 3 variants x 3 seeds x 100 epochs.
+24. Freeze and hash all 9 final checkpoints and the 300 epoch checkpoints of
+    seed 1042.
+25. One target evaluation pass: Batches 2-10 opened once, per-batch accuracy and
     target mean.
-25. Compute the Batch 1 and target accuracy curves per epoch from the frozen
+26. Compute the Batch 1 and target accuracy curves per epoch from the frozen
     checkpoints and overlay them on Fig. S1, to settle the question in section 5.
 
 ### Stage 5 — record (4 items)
 
-26. `docs/baseline-ladder.md` — the three variants against the paper's 0.6344.
-27. The Fig. S1 overlay figure.
-28. `docs/change-log.md` — a fresh log for this branch.
-29. `docs/run-cleanup-20260923.md` — append the runs this stage produces.
+27. `docs/baseline-ladder.md` — the three variants against the paper's 0.6344.
+28. The Fig. S1 overlay figure.
+29. `docs/change-log.md` — a fresh log for this branch.
+30. `docs/run-cleanup-20260923.md` — append the runs this stage produces.
 
 **STOP.** Results are reviewed before deciding whether to rebuild any CDCNN
 component.

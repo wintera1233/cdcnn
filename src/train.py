@@ -1,0 +1,118 @@
+"""Training on Batch 1 only.
+
+Nothing here can see a target batch: `src.data.load_target` demands a
+`TargetAccessLog`, and this module never constructs one. The `Normal` block is
+fitted on the source array passed in, which `scripts/run_baseline.py` takes from
+`src.data.load_source`.
+"""
+
+from __future__ import annotations
+
+import json
+import random
+from pathlib import Path
+
+import numpy as np
+import torch
+from torch import nn
+from torch.utils.data import DataLoader, TensorDataset
+
+from src import normalize
+from src.data import N_CLASSES
+from src.loss import EpochLoss, cross_entropy
+from src.model import build, parameter_breakdown, to_input
+from src.protocol import ProtocolError, utc_now
+
+
+def seed_everything(seed: int) -> None:
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    # Requires CUBLAS_WORKSPACE_CONFIG=":4096:8", which docker/Dockerfile sets.
+    torch.use_deterministic_algorithms(True)
+    torch.backends.cudnn.benchmark = False
+
+
+def _loader(x: torch.Tensor, y: torch.Tensor, batch_size: int,
+            generator: torch.Generator) -> DataLoader:
+    return DataLoader(TensorDataset(x, y), batch_size=batch_size, shuffle=True,
+                      drop_last=False, num_workers=0, generator=generator)
+
+
+def train_one(variant: str, seed: int, config: dict, source_x: np.ndarray,
+              source_y: np.ndarray, checkpoint_dir: Path, device: str,
+              save_every_epoch: bool) -> dict:
+    """Train one variant at one seed for `config['training']['epochs']` epochs.
+
+    Returns the history; writes `epoch_XXX.pt` when `save_every_epoch` and always
+    writes `final.pt`. Checkpoints are written, not frozen: freezing and hashing
+    happen in `src.audit` once every run of the ladder is complete.
+    """
+    training = config["training"]
+    optimizer_config = config["optimizer"]
+    scheduler_config = config["scheduler"]
+
+    seed_everything(seed)
+    normalizer = normalize.fit(config["normalizer"], source_x)
+    x = to_input(normalize.apply(normalizer, source_x))
+    # Labels on disk are 1..6; the model has 6 outputs indexed from zero.
+    y = torch.as_tensor(source_y, dtype=torch.int64) - 1
+    if int(y.min()) < 0 or int(y.max()) >= N_CLASSES:
+        raise ProtocolError("labels outside 1..6 after the zero-based shift")
+
+    model = build(variant).to(device)
+    optimizer = torch.optim.SGD(
+        model.parameters(), lr=optimizer_config["lr"],
+        momentum=optimizer_config["momentum"],
+        weight_decay=optimizer_config["weight_decay"])
+    scheduler = torch.optim.lr_scheduler.StepLR(
+        optimizer, step_size=scheduler_config["step_size"],
+        gamma=scheduler_config["gamma"])
+
+    generator = torch.Generator().manual_seed(seed)
+    loader = _loader(x, y, training["batch_size"], generator)
+    checkpoint_dir.mkdir(parents=True, exist_ok=False)
+
+    history: list[dict] = []
+    for epoch in range(1, training["epochs"] + 1):
+        model.train()
+        accumulator = EpochLoss()
+        for batch_x, batch_y in loader:
+            batch_x = batch_x.to(device)
+            batch_y = batch_y.to(device)
+            optimizer.zero_grad(set_to_none=True)
+            logits = model(batch_x)
+            loss = cross_entropy(logits, batch_y)
+            loss.backward()
+            optimizer.step()
+            accumulator.update(loss, logits, batch_y)
+        scheduler.step()
+        record = {"epoch": epoch, "learning_rate": scheduler.get_last_lr()[0],
+                  **accumulator.summary()}
+        history.append(record)
+        if save_every_epoch:
+            _save(checkpoint_dir / f"epoch_{epoch:03d}.pt", model, normalizer,
+                  variant, seed, epoch, config)
+
+    _save(checkpoint_dir / "final.pt", model, normalizer, variant, seed,
+          training["epochs"], config)
+    summary = {"variant": variant, "seed": seed, "device": device,
+               "finished_at": utc_now(),
+               "parameters": parameter_breakdown(model),
+               "source_rows": int(len(source_y)),
+               "batches_per_epoch": int(history[-1]["batches"]),
+               "final_train_accuracy": history[-1]["accuracy"],
+               "final_train_loss_s2": history[-1]["loss_s2"],
+               "history": history}
+    (checkpoint_dir / "history.json").write_text(
+        json.dumps(summary, indent=2) + "\n", encoding="utf-8")
+    return summary
+
+
+def _save(path: Path, model: nn.Module, normalizer: dict, variant: str,
+          seed: int, epoch: int, config: dict) -> None:
+    torch.save({"state_dict": {k: v.cpu() for k, v in model.state_dict().items()},
+                "normalizer": normalizer, "variant": variant, "seed": seed,
+                "epoch": epoch, "implementation_version": config["implementation_version"],
+                "written_at": utc_now()}, path)

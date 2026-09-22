@@ -1,0 +1,31 @@
+{
+  "implementation_version": "CDCNN_v7.0_baseline_ladder",
+  "description": "Reconstruct the paper's plain ResNet baseline (Table 3, 0.6344). L_ce only.",
+  "variants": ["R-txt", "R-lite", "R-lite-ps"],
+  "seeds": [1042, 2024, 3407],
+  "reserve_seeds": [42, 123],
+  "training": {
+    "epochs": 100,
+    "batch_size": 64
+  },
+  "optimizer": {
+    "lr": 0.001,
+    "momentum": 0.9,
+    "weight_decay": 0.0001
+  },
+  "scheduler": {
+    "step_size": 25,
+    "gamma": 0.5
+  },
+  "per_epoch_checkpoint_seed": 1042,
+  "escalation": {
+    "target_mean_sd_threshold": 0.02,
+    "rung_difference_standard_errors": 2.0
+  },
+  "paper_reference": {
+    "model": "ResNet (the backbone of CDCNN), Table 3",
+    "per_batch": {"2": 0.7692, "3": 0.6618, "4": 0.6424, "5": 0.7160, "6": 0.7253,
+                  "7": 0.5024, "8": 0.6602, "9": 0.6035, "10": 0.4302},
+    "printed_average": 0.6344
+  }
+}
