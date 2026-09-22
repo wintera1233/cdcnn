@@ -1,0 +1,11 @@
+# The build context needs none of these; runs/ alone is hundreds of megabytes.
+runs/
+Dataset/
+.venv/
+.git/
+.trash/
+data/
+docs/paper/
+**/__pycache__/
+*.pt
+*.csv.gz
