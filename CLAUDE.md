@@ -62,34 +62,42 @@ Reference values from the paper's Table 3:
 | paper CDWC | 0.6705 |
 | paper CDCNN | 0.7230 |
 
-## 4. What the previous attempt established
+## 4. What is already established
 
-Branch `exp/a3-confound-ablation` at commit `95115a2` holds the v6 code, 21
-documents, and the review deck; `git checkout exp/a3-confound-ablation -- <path>`
-retrieves any of it. Its run outputs are quarantined in
-`.trash/run-cleanup-20260923/`. Do not spend GPU time re-deriving these:
+`baseline.md` holds the settled baseline design. Do not spend GPU time
+re-deriving any of the following.
 
-- **The deficit is in the baseline.** The paper's plain ResNet baseline (0.6346)
-  beats every stage that project ever trained, best 0.5613. No CDCNN component
-  explains the gap.
-- **Per-sample input normalization was worth +0.109**, LayerNorm instead of
-  BatchNorm +0.085, the two together +0.149. These were the only real gains.
-- **The three CDCNN components were worth approximately zero** under this
-  protocol: supervised contrastive loss −0.005 to +0.003, feature generation
-  +0.001 to +0.014, augmentation −0.013 to −0.009 at every noise scale tested.
-- **Ethylene is learned on Batch 1 and lost on the target.** `R-txt` reaches
-  1.000 source recall and 0.001 target recall; nothing either project has trained
-  exceeds 0.027 on target. It is the smallest class in Batch 1 at 30 rows, but
-  class weighting cannot help a class already learned perfectly at source.
-  The paper's Fig. S3 also has a zero-diagonal class, but it is **Acetaldehyde**,
-  sent entirely to Ethanol; the paper recovers Ethylene at 0.95. The two projects
-  fail on opposite classes. See `docs/dead-class.md`.
+### From this branch (v7.0 to v7.3, `docs/`)
+
+- **The baseline stands at target mean 0.5222** against the paper's 0.6344, with
+  six of the nine batches at or above the paper and the whole deficit in B5, B8
+  and B9. `docs/all-results.md` lists every cell trained.
+- **Per-sample input normalisation is worth +0.112**; it and a LayerNorm head are
+  substitutes with an interaction of -0.141, so use exactly one, at the input.
+- **Global average pooling costs -0.078.** The paper's "this network doesn't
+  apply the pooling layer" is load-bearing.
+- **Memorisation is not the defect.** The flatten head reaches 1.0000 on Batch 1
+  and still beats the pooled head on target.
+- **No source-only stopping rule exists.** Held-out accuracy and held-out loss
+  are anti-correlated with target accuracy across the window where it collapses;
+  see `docs/early-stopping.md`. The epoch count must be fixed by fiat.
+- **Ethylene does not transfer.** Source recall 1.000, target recall 0.001.
+  Class weighting cannot help it. The paper loses Acetaldehyde instead and leads
+  on five of six classes; see `docs/dead-class.md`.
 - **A fixed epoch budget confounds augmentation**, because doubling the rows at a
   fixed epoch count doubles the gradient steps. Any comparison between augmented
   and unaugmented training must state which of step count and per-sample exposure
   it matches; it cannot match both.
 
-Closing the baseline gap comes before adding any domain-generalization component.
+### From the previous branch
+
+`exp/a3-confound-ablation` at commit `95115a2` holds the v6 code, 21 documents
+and a review deck; `git checkout exp/a3-confound-ablation -- <path>` retrieves
+any of it. Its run outputs are quarantined in `.trash/run-cleanup-20260923/`.
+Its best configuration of any kind reached 0.5613, and its three CDCNN
+components were each worth approximately zero under this protocol: contrastive
+loss -0.005 to +0.003, feature generation +0.001 to +0.014, augmentation -0.013
+to -0.009 at every noise scale tested.
 
 ## 5. Architecture constraint
 
