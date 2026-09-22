@@ -58,9 +58,23 @@ the network starts, and it is the only place in the figure where the main path i
 narrower than the shortcut. The intended value is probably 32. Both readings are
 cheap to run, so both are in the ladder below rather than being guessed at.
 
-**`3 Conv 512` in Resnet5 contradicts the prose.** Section 5.2 says channels
-"increase from 1 to 128 step by step"; the figure reaches 256 in Resnet4 and 512
-inside Resnet5. The figure is the more specific statement and is followed here.
+**`3 Conv 512` in Resnet5, and `256` in Resnet4, contradict the prose.**
+Section 5.2 says the channels "increase from 1 to 128 step by step"; the figure
+reaches 256 in Resnet4 and 512 inside Resnet5, then comes back down. The two
+statements cannot both hold. Three readings are possible:
+
+| Reading | Blocks | Backbone | Invents |
+|---|---|---:|---|
+| the figure as printed | 32, 64, 128, 256, 128 | 1,055,080 | nothing |
+| the text, capped at 128 | 32, 64, 128, 128, 128 | 336,416 | nothing |
+| the text, strictly increasing | 8, 16, 32, 64, 128 | 109,768 | the values 8 and 16 |
+
+The middle reading is taken as the default for the ladder. It keeps every width
+the figure actually prints for Resnet1-3, which the prose does not contradict
+(32 -> 64 -> 128 *is* an increase from 1 to 128 step by step), and overrides the
+figure only where the two sources conflict. The strictly increasing reading has
+to invent two widths that appear nowhere in the paper. Both alternatives are run
+as declared variants rather than argued about.
 
 ### 2.3 Input and output
 
@@ -148,29 +162,53 @@ Recomputing the unweighted mean of those nine values gives 0.6346; the printed
 
 ## 4. What is not specified, and must be chosen
 
-### 4.1 Capacity
+### 4.1 Capacity, and where the paper's lightweighting claim points
 
-The literal architecture, built and counted:
+The paper repeatedly frames CDCNN as cheap:
 
-```
-Resnet1      296        Resnet4      328,448
-Resnet2   20,672        Resnet5      623,360
-Resnet3   82,304        backbone   1,055,080
+- Section 2.4: previous work "transferred the gas signals into gray images and
+  used two-dimensional convolution [18]. Instead, this work has designed the
+  single-dimensional convolution [19] for less cost". Reference [19] is the
+  authors' own *Lightweight neural network for gas identification*.
+- Section 5.2: "A deep network to extract these features is not theoretically
+  feasible. Therefore, we replaced it with a simple net."
+- Section 5.3: "The classifier of the TDACNN algorithm contains 54 K parameters,
+  while the classifier of the CDCNN algorithm requires only 0.77 K parameters."
+- Conclusion (4): "CDCNN consumes fewer resources during testing."
 
-FC128  2,097,280   BatchNorm 256   FC6 774   head  2,098,310
-                                             TOTAL 3,153,390
-```
+None of these constrains the backbone widths. The saving claimed in 2.4 is 1D
+convolution instead of 2D; the saving in the conclusion is not visiting the
+target domain and not needing TDACNN's four-classifier ensemble.
 
-**3.15 M parameters trained on 445 samples, 7,086 parameters per sample**, of
-which two thirds are the single `Flatten -> Linear(16384, 128)`. The previous
-project measured Batch 1 cross-validation accuracy of 0.978-0.991 for every
-configuration it tried while target accuracy ranged from 0.37 to 0.56: the source
-task is saturated and carries no signal about generalization. A head this wide is
-the most likely place for the missing 0.23 to be hiding.
+Counted, the choice of widths barely matters and the choice of head decides
+everything:
 
-Global average pooling before `FC 128` would cut the model to 1.07 M parameters
-and is the standard choice for a ResNet, but it contradicts "this network doesn't
-apply the pooling layer". Both are run.
+| Backbone | with flatten head | with GAP head |
+|---|---:|---:|
+| figure literal, 1,055,080 | **3,153,390** | 1,072,622 |
+| text capped at 128, 336,416 | **2,434,726** | 353,958 |
+| text strictly increasing, 109,768 | **2,208,078** | 127,310 |
+
+`Flatten -> Linear(16384, 128)` costs **2,098,310** parameters under every channel
+reading. Taking the strictly increasing reading removes 90 % of the backbone and
+only 30 % of the model. Replacing the flatten with global average pooling takes
+that same head from 2,098,310 to 17,542.
+
+**This inverts the 0.77 K claim into evidence.** Boasting that the classifier is
+774 parameters against TDACNN's 54 K is only meaningful if there is not a 2.1 M
+linear layer immediately before it. Either the paper's accounting is misleading,
+or its implementation does not flatten 128 channels x 128 length into the head at
+all. The second possibility is consistent with Fig. S1 (section 5), where the
+ResNet accuracy curve plateaus at 0.58 rather than saturating as a 3.15 M model
+on 445 rows would.
+
+So the capacity question is real, but it lives in the head, not in the channel
+widths. The literal architecture is **3.15 M parameters on 445 samples, 7,086 per
+sample**, and the previous project measured Batch 1 cross-validation accuracy of
+0.978-0.991 for every configuration it tried while target accuracy ranged from
+0.37 to 0.56: the source task is saturated and carries no signal about
+generalization. Global average pooling contradicts "this network doesn't apply
+the pooling layer", so it is run as a declared variant, not adopted.
 
 ### 4.2 The `Normal` block
 
@@ -216,26 +254,32 @@ capacity is the problem. If our target curve traces theirs, reading 2 holds.
 
 ## 6. Proposed experiment
 
-One ladder, five variants, `L_ce` only throughout, five seeds each, 25
+One ladder, seven variants, `L_ce` only throughout, five seeds each, 35
 checkpoints. Every variant is declared before any run starts; none is selected on
 target data.
 
-| Variant | Change from the literal reading | Isolates |
-|---|---|---|
-| `R-lit` | none: Fig. 2 exactly, `3 Conv 2`, flatten head, `StandardScaler` | the paper as printed |
-| `R-w32` | `R-lit` with Resnet1 conv1 widened 2 -> 32 | the suspected figure typo |
-| `R-gap` | `R-w32` with global average pooling before `FC 128` | head capacity, 3.15 M -> 1.07 M |
-| `R-ps` | `R-w32` with per-sample input normalization as `Normal` | the undefined block, known +0.109 |
-| `R-ln` | `R-w32` with LayerNorm in place of BatchNorm | known +0.085 |
+| Variant | Backbone | Head | Params | Isolates |
+|---|---|---|---:|---|
+| `R-fig` | figure literal, `3 Conv 2` | flatten | 3,153,390 | the figure as printed |
+| `R-fig32` | figure literal, conv1 2 -> 32 | flatten | 3,156,390 | the `3 Conv 2` typo |
+| `R-txt` | 32, 64, 128, 128, 128 | flatten | 2,434,726 | figure against prose |
+| `R-mono` | 8, 16, 32, 64, 128 | flatten | 2,208,078 | the strictly increasing reading |
+| `R-lite` | 32, 64, 128, 128, 128 | GAP | 353,958 | head capacity, the 7x lever |
+| `R-ps` | 32, 64, 128, 128, 128 | flatten | 2,434,726 | per-sample `Normal`, known +0.109 |
+| `R-ln` | 32, 64, 128, 128, 128, LayerNorm | flatten | 2,434,726 | LayerNorm, known +0.085 |
 
-Read as: `R-lit -> R-w32` is the typo; `R-w32 -> R-gap` is capacity;
-`R-w32 -> R-ps` and `R-w32 -> R-ln` re-measure the previous project's two real
-effects on a correct backbone. `R-ps` and `R-ln` are kept separate so their
-interaction is not assumed; if both help, the combination is a second, declared
-run rather than a post-hoc pick.
+`R-txt` is the reference point. Read the ladder as four independent questions
+asked against it: `R-fig` and `R-fig32` ask whether the figure or the prose
+describes the model that produced 0.6344; `R-mono` asks whether the paper's
+lightweighting framing should be read all the way down; `R-lite` asks whether the
+missing capacity control is the head; `R-ps` and `R-ln` re-measure the previous
+project's two real effects on a correct backbone.
 
-Cost: 25 runs x 100 epochs on 445 rows. The previous project's comparable ladders
-finished in well under an hour of GPU time each.
+Nothing is combined. If several help, the combination is a second declared run,
+not a post-hoc pick.
+
+Cost: 7 variants x 5 seeds = 35 runs x 100 epochs on 445 rows. The previous
+project's comparable ladders finished in well under an hour of GPU time each.
 
 ### Success criteria
 
@@ -251,13 +295,13 @@ finished in well under an hour of GPU time each.
 
 Unchanged from `CLAUDE.md` and non-negotiable: Batch 1 only for training,
 normalization fitting, and any cross-validation; Batches 2-10 opened once, after
-all 25 final checkpoints and all per-epoch checkpoints are written and hashed;
+all 35 final checkpoints and all per-epoch checkpoints are written and hashed;
 a leakage audit in every run directory; one worker on CUDA; a passing GPU smoke
 artifact before the full run; unique `runs/<timestamp>_<name>/` directories.
 
 Batch 1 CV is reported but is **not** used to select between variants. The
 previous project showed it saturates at 0.96-0.99 across configurations whose
-target means differ by 0.19, so it cannot discriminate. All five variants are
+target means differ by 0.19, so it cannot discriminate. All seven variants are
 reported; any later choice among them is declared as target-informed.
 
 Environment: rebuild the pinned container at torch 2.5.1+cu121. The `.venv`
