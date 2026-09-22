@@ -30,9 +30,13 @@ TEXT_CAPPED_128 = ((1, 32, 32), (32, 64, 64), (64, 128, 128),
 
 HEADS = ("flatten", "gap")
 
+# A 2x2 factorial: {flatten, GAP} head x {StandardScaler, per-sample} Normal
+# block, on one backbone. Both main effects and their interaction are estimable.
 VARIANTS: dict[str, dict] = {
     "R-txt": {"channels": TEXT_CAPPED_128, "head": "flatten",
               "normalizer": "standard_scaler"},
+    "R-txt-ps": {"channels": TEXT_CAPPED_128, "head": "flatten",
+                 "normalizer": "per_sample"},
     "R-lite": {"channels": TEXT_CAPPED_128, "head": "gap",
                "normalizer": "standard_scaler"},
     "R-lite-ps": {"channels": TEXT_CAPPED_128, "head": "gap",

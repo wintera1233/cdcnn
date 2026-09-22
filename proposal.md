@@ -26,9 +26,9 @@ pauses for review before continuing. Nothing is trained before the first one.
    across batches.
 7. `src/train.py` — 100 epochs, SGD, `StepLR`, fixed seeds, a checkpoint at every
    epoch for the seed named by `per_epoch_checkpoint_seed`, and a final
-   checkpoint for every seed. Saving all 900 epoch checkpoints would cost 3.8 GB
+   checkpoint for every seed. Saving every epoch of all twelve runs would cost 6.2 GB
    against 28 GB free; the Fig. S1 question in section 5 needs one seed per
-   variant, so only seed 1042 saves per epoch, for 1.3 GB.
+   variant, so only seed 1042 saves per epoch, for 2.1 GB.
 8. `src/evaluate.py` — post-freeze target evaluation, per-batch accuracy, target
    mean, confusion matrices.
 9. `src/audit.py` — leakage audit and the run manifest: code hash, config hash,
@@ -62,8 +62,8 @@ pauses for review before continuing. Nothing is trained before the first one.
 
 ### Stage 4 — training and evaluation (4 items)
 
-23. 9 training runs: 3 variants x 3 seeds x 100 epochs.
-24. Freeze and hash all 9 final checkpoints and the 300 epoch checkpoints of
+23. 12 training runs: 4 variants x 3 seeds x 100 epochs.
+24. Freeze and hash all 12 final checkpoints and the 400 epoch checkpoints of
     seed 1042.
 25. One target evaluation pass: Batches 2-10 opened once, per-batch accuracy and
     target mean.
@@ -369,33 +369,64 @@ capacity is the problem. If our target curve traces theirs, reading 2 holds.
 
 ## 6. Proposed experiment
 
-One ladder, three variants, `L_ce` only throughout, three seeds each, 9
+A 2x2 factorial on one backbone, `L_ce` only throughout, three seeds each, 12
 checkpoints. Every variant is declared before any run starts; none is selected on
-target data. Each rung changes exactly one thing from the rung above it.
+target data.
 
-| Variant | Backbone | Head | `Normal` | Params | The question it asks |
-|---|---|---|---|---:|---|
-| `R-txt` | 32, 64, 128, 128, 128 | flatten | `StandardScaler` | 2,434,726 | is the rebuild correct? |
-| `R-lite` | 32, 64, 128, 128, 128 | **GAP** | `StandardScaler` | **353,958** | is the gap in the head? |
-| `R-lite-ps` | 32, 64, 128, 128, 128 | GAP | **per-sample** | 353,958 | is the head plus the known lever enough? |
+The two factors are the only two places the paper leaves free that the previous
+project's evidence points at:
+
+| | `Normal` = `StandardScaler` | `Normal` = per-sample |
+|---|---|---|
+| **flatten** head, 2,434,726 params | `R-txt` | `R-txt-ps` |
+| **GAP** head, 353,958 params | `R-lite` | `R-lite-ps` |
+
+All four share the backbone `32, 64, 128, 128, 128` at 336,416 parameters and
+differ only in the head's reduction and the input normalisation. Both main
+effects and their interaction are therefore estimable.
 
 `R-txt` is the faithful build and doubles as the correctness check: section 4.4
 predicts it lands near 0.41, the previous project's `B0`. If it does not land in
-roughly 0.40-0.42, the reconstruction has a bug and nothing below it is worth
+roughly 0.40-0.42, the reconstruction has a bug and nothing else is worth
 reading.
 
-`R-txt -> R-lite` replaces `Flatten -> Linear(16384, 128)` with global average
-pooling followed by `Linear(128, 128)`, taking the head from 2,098,310 parameters
-to 17,542 and the whole model from 2.43 M to 354 K. It is the only genuinely
-untested hypothesis in the project: every configuration either project has
-trained carried the flatten head.
+**The head factor.** `Flatten -> Linear(16384, 128)` costs 2,097,280 parameters
+and keeps every position of the length axis separately addressable. Global
+average pooling collapses each channel to its mean, costing 16,384 parameters and
+discarding where along the axis a response sat. That axis is not time: position
+`8(s-1)+k` is statistic `k` of sensor `s`, so a flatten head can learn "sensor
+11's second statistic should be about this much" — exactly the kind of rule that
+sensor ageing invalidates. Measured on an untrained model, drifting 2 of the 16
+sensors by 20 % perturbs the flattened representation 5.9 times more than the
+pooled one. This factor has **never been varied**: every configuration either
+project has trained carried the flatten head.
 
-`R-lite -> R-lite-ps` adds per-sample input normalization, worth +0.109 on the
-previous backbone. If the two effects are additive, this rung is where 0.63
-becomes reachable.
+The risk runs the other way too. Position 1 of each sensor group is a
+steady-state resistance of order 1e4 while the six transient features are of
+order 1; averaging them together lets the large ones dominate, and gas identity
+may live precisely in the cross-sensor ratios that the average destroys. The
+paper's "this network doesn't apply the pooling layer" may be load-bearing.
 
-Cost: 3 variants x 3 seeds = 9 runs x 100 epochs on 445 rows. The previous
+**The normalisation factor.** `StandardScaler` applies Batch 1's per-feature mean
+and variance to a target batch recorded up to three years later. Per-sample
+normalisation standardises each measurement against its own 128 values, fits
+nothing, and was worth +0.109 to the previous project.
+
+Both factors do the same kind of thing — refusing to carry Batch 1's coordinates
+into a drifted batch — one at the input and one at the feature map, so they may
+well overlap. The full 2x2 measures that overlap instead of assuming it away; a
+three-rung ladder could not.
+
+Cost: 4 variants x 3 seeds = 12 runs x 100 epochs on 445 rows. The previous
 project's comparable ladders finished in well under an hour of GPU time each.
+
+### Held back
+
+`R-fig` and `R-fig32` (the figure's 256 / 512 widths, and the `3 Conv 2` typo),
+`R-mono` (8, 16, 32, 64, 128) and `R-ln` (LayerNorm) were in an earlier draft and
+are dropped: the first three are answered indirectly by section 4.4, and
+LayerNorm is a third instance of the mechanism both factors above already test.
+They are reinstated only if the four cells fail to reach 0.63.
 
 ### Seeds, and when to add more
 
@@ -408,7 +439,7 @@ mean between **0.0186 and 0.0415**; at the upper end, three seeds give a standar
 error of 0.024, so a rung-to-rung difference below about 0.05 would not be
 separable from noise.
 
-The results report the standard deviation for every variant, and the work stops
+The results report the standard deviation for every cell, and the work stops
 to ask before drawing a conclusion if either:
 
 - any variant's target-mean standard deviation exceeds **0.02**, or
@@ -444,13 +475,13 @@ reinstated only if the three rungs above fail to reach 0.63.
 
 Unchanged from `CLAUDE.md` and non-negotiable: Batch 1 only for training,
 normalization fitting, and any cross-validation; Batches 2-10 opened once, after
-all 9 final checkpoints and all per-epoch checkpoints are written and hashed;
+all 12 final checkpoints and all per-epoch checkpoints are written and hashed;
 a leakage audit in every run directory; one worker on CUDA; a passing GPU smoke
 artifact before the full run; unique `runs/<timestamp>_<name>/` directories.
 
 Batch 1 CV is reported but is **not** used to select between variants. The
 previous project showed it saturates at 0.96-0.99 across configurations whose
-target means differ by 0.19, so it cannot discriminate. All three variants are
+target means differ by 0.19, so it cannot discriminate. All four variants are
 reported; any later choice among them is declared as target-informed.
 
 Environment: rebuild the pinned container at torch 2.5.1+cu121. The `.venv`

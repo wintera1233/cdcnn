@@ -29,6 +29,7 @@ CONFIG = ROOT / "configs" / "baseline_ladder.json"
 # proposal.md section 6.
 EXPECTED_PARAMETERS = {
     "R-txt": {"backbone": 336_416, "head": 2_098_310, "total": 2_434_726},
+    "R-txt-ps": {"backbone": 336_416, "head": 2_098_310, "total": 2_434_726},
     "R-lite": {"backbone": 336_416, "head": 17_542, "total": 353_958},
     "R-lite-ps": {"backbone": 336_416, "head": 17_542, "total": 353_958},
 }
@@ -102,6 +103,16 @@ class ModelTests(unittest.TestCase):
                     module, (torch.nn.MaxPool1d, torch.nn.AvgPool1d,
                              torch.nn.AdaptiveAvgPool1d, torch.nn.AdaptiveMaxPool1d),
                     f"{variant}: the backbone must not pool")
+
+    def test_the_variants_form_a_complete_two_by_two(self):
+        from src.model import VARIANTS as spec
+        grid = {(entry["head"], entry["normalizer"]) for entry in spec.values()}
+        self.assertEqual(grid, {("flatten", "standard_scaler"),
+                                ("flatten", "per_sample"),
+                                ("gap", "standard_scaler"),
+                                ("gap", "per_sample")})
+        channels = {entry["channels"] for entry in spec.values()}
+        self.assertEqual(len(channels), 1, "all four share one backbone")
 
     def test_heads_differ_only_in_the_reduction(self):
         self.assertEqual(parameter_breakdown(build("R-txt"))["backbone"],
@@ -192,7 +203,8 @@ class ConfigTests(unittest.TestCase):
         self.config = load_config(CONFIG)
 
     def test_the_ladder_config_is_valid(self):
-        self.assertEqual(self.config["variants"], ["R-txt", "R-lite", "R-lite-ps"])
+        self.assertEqual(self.config["variants"],
+                         ["R-txt", "R-txt-ps", "R-lite", "R-lite-ps"])
         self.assertEqual(self.config["seeds"], [1042, 2024, 3407])
         self.assertEqual(self.config["training"], {"epochs": 100, "batch_size": 64})
 

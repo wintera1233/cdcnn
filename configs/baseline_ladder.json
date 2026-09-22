@@ -1,7 +1,7 @@
 {
   "implementation_version": "CDCNN_v7.0_baseline_ladder",
-  "description": "Reconstruct the paper's plain ResNet baseline (Table 3, 0.6344). L_ce only.",
-  "variants": ["R-txt", "R-lite", "R-lite-ps"],
+  "description": "Reconstruct the paper's plain ResNet baseline (Table 3, 0.6344). L_ce only. 2x2: {flatten, GAP} head x {StandardScaler, per-sample} Normal block.",
+  "variants": ["R-txt", "R-txt-ps", "R-lite", "R-lite-ps"],
   "seeds": [1042, 2024, 3407],
   "reserve_seeds": [42, 123],
   "training": {
