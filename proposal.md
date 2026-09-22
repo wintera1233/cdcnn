@@ -2,6 +2,83 @@
 
 Branch `exp/v7-redesign`. Written 2026-09-23.
 
+## 0. Work plan
+
+Twenty-nine items in five stages. Two stopping points, marked STOP, where the work
+pauses for review before continuing. Nothing is trained before the first one.
+
+### Stage 0 — environment (1 item)
+
+1. Restore `docker/Dockerfile` and `requirements-cu121.txt` from
+   `exp/a3-confound-ablation`, rebuild the container at torch 2.5.1+cu121, verify
+   CUDA. The `.venv` on this machine holds 2.8.0+cu126, the build implicated in
+   the Xid 31 MMU fault of 2026-09-21.
+
+### Stage 1 — code (10 items)
+
+2. `src/protocol.py` — `ProtocolError`, the target-access recorder.
+3. `src/data.py` — LIBSVM loader, Batch 1 gate, file hashing.
+4. `src/normalize.py` — the `Normal` block: Batch-1 `StandardScaler` and
+   per-sample normalization.
+5. `src/model.py` — residual block, the channel specification per variant,
+   flatten and GAP heads.
+6. `src/loss.py` — `L_ce` exactly as Eq. (S2): mean within a batch, then mean
+   across batches.
+7. `src/train.py` — 100 epochs, SGD, `StepLR`, fixed seeds, a checkpoint at every
+   epoch.
+8. `src/evaluate.py` — post-freeze target evaluation, per-batch accuracy, target
+   mean, confusion matrices.
+9. `src/audit.py` — leakage audit and the run manifest: code hash, config hash,
+   library and driver versions.
+10. `scripts/run_baseline.py` — the single entry point: `smoke`, `gpu-smoke`,
+    `launch`, `evaluate`.
+11. `configs/` — one file per variant.
+
+### Stage 2 — tests (8 items)
+
+12. The loader reproduces 445 rows and the 90 / 98 / 83 / 30 / 70 / 74 class
+    histogram.
+13. `L_ce` equals `CrossEntropyLoss` when the batch size divides the row count,
+    and differs as predicted when it does not.
+14. Parameter counts match section 6 exactly for every variant.
+15. The backbone output is `[N, 128, 128]`; no pooling anywhere inside it.
+16. The audit raises if a target file is opened before the last checkpoint is
+    frozen.
+17. The same seed reproduces bit-identical losses.
+18. Configuration validation rejects an undeclared variant.
+19. A run refuses to write into an existing run directory.
+
+**STOP.** Test output is reviewed before any GPU time is spent.
+
+### Stage 3 — gates (2 items)
+
+20. CPU smoke: one seed, few epochs, end to end.
+21. GPU smoke artifact on Batch 1 only, as `CLAUDE.md` section 6 requires.
+
+### Stage 4 — training and evaluation (4 items)
+
+22. 15 training runs: 3 variants x 5 seeds x 100 epochs, saving every epoch.
+23. Freeze and hash all 15 final checkpoints and all 1,500 epoch checkpoints.
+24. One target evaluation pass: Batches 2-10 opened once, per-batch accuracy and
+    target mean.
+25. Compute the Batch 1 and target accuracy curves per epoch from the frozen
+    checkpoints and overlay them on Fig. S1, to settle the question in section 5.
+
+### Stage 5 — record (4 items)
+
+26. `docs/baseline-ladder.md` — the three variants against the paper's 0.6344.
+27. The Fig. S1 overlay figure.
+28. `docs/change-log.md` — a fresh log for this branch.
+29. `docs/run-cleanup-20260923.md` — append the runs this stage produces.
+
+**STOP.** Results are reviewed before deciding whether to rebuild any CDCNN
+component.
+
+### Out of scope
+
+No data augmentation, no feature generation, no contrastive loss, no projection
+head, no numerical-stability package. See section 8.
+
 ## 1. Why the baseline first
 
 The paper's Table 3 reports a plain ResNet — "the backbone of CDCNN", no data
@@ -55,8 +132,8 @@ Two entries deserve attention.
 1 channel -> 2 channels -> 32 channels while its shortcut maps 1 -> 32 directly.
 A 2-channel bottleneck at the first layer discards nearly all of the input before
 the network starts, and it is the only place in the figure where the main path is
-narrower than the shortcut. The intended value is probably 32. Both readings are
-cheap to run, so both are in the ladder below rather than being guessed at.
+narrower than the shortcut. The intended value is probably 32. It is read as 32;
+section 4.4 explains why this is not worth a run of its own.
 
 **`3 Conv 512` in Resnet5, and `256` in Resnet4, contradict the prose.**
 Section 5.2 says the channels "increase from 1 to 128 step by step"; the figure
@@ -73,8 +150,9 @@ The middle reading is taken as the default for the ladder. It keeps every width
 the figure actually prints for Resnet1-3, which the prose does not contradict
 (32 -> 64 -> 128 *is* an increase from 1 to 128 step by step), and overrides the
 figure only where the two sources conflict. The strictly increasing reading has
-to invent two widths that appear nowhere in the paper. Both alternatives are run
-as declared variants rather than argued about.
+to invent two widths that appear nowhere in the paper, and section 4.4 shows the
+figure reading has in effect already been measured, so neither alternative is
+given a run here.
 
 ### 2.3 Input and output
 
@@ -208,15 +286,17 @@ sample**, and the previous project measured Batch 1 cross-validation accuracy of
 0.978-0.991 for every configuration it tried while target accuracy ranged from
 0.37 to 0.56: the source task is saturated and carries no signal about
 generalization. Global average pooling contradicts "this network doesn't apply
-the pooling layer", so it is run as a declared variant, not adopted.
+the pooling layer", so it is run as a declared variant against the faithful build,
+not adopted.
 
 ### 4.2 The `Normal` block
 
 Undefined in the paper, so any choice is compatible with it. The previous project
 measured **+0.109 target mean for per-sample normalization** over a Batch-1-fitted
 `StandardScaler`, its single largest effect, and **+0.085 for LayerNorm over
-BatchNorm** inside the blocks. Both are legitimate readings of an undefined
-"Normal" block and both are run.
+BatchNorm** inside the blocks. Per-sample normalization is carried into the ladder
+as the third rung. LayerNorm is not: it is a second per-sample normalization
+acting at a different place, so running both would measure one mechanism twice.
 
 ### 4.3 Optimizer constants
 
@@ -226,6 +306,35 @@ carried over unchanged, not because it is right but because changing it at the
 same time as the architecture would confound the comparison. Batch size 64, in
 the middle of the paper's sweep. These are held fixed across the whole ladder and
 revisited only if the ladder fails.
+
+### 4.4 What the previous project has already measured
+
+`exp/a3-confound-ablation:src/cdcnn_ablation.py:501` built its backbone as
+
+```python
+channels = (32, 64, 128, 256, 128)
+```
+
+with `ResidualBlock1D(incoming, outgoing)` — two 3-kernels at the block's output
+width, a 1-kernel shortcut, no pooling — followed by
+`Flatten -> Linear(16384, 128) -> BatchNorm1d(128) -> Linear(128, 6)`. That is the
+figure's channel reading with a flatten head, differing from `R-fig32` only in
+Resnet5's inner width. Its measured target means:
+
+| Previous stage | Equivalent here | Target mean |
+|---|---|---:|
+| `B0` | figure channels, flatten head, `StandardScaler` | 0.4097 |
+| `B0-LN` | the same with LayerNorm | 0.4922 |
+| `B0-PS` | the same with per-sample inputs | 0.5164 |
+
+So the figure's channel reading combined with a flatten head has already been
+measured three times, and tops out at 0.52 against the paper's 0.6344. Re-running
+`R-fig`, `R-fig32` and `R-mono` would spend fifteen runs re-confirming a known
+result; the widths are not where the missing 0.23 is.
+
+**The head has never been varied.** `Flatten -> Linear(16384, 128)` is present in
+every configuration either project has ever trained. That is what the ladder in
+section 6 tests.
 
 ## 5. The open question Fig. S1 raises
 
@@ -254,32 +363,41 @@ capacity is the problem. If our target curve traces theirs, reading 2 holds.
 
 ## 6. Proposed experiment
 
-One ladder, seven variants, `L_ce` only throughout, five seeds each, 35
+One ladder, three variants, `L_ce` only throughout, five seeds each, 15
 checkpoints. Every variant is declared before any run starts; none is selected on
-target data.
+target data. Each rung changes exactly one thing from the rung above it.
 
-| Variant | Backbone | Head | Params | Isolates |
-|---|---|---|---:|---|
-| `R-fig` | figure literal, `3 Conv 2` | flatten | 3,153,390 | the figure as printed |
-| `R-fig32` | figure literal, conv1 2 -> 32 | flatten | 3,156,390 | the `3 Conv 2` typo |
-| `R-txt` | 32, 64, 128, 128, 128 | flatten | 2,434,726 | figure against prose |
-| `R-mono` | 8, 16, 32, 64, 128 | flatten | 2,208,078 | the strictly increasing reading |
-| `R-lite` | 32, 64, 128, 128, 128 | GAP | 353,958 | head capacity, the 7x lever |
-| `R-ps` | 32, 64, 128, 128, 128 | flatten | 2,434,726 | per-sample `Normal`, known +0.109 |
-| `R-ln` | 32, 64, 128, 128, 128, LayerNorm | flatten | 2,434,726 | LayerNorm, known +0.085 |
+| Variant | Backbone | Head | `Normal` | Params | The question it asks |
+|---|---|---|---|---:|---|
+| `R-txt` | 32, 64, 128, 128, 128 | flatten | `StandardScaler` | 2,434,726 | is the rebuild correct? |
+| `R-lite` | 32, 64, 128, 128, 128 | **GAP** | `StandardScaler` | **353,958** | is the gap in the head? |
+| `R-lite-ps` | 32, 64, 128, 128, 128 | GAP | **per-sample** | 353,958 | is the head plus the known lever enough? |
 
-`R-txt` is the reference point. Read the ladder as four independent questions
-asked against it: `R-fig` and `R-fig32` ask whether the figure or the prose
-describes the model that produced 0.6344; `R-mono` asks whether the paper's
-lightweighting framing should be read all the way down; `R-lite` asks whether the
-missing capacity control is the head; `R-ps` and `R-ln` re-measure the previous
-project's two real effects on a correct backbone.
+`R-txt` is the faithful build and doubles as the correctness check: section 4.4
+predicts it lands near 0.41, the previous project's `B0`. If it does not land in
+roughly 0.40-0.42, the reconstruction has a bug and nothing below it is worth
+reading.
 
-Nothing is combined. If several help, the combination is a second declared run,
-not a post-hoc pick.
+`R-txt -> R-lite` replaces `Flatten -> Linear(16384, 128)` with global average
+pooling followed by `Linear(128, 128)`, taking the head from 2,098,310 parameters
+to 17,542 and the whole model from 2.43 M to 354 K. It is the only genuinely
+untested hypothesis in the project: every configuration either project has
+trained carried the flatten head.
 
-Cost: 7 variants x 5 seeds = 35 runs x 100 epochs on 445 rows. The previous
+`R-lite -> R-lite-ps` adds per-sample input normalization, worth +0.109 on the
+previous backbone. If the two effects are additive, this rung is where 0.63
+becomes reachable.
+
+Cost: 3 variants x 5 seeds = 15 runs x 100 epochs on 445 rows. The previous
 project's comparable ladders finished in well under an hour of GPU time each.
+
+### Held back
+
+`R-fig` and `R-fig32` (the figure's 256 / 512 widths, and the `3 Conv 2` typo),
+`R-mono` (8, 16, 32, 64, 128) and `R-ln` (LayerNorm) were in an earlier draft of
+this ladder and are dropped: the first three are answered indirectly by section
+4.4, and LayerNorm duplicates the mechanism `R-lite-ps` already tests. They are
+reinstated only if the three rungs above fail to reach 0.63.
 
 ### Success criteria
 
@@ -295,13 +413,13 @@ project's comparable ladders finished in well under an hour of GPU time each.
 
 Unchanged from `CLAUDE.md` and non-negotiable: Batch 1 only for training,
 normalization fitting, and any cross-validation; Batches 2-10 opened once, after
-all 35 final checkpoints and all per-epoch checkpoints are written and hashed;
+all 15 final checkpoints and all per-epoch checkpoints are written and hashed;
 a leakage audit in every run directory; one worker on CUDA; a passing GPU smoke
 artifact before the full run; unique `runs/<timestamp>_<name>/` directories.
 
 Batch 1 CV is reported but is **not** used to select between variants. The
 previous project showed it saturates at 0.96-0.99 across configurations whose
-target means differ by 0.19, so it cannot discriminate. All seven variants are
+target means differ by 0.19, so it cannot discriminate. All three variants are
 reported; any later choice among them is declared as target-informed.
 
 Environment: rebuild the pinned container at torch 2.5.1+cu121. The `.venv`
