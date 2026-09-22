@@ -16,6 +16,7 @@ from src.protocol import ProtocolError
 
 LADDER_VERSION = "CDCNN_v7.0_baseline_ladder"
 CHANNEL_VERSION = "CDCNN_v7.1_channel_restore"
+HEAD_NORM_VERSION = "CDCNN_v7.2_head_normalisation"
 
 # Frozen literals: the declared contents of the ladder. Adding a variant later
 # must not silently change what this version means.
@@ -31,6 +32,11 @@ LADDER_TRAINING = {"epochs": 100, "batch_size": 64}
 # both heads, so keeping it would spend half the runs re-confirming a loss.
 CHANNEL_VARIANTS = ("R-txt-ps", "R-fig-ps")
 CHANNEL_LEARNING_RATES = (0.001, 0.0003, 0.0001)
+
+# v7.2 fixes Fig. 2's widths and lr 0.0003 and crosses the head's normalisation
+# with the input's. Parameter counts are identical across all four cells.
+HEAD_NORM_VARIANTS = ("R-fig", "R-fig-ln", "R-fig-ps", "R-fig-ps-ln")
+HEAD_NORM_LEARNING_RATES = (0.0003,)
 
 REQUIRED = ("implementation_version", "variants", "seeds", "training", "optimizer",
             "scheduler")
@@ -55,6 +61,18 @@ def validate(config: dict) -> dict:
         raise ProtocolError("a variant is listed twice")
     if len(set(config["seeds"])) != len(config["seeds"]):
         raise ProtocolError("a seed is listed twice")
+
+    if config["implementation_version"] == HEAD_NORM_VERSION:
+        for name, expected, actual in (
+                ("variants", list(HEAD_NORM_VARIANTS), list(config["variants"])),
+                ("learning_rates", list(HEAD_NORM_LEARNING_RATES),
+                 [float(v) for v in config.get("learning_rates", [])]),
+                ("seeds", list(LADDER_SEEDS), list(config["seeds"])),
+                ("training", LADDER_TRAINING, config["training"]),
+                ("scheduler", LADDER_SCHEDULER, config["scheduler"])):
+            if expected != actual:
+                raise ProtocolError(
+                    f"{HEAD_NORM_VERSION} fixes {name} as {expected}, got {actual}")
 
     if config["implementation_version"] == CHANNEL_VERSION:
         for name, expected, actual in (

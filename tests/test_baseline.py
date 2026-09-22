@@ -291,6 +291,52 @@ class ConfigTests(unittest.TestCase):
             validate(changed)
 
 
+class HeadNormalisationTests(unittest.TestCase):
+    def test_the_four_cells_cross_both_normalisations_at_equal_cost(self):
+        from src.model import VARIANTS as spec
+        cells = {(spec[v]["normalizer"], spec[v].get("head_norm", "batchnorm")): v
+                 for v in ("R-fig", "R-fig-ln", "R-fig-ps", "R-fig-ps-ln")}
+        self.assertEqual(set(cells), {("standard_scaler", "batchnorm"),
+                                      ("standard_scaler", "layernorm"),
+                                      ("per_sample", "batchnorm"),
+                                      ("per_sample", "layernorm")})
+        counts = {parameter_breakdown(build(v))["total"] for v in cells.values()}
+        self.assertEqual(counts, {3_156_390}, "the four cells must cost the same")
+
+    def test_the_head_carries_the_declared_normalisation(self):
+        for variant, expected in (("R-fig", torch.nn.BatchNorm1d),
+                                  ("R-fig-ps", torch.nn.BatchNorm1d),
+                                  ("R-fig-ln", torch.nn.LayerNorm),
+                                  ("R-fig-ps-ln", torch.nn.LayerNorm)):
+            self.assertIsInstance(build(variant).head.norm, expected, variant)
+
+    def test_no_batchnorm_adapts_to_the_evaluation_batch(self):
+        """track_running_stats=False would normalise a target batch by its own
+        statistics at inference, which is test-time adaptation on target data and
+        makes a prediction depend on which other samples share its batch. It is
+        prohibited; see docs/head-normalisation.md."""
+        for variant in VARIANTS:
+            for module in build(variant).modules():
+                if isinstance(module, torch.nn.modules.batchnorm._BatchNorm):
+                    self.assertTrue(module.track_running_stats, variant)
+                    self.assertIsNotNone(module.running_mean, variant)
+
+    def test_an_unknown_head_normalisation_is_refused(self):
+        from src.model import _head_norm
+        with self.assertRaisesRegex(ProtocolError, "unknown head normalisation"):
+            _head_norm("groupnorm")
+
+    def test_the_v7_2_config_is_valid_and_pins_its_grid(self):
+        config = load_config(ROOT / "configs" / "head_normalisation.json")
+        self.assertEqual(config["variants"],
+                         ["R-fig", "R-fig-ln", "R-fig-ps", "R-fig-ps-ln"])
+        self.assertEqual(config["learning_rates"], [0.0003])
+        changed = copy.deepcopy(config)
+        changed["learning_rates"] = [0.001]
+        with self.assertRaisesRegex(ProtocolError, "fixes learning_rates"):
+            validate(changed)
+
+
 class LearningRateSweepTests(unittest.TestCase):
     def test_the_sweep_config_is_valid_and_declares_six_cells(self):
         config = load_config(ROOT / "configs" / "channel_restore.json")

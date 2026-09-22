@@ -38,6 +38,22 @@ FIGURE_WIDTHS = ((1, 32, 32), (32, 64, 64), (64, 128, 128),
 
 HEADS = ("flatten", "gap")
 
+# The head's normalisation layer, the "Batch Normal" box of Fig. 2, sitting
+# between FC128 and FC6. BatchNorm1d stores Batch 1's running mean and variance
+# and applies them to drifted target activations at inference, which is the same
+# failure mode as a fitted StandardScaler on the inputs. LayerNorm normalises
+# each sample against itself and stores nothing. Both cost 256 parameters, so
+# the comparison changes nothing else.
+HEAD_NORMS = ("batchnorm", "layernorm")
+
+
+def _head_norm(kind: str) -> nn.Module:
+    if kind == "batchnorm":
+        return nn.BatchNorm1d(N_FEATURES)
+    if kind == "layernorm":
+        return nn.LayerNorm(N_FEATURES)
+    raise ProtocolError(f"unknown head normalisation {kind!r}")
+
 # The 2x2 factorial of the v7.0 ladder: {flatten, GAP} head x {StandardScaler,
 # per-sample} Normal block, on one backbone.
 VARIANTS: dict[str, dict] = {
@@ -54,6 +70,12 @@ VARIANTS: dict[str, dict] = {
               "normalizer": "standard_scaler"},
     "R-fig-ps": {"channels": FIGURE_WIDTHS, "head": "flatten",
                  "normalizer": "per_sample"},
+    # v7.2: the head's normalisation crossed with the input normalisation, on
+    # Fig. 2's widths at lr 0.0003. R-fig and R-fig-ps supply the batchnorm row.
+    "R-fig-ln": {"channels": FIGURE_WIDTHS, "head": "flatten",
+                 "normalizer": "standard_scaler", "head_norm": "layernorm"},
+    "R-fig-ps-ln": {"channels": FIGURE_WIDTHS, "head": "flatten",
+                    "normalizer": "per_sample", "head_norm": "layernorm"},
 }
 
 
@@ -93,11 +115,12 @@ class FlattenHead(nn.Module):
     is 2,097,280.
     """
 
-    def __init__(self, channels: int, length: int = N_FEATURES):
+    def __init__(self, channels: int, length: int = N_FEATURES,
+                 norm: str = "batchnorm"):
         super().__init__()
         self.reduce = nn.Flatten()
         self.fc128 = nn.Linear(channels * length, N_FEATURES)
-        self.norm = nn.BatchNorm1d(N_FEATURES)
+        self.norm = _head_norm(norm)
         self.fc6 = nn.Linear(N_FEATURES, N_CLASSES)
 
     def forward(self, x):
@@ -111,11 +134,12 @@ class GapHead(nn.Module):
     declared variant. Costs 17,542 parameters: `Linear(128, 128)` is 16,512.
     """
 
-    def __init__(self, channels: int, length: int = N_FEATURES):
+    def __init__(self, channels: int, length: int = N_FEATURES,
+                 norm: str = "batchnorm"):
         super().__init__()
         self.reduce = nn.Sequential(nn.AdaptiveAvgPool1d(1), nn.Flatten())
         self.fc128 = nn.Linear(channels, N_FEATURES)
-        self.norm = nn.BatchNorm1d(N_FEATURES)
+        self.norm = _head_norm(norm)
         self.fc6 = nn.Linear(N_FEATURES, N_CLASSES)
 
     def forward(self, x):
@@ -133,10 +157,12 @@ class BaselineResNet(nn.Module):
             *[ResidualBlock1D(*widths) for widths in spec["channels"]])
         out_channels = spec["channels"][-1][2]
         head = spec["head"]
+        # Fig. 2's "Batch Normal" unless the variant declares otherwise.
+        norm = spec.get("head_norm", "batchnorm")
         if head == "flatten":
-            self.head = FlattenHead(out_channels)
+            self.head = FlattenHead(out_channels, norm=norm)
         elif head == "gap":
-            self.head = GapHead(out_channels)
+            self.head = GapHead(out_channels, norm=norm)
         else:
             raise ProtocolError(f"unknown head {head!r}")
 

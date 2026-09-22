@@ -1,0 +1,34 @@
+{
+  "implementation_version": "CDCNN_v7.2_head_normalisation",
+  "description": "The head's normalisation layer (Fig. 2's 'Batch Normal') crossed with the input Normal block, on Fig. 2's channel widths at lr 0.0003. BatchNorm stores Batch 1 statistics and applies them to drifted target activations; LayerNorm stores nothing. R-fig-ps re-runs the v7.1 best cell as a reproduction check.",
+  "variants": ["R-fig", "R-fig-ln", "R-fig-ps", "R-fig-ps-ln"],
+  "learning_rates": [0.0003],
+  "seeds": [1042, 2024, 3407],
+  "reserve_seeds": [42, 123],
+  "training": {
+    "epochs": 100,
+    "batch_size": 64
+  },
+  "optimizer": {
+    "lr": 0.0003,
+    "momentum": 0.9,
+    "weight_decay": 0.0001
+  },
+  "scheduler": {
+    "step_size": 25,
+    "gamma": 0.5
+  },
+  "per_epoch_checkpoint_seed": 1042,
+  "escalation": {
+    "target_mean_sd_threshold": 0.02,
+    "rung_difference_standard_errors": 2.0
+  },
+  "compare_against": {
+    "run": "20260922T182154907065Z_channel_restore_full",
+    "R-fig-ps@lr0.0003": 0.5222
+  },
+  "paper_reference": {
+    "model": "ResNet (the backbone of CDCNN), Table 3",
+    "printed_average": 0.6344
+  }
+}
