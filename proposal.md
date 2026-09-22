@@ -57,8 +57,8 @@ pauses for review before continuing. Nothing is trained before the first one.
 
 ### Stage 4 — training and evaluation (4 items)
 
-22. 15 training runs: 3 variants x 5 seeds x 100 epochs, saving every epoch.
-23. Freeze and hash all 15 final checkpoints and all 1,500 epoch checkpoints.
+22. 9 training runs: 3 variants x 3 seeds x 100 epochs, saving every epoch.
+23. Freeze and hash all 9 final checkpoints and all 900 epoch checkpoints.
 24. One target evaluation pass: Batches 2-10 opened once, per-batch accuracy and
     target mean.
 25. Compute the Batch 1 and target accuracy curves per epoch from the frozen
@@ -363,7 +363,7 @@ capacity is the problem. If our target curve traces theirs, reading 2 holds.
 
 ## 6. Proposed experiment
 
-One ladder, three variants, `L_ce` only throughout, five seeds each, 15
+One ladder, three variants, `L_ce` only throughout, three seeds each, 9
 checkpoints. Every variant is declared before any run starts; none is selected on
 target data. Each rung changes exactly one thing from the rung above it.
 
@@ -388,8 +388,33 @@ trained carried the flatten head.
 previous backbone. If the two effects are additive, this rung is where 0.63
 becomes reachable.
 
-Cost: 3 variants x 5 seeds = 15 runs x 100 epochs on 445 rows. The previous
+Cost: 3 variants x 3 seeds = 9 runs x 100 epochs on 445 rows. The previous
 project's comparable ladders finished in well under an hour of GPU time each.
+
+### Seeds, and when to add more
+
+Seeds `1042`, `2024`, `3407` — the first three of the five the previous project
+used, fixed in advance so the choice cannot be revisited after seeing results.
+
+Three seeds is enough to size a large effect and not enough to resolve a small
+one. The previous project measured seed-to-seed standard deviations of the target
+mean between **0.0186 and 0.0415**; at the upper end, three seeds give a standard
+error of 0.024, so a rung-to-rung difference below about 0.05 would not be
+separable from noise.
+
+The results report the standard deviation for every variant, and the work stops
+to ask before drawing a conclusion if either:
+
+- any variant's target-mean standard deviation exceeds **0.02**, or
+- a rung-to-rung difference is smaller than **twice the pooled standard error**.
+
+Seeds `42` and `123` are held in reserve for that case; adding them is a second
+declared run, not a re-run.
+
+The effect this ladder is looking for is large — `R-txt -> R-lite` changes the
+model by a factor of seven and the hoped-for gain is above +0.10 — so three seeds
+should settle it. The escalation rule exists because the previous project's
+spreads make triggering it a real possibility, not a remote one.
 
 ### Held back
 
@@ -413,7 +438,7 @@ reinstated only if the three rungs above fail to reach 0.63.
 
 Unchanged from `CLAUDE.md` and non-negotiable: Batch 1 only for training,
 normalization fitting, and any cross-validation; Batches 2-10 opened once, after
-all 15 final checkpoints and all per-epoch checkpoints are written and hashed;
+all 9 final checkpoints and all per-epoch checkpoints are written and hashed;
 a leakage audit in every run directory; one worker on CUDA; a passing GPU smoke
 artifact before the full run; unique `runs/<timestamp>_<name>/` directories.
 
