@@ -409,13 +409,14 @@ class AugmentationTests(unittest.TestCase):
             plain = train_one("R-fig-logps", 1042, _smoke_config(), x, y,
                               Path(directory) / "a", "cpu", save_every_epoch=False)
         with tempfile.TemporaryDirectory() as directory:
-            augmented = train_one("R-aug-avg", 1042, _smoke_config(), x, y,
+            augmented = train_one("R-aug-t3", 1042, _smoke_config(), x, y,
                                   Path(directory) / "b", "cpu", save_every_epoch=False)
         self.assertEqual(plain["training_rows"], 445)
         self.assertEqual(augmented["training_rows"], 890)
         self.assertIsNone(plain["augment"])
         self.assertEqual(augmented["augment"],
-                         {"isotropic": True, "direction": "average"})
+                         {"isotropic": False, "direction": "ethanol",
+                          "displacement": 3.0})
 
     def test_evaluation_never_augments(self):
         """Fig. 2: 'During forecasting, the program separates the data
