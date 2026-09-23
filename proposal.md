@@ -72,7 +72,7 @@ pauses for review before continuing. Nothing is trained before the first one.
 
 ### Stage 5 — record (4 items)
 
-27. `docs/baseline-ladder.md` — the three variants against the paper's 0.6344.
+27. `baseline.md` — the final design and every cell against the paper's 0.6344.
 28. The Fig. S1 overlay figure.
 29. `docs/change-log.md` — a fresh log for this branch.
 30. `docs/run-cleanup-20260923.md` — append the runs this stage produces.

@@ -1,5 +1,7 @@
 # All results: target mean on Batches 2-10 (v7)
 
+The narrative and the evidence live in `baseline.md`; this file is the raw table.
+
 Every cell this branch has trained, sorted by target mean. All are the plain
 ResNet baseline with `L_ce` only - no augmentation, no feature generation, no
 contrastive loss. Three seeds each (1042, 2024, 3407); SD is across seeds.
@@ -48,19 +50,19 @@ contrastive loss. Three seeds each (1042, 2024, 3407); SD is across seeds.
 | 10 | 0.390 | 0.430 | -0.040 |
 
 Six of the nine batches match or beat the paper's ResNet. The whole deficit is
-B5, B8 and B9, and its cause is documented in `docs/dead-class.md`.
+B5, B8 and B9, and its cause is documented in `baseline.md` section 5.
 
 ## What moved the number, and what did not
 
 | Change | Effect | Separable | Evidence |
 |---|---:|---|---|
-| per-sample inputs instead of `StandardScaler`, BatchNorm head | **+0.112** | yes | `docs/head-normalisation.md` |
-| LayerNorm head instead of BatchNorm, `StandardScaler` inputs | **+0.065** | yes | `docs/head-normalisation.md` |
-| lr 0.001 -> 0.0003, Fig. 2 widths | +0.045 | no | `docs/channel-and-lr.md` |
-| Fig. 2 channel widths instead of the prose's cap at 128 | +0.029 | no | `docs/channel-and-lr.md` |
-| lr 0.001 -> 0.0001 | -0.005 | no | `docs/channel-and-lr.md` |
-| LayerNorm head **on top of** per-sample inputs | **-0.075** | yes | `docs/head-normalisation.md` |
-| global average pooling instead of flatten | **-0.078** | yes | `docs/baseline-ladder.md` |
+| per-sample inputs instead of `StandardScaler`, BatchNorm head | **+0.112** | yes | `baseline.md` §4.3 |
+| LayerNorm head instead of BatchNorm, `StandardScaler` inputs | **+0.065** | yes | `baseline.md` §4.3 |
+| lr 0.001 -> 0.0003, Fig. 2 widths | +0.045 | no | `baseline.md` §4.2 |
+| Fig. 2 channel widths instead of the prose's cap at 128 | +0.029 | no | `baseline.md` §4.2 |
+| lr 0.001 -> 0.0001 | -0.005 | no | `baseline.md` §4.2 |
+| LayerNorm head **on top of** per-sample inputs | **-0.075** | yes | `baseline.md` §4.3 |
+| global average pooling instead of flatten | **-0.078** | yes | `baseline.md` §4.1 |
 
 The two normalisations are substitutes with an interaction of -0.141: each is
 worth a lot alone and using both is worse than using either.

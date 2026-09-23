@@ -1,0 +1,1683 @@
+{
+  "removed_at": "2026-09-23",
+  "what": "every checkpoint except the three final.pt of R-fig-ps@lr0.0003 in 20260922T184129389577Z_head_norm_full",
+  "why": "the baseline is closed and baseline.md carries every number; only the best cell's weights are still needed. Moving them to .trash would not free space on the same filesystem.",
+  "kept": [
+    "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps_lr0.0003_seed1042/final.pt",
+    "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps_lr0.0003_seed2024/final.pt",
+    "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps_lr0.0003_seed3407/final.pt"
+  ],
+  "files_removed": 417,
+  "bytes_freed": 4782868059,
+  "deviation": "CLAUDE.md section 7 forbids deleting a run directory. This removes checkpoint files inside retained runs. Every run directory, its manifest, config, training_summaries, target_results, target_summary, epoch_curves, cv_curves and leakage audit are kept, so every figure in baseline.md and docs/all-results.md remains traceable. Only re-evaluation from weights is lost, and only for the cells that were not selected.",
+  "removed": [
+    {
+      "path": "runs/20260922T175939406519Z_baseline_smoke/checkpoints/R-lite-ps_seed1042/final.pt",
+      "bytes": 1426315
+    },
+    {
+      "path": "runs/20260922T175939406519Z_baseline_smoke/checkpoints/R-lite_seed1042/final.pt",
+      "bytes": 1428683
+    },
+    {
+      "path": "runs/20260922T175939406519Z_baseline_smoke/checkpoints/R-txt-ps_seed1042/final.pt",
+      "bytes": 9749387
+    },
+    {
+      "path": "runs/20260922T175939406519Z_baseline_smoke/checkpoints/R-txt_seed1042/final.pt",
+      "bytes": 9751755
+    },
+    {
+      "path": "runs/20260922T180016948374Z_baseline_gpu_smoke/checkpoints/R-lite-ps_seed1042/final.pt",
+      "bytes": 1426315
+    },
+    {
+      "path": "runs/20260922T180016948374Z_baseline_gpu_smoke/checkpoints/R-lite_seed1042/final.pt",
+      "bytes": 1428683
+    },
+    {
+      "path": "runs/20260922T180016948374Z_baseline_gpu_smoke/checkpoints/R-txt-ps_seed1042/final.pt",
+      "bytes": 9749387
+    },
+    {
+      "path": "runs/20260922T180016948374Z_baseline_gpu_smoke/checkpoints/R-txt_seed1042/final.pt",
+      "bytes": 9751755
+    },
+    {
+      "path": "runs/20260922T180104804597Z_baseline_ladder_full/checkpoints/R-lite-ps_seed1042/final.pt",
+      "bytes": 1426315
+    },
+    {
+      "path": "runs/20260922T180104804597Z_baseline_ladder_full/checkpoints/R-lite-ps_seed2024/final.pt",
+      "bytes": 1426315
+    },
+    {
+      "path": "runs/20260922T180104804597Z_baseline_ladder_full/checkpoints/R-lite-ps_seed3407/final.pt",
+      "bytes": 1426315
+    },
+    {
+      "path": "runs/20260922T180104804597Z_baseline_ladder_full/checkpoints/R-lite_seed1042/final.pt",
+      "bytes": 1428683
+    },
+    {
+      "path": "runs/20260922T180104804597Z_baseline_ladder_full/checkpoints/R-lite_seed2024/final.pt",
+      "bytes": 1428683
+    },
+    {
+      "path": "runs/20260922T180104804597Z_baseline_ladder_full/checkpoints/R-lite_seed3407/final.pt",
+      "bytes": 1428683
+    },
+    {
+      "path": "runs/20260922T180104804597Z_baseline_ladder_full/checkpoints/R-txt-ps_seed1042/final.pt",
+      "bytes": 9749387
+    },
+    {
+      "path": "runs/20260922T180104804597Z_baseline_ladder_full/checkpoints/R-txt-ps_seed2024/final.pt",
+      "bytes": 9749387
+    },
+    {
+      "path": "runs/20260922T180104804597Z_baseline_ladder_full/checkpoints/R-txt-ps_seed3407/final.pt",
+      "bytes": 9749387
+    },
+    {
+      "path": "runs/20260922T180104804597Z_baseline_ladder_full/checkpoints/R-txt_seed1042/final.pt",
+      "bytes": 9751755
+    },
+    {
+      "path": "runs/20260922T180104804597Z_baseline_ladder_full/checkpoints/R-txt_seed2024/final.pt",
+      "bytes": 9751755
+    },
+    {
+      "path": "runs/20260922T180104804597Z_baseline_ladder_full/checkpoints/R-txt_seed3407/final.pt",
+      "bytes": 9751755
+    },
+    {
+      "path": "runs/20260922T182137837857Z_baseline_gpu_smoke/checkpoints/R-fig-ps_lr0.0001_seed1042/final.pt",
+      "bytes": 12636107
+    },
+    {
+      "path": "runs/20260922T182137837857Z_baseline_gpu_smoke/checkpoints/R-fig-ps_lr0.0003_seed1042/final.pt",
+      "bytes": 12636107
+    },
+    {
+      "path": "runs/20260922T182137837857Z_baseline_gpu_smoke/checkpoints/R-fig-ps_lr0.001_seed1042/final.pt",
+      "bytes": 12636107
+    },
+    {
+      "path": "runs/20260922T182137837857Z_baseline_gpu_smoke/checkpoints/R-txt-ps_lr0.0001_seed1042/final.pt",
+      "bytes": 9749451
+    },
+    {
+      "path": "runs/20260922T182137837857Z_baseline_gpu_smoke/checkpoints/R-txt-ps_lr0.0003_seed1042/final.pt",
+      "bytes": 9749451
+    },
+    {
+      "path": "runs/20260922T182137837857Z_baseline_gpu_smoke/checkpoints/R-txt-ps_lr0.001_seed1042/final.pt",
+      "bytes": 9749451
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0001_seed1042/epoch_001.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0001_seed1042/epoch_002.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0001_seed1042/epoch_003.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0001_seed1042/epoch_004.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0001_seed1042/epoch_005.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0001_seed1042/epoch_006.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0001_seed1042/epoch_007.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0001_seed1042/epoch_008.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0001_seed1042/epoch_009.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0001_seed1042/epoch_010.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0001_seed1042/epoch_011.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0001_seed1042/epoch_012.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0001_seed1042/epoch_013.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0001_seed1042/epoch_014.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0001_seed1042/epoch_015.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0001_seed1042/epoch_016.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0001_seed1042/epoch_017.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0001_seed1042/epoch_018.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0001_seed1042/epoch_019.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0001_seed1042/epoch_020.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0001_seed1042/epoch_025.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0001_seed1042/epoch_030.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0001_seed1042/epoch_035.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0001_seed1042/epoch_040.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0001_seed1042/epoch_045.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0001_seed1042/epoch_050.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0001_seed1042/epoch_055.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0001_seed1042/epoch_060.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0001_seed1042/epoch_065.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0001_seed1042/epoch_070.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0001_seed1042/epoch_075.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0001_seed1042/epoch_080.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0001_seed1042/epoch_085.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0001_seed1042/epoch_090.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0001_seed1042/epoch_095.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0001_seed1042/epoch_100.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0001_seed1042/final.pt",
+      "bytes": 12636107
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0001_seed2024/final.pt",
+      "bytes": 12636107
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0001_seed3407/final.pt",
+      "bytes": 12636107
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_001.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_002.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_003.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_004.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_005.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_006.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_007.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_008.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_009.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_010.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_011.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_012.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_013.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_014.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_015.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_016.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_017.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_018.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_019.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_020.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_025.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_030.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_035.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_040.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_045.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_050.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_055.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_060.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_065.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_070.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_075.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_080.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_085.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_090.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_095.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_100.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0003_seed1042/final.pt",
+      "bytes": 12636107
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0003_seed2024/final.pt",
+      "bytes": 12636107
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.0003_seed3407/final.pt",
+      "bytes": 12636107
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.001_seed1042/epoch_001.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.001_seed1042/epoch_002.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.001_seed1042/epoch_003.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.001_seed1042/epoch_004.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.001_seed1042/epoch_005.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.001_seed1042/epoch_006.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.001_seed1042/epoch_007.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.001_seed1042/epoch_008.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.001_seed1042/epoch_009.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.001_seed1042/epoch_010.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.001_seed1042/epoch_011.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.001_seed1042/epoch_012.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.001_seed1042/epoch_013.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.001_seed1042/epoch_014.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.001_seed1042/epoch_015.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.001_seed1042/epoch_016.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.001_seed1042/epoch_017.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.001_seed1042/epoch_018.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.001_seed1042/epoch_019.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.001_seed1042/epoch_020.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.001_seed1042/epoch_025.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.001_seed1042/epoch_030.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.001_seed1042/epoch_035.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.001_seed1042/epoch_040.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.001_seed1042/epoch_045.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.001_seed1042/epoch_050.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.001_seed1042/epoch_055.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.001_seed1042/epoch_060.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.001_seed1042/epoch_065.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.001_seed1042/epoch_070.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.001_seed1042/epoch_075.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.001_seed1042/epoch_080.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.001_seed1042/epoch_085.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.001_seed1042/epoch_090.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.001_seed1042/epoch_095.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.001_seed1042/epoch_100.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.001_seed1042/final.pt",
+      "bytes": 12636107
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.001_seed2024/final.pt",
+      "bytes": 12636107
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-fig-ps_lr0.001_seed3407/final.pt",
+      "bytes": 12636107
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0001_seed1042/epoch_001.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0001_seed1042/epoch_002.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0001_seed1042/epoch_003.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0001_seed1042/epoch_004.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0001_seed1042/epoch_005.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0001_seed1042/epoch_006.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0001_seed1042/epoch_007.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0001_seed1042/epoch_008.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0001_seed1042/epoch_009.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0001_seed1042/epoch_010.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0001_seed1042/epoch_011.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0001_seed1042/epoch_012.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0001_seed1042/epoch_013.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0001_seed1042/epoch_014.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0001_seed1042/epoch_015.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0001_seed1042/epoch_016.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0001_seed1042/epoch_017.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0001_seed1042/epoch_018.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0001_seed1042/epoch_019.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0001_seed1042/epoch_020.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0001_seed1042/epoch_025.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0001_seed1042/epoch_030.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0001_seed1042/epoch_035.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0001_seed1042/epoch_040.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0001_seed1042/epoch_045.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0001_seed1042/epoch_050.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0001_seed1042/epoch_055.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0001_seed1042/epoch_060.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0001_seed1042/epoch_065.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0001_seed1042/epoch_070.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0001_seed1042/epoch_075.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0001_seed1042/epoch_080.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0001_seed1042/epoch_085.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0001_seed1042/epoch_090.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0001_seed1042/epoch_095.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0001_seed1042/epoch_100.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0001_seed1042/final.pt",
+      "bytes": 9749451
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0001_seed2024/final.pt",
+      "bytes": 9749451
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0001_seed3407/final.pt",
+      "bytes": 9749451
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0003_seed1042/epoch_001.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0003_seed1042/epoch_002.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0003_seed1042/epoch_003.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0003_seed1042/epoch_004.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0003_seed1042/epoch_005.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0003_seed1042/epoch_006.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0003_seed1042/epoch_007.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0003_seed1042/epoch_008.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0003_seed1042/epoch_009.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0003_seed1042/epoch_010.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0003_seed1042/epoch_011.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0003_seed1042/epoch_012.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0003_seed1042/epoch_013.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0003_seed1042/epoch_014.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0003_seed1042/epoch_015.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0003_seed1042/epoch_016.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0003_seed1042/epoch_017.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0003_seed1042/epoch_018.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0003_seed1042/epoch_019.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0003_seed1042/epoch_020.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0003_seed1042/epoch_025.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0003_seed1042/epoch_030.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0003_seed1042/epoch_035.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0003_seed1042/epoch_040.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0003_seed1042/epoch_045.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0003_seed1042/epoch_050.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0003_seed1042/epoch_055.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0003_seed1042/epoch_060.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0003_seed1042/epoch_065.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0003_seed1042/epoch_070.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0003_seed1042/epoch_075.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0003_seed1042/epoch_080.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0003_seed1042/epoch_085.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0003_seed1042/epoch_090.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0003_seed1042/epoch_095.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0003_seed1042/epoch_100.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0003_seed1042/final.pt",
+      "bytes": 9749451
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0003_seed2024/final.pt",
+      "bytes": 9749451
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.0003_seed3407/final.pt",
+      "bytes": 9749451
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.001_seed1042/epoch_001.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.001_seed1042/epoch_002.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.001_seed1042/epoch_003.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.001_seed1042/epoch_004.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.001_seed1042/epoch_005.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.001_seed1042/epoch_006.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.001_seed1042/epoch_007.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.001_seed1042/epoch_008.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.001_seed1042/epoch_009.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.001_seed1042/epoch_010.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.001_seed1042/epoch_011.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.001_seed1042/epoch_012.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.001_seed1042/epoch_013.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.001_seed1042/epoch_014.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.001_seed1042/epoch_015.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.001_seed1042/epoch_016.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.001_seed1042/epoch_017.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.001_seed1042/epoch_018.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.001_seed1042/epoch_019.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.001_seed1042/epoch_020.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.001_seed1042/epoch_025.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.001_seed1042/epoch_030.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.001_seed1042/epoch_035.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.001_seed1042/epoch_040.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.001_seed1042/epoch_045.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.001_seed1042/epoch_050.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.001_seed1042/epoch_055.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.001_seed1042/epoch_060.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.001_seed1042/epoch_065.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.001_seed1042/epoch_070.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.001_seed1042/epoch_075.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.001_seed1042/epoch_080.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.001_seed1042/epoch_085.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.001_seed1042/epoch_090.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.001_seed1042/epoch_095.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.001_seed1042/epoch_100.pt",
+      "bytes": 9751991
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.001_seed1042/final.pt",
+      "bytes": 9749451
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.001_seed2024/final.pt",
+      "bytes": 9749451
+    },
+    {
+      "path": "runs/20260922T182154907065Z_channel_restore_full/checkpoints/R-txt-ps_lr0.001_seed3407/final.pt",
+      "bytes": 9749451
+    },
+    {
+      "path": "runs/20260922T184112013495Z_baseline_gpu_smoke/checkpoints/R-fig-ln_lr0.0003_seed1042/final.pt",
+      "bytes": 12636698
+    },
+    {
+      "path": "runs/20260922T184112013495Z_baseline_gpu_smoke/checkpoints/R-fig-ps-ln_lr0.0003_seed1042/final.pt",
+      "bytes": 12634330
+    },
+    {
+      "path": "runs/20260922T184112013495Z_baseline_gpu_smoke/checkpoints/R-fig-ps_lr0.0003_seed1042/final.pt",
+      "bytes": 12636107
+    },
+    {
+      "path": "runs/20260922T184112013495Z_baseline_gpu_smoke/checkpoints/R-fig_lr0.0003_seed1042/final.pt",
+      "bytes": 12638475
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ln_lr0.0003_seed1042/epoch_001.pt",
+      "bytes": 12639098
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ln_lr0.0003_seed1042/epoch_002.pt",
+      "bytes": 12639098
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ln_lr0.0003_seed1042/epoch_003.pt",
+      "bytes": 12639098
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ln_lr0.0003_seed1042/epoch_004.pt",
+      "bytes": 12639098
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ln_lr0.0003_seed1042/epoch_005.pt",
+      "bytes": 12639098
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ln_lr0.0003_seed1042/epoch_006.pt",
+      "bytes": 12639098
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ln_lr0.0003_seed1042/epoch_007.pt",
+      "bytes": 12639098
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ln_lr0.0003_seed1042/epoch_008.pt",
+      "bytes": 12639098
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ln_lr0.0003_seed1042/epoch_009.pt",
+      "bytes": 12639098
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ln_lr0.0003_seed1042/epoch_010.pt",
+      "bytes": 12639098
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ln_lr0.0003_seed1042/epoch_011.pt",
+      "bytes": 12639098
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ln_lr0.0003_seed1042/epoch_012.pt",
+      "bytes": 12639098
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ln_lr0.0003_seed1042/epoch_013.pt",
+      "bytes": 12639098
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ln_lr0.0003_seed1042/epoch_014.pt",
+      "bytes": 12639098
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ln_lr0.0003_seed1042/epoch_015.pt",
+      "bytes": 12639098
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ln_lr0.0003_seed1042/epoch_016.pt",
+      "bytes": 12639098
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ln_lr0.0003_seed1042/epoch_017.pt",
+      "bytes": 12639098
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ln_lr0.0003_seed1042/epoch_018.pt",
+      "bytes": 12639098
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ln_lr0.0003_seed1042/epoch_019.pt",
+      "bytes": 12639098
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ln_lr0.0003_seed1042/epoch_020.pt",
+      "bytes": 12639098
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ln_lr0.0003_seed1042/epoch_025.pt",
+      "bytes": 12639098
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ln_lr0.0003_seed1042/epoch_030.pt",
+      "bytes": 12639098
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ln_lr0.0003_seed1042/epoch_035.pt",
+      "bytes": 12639098
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ln_lr0.0003_seed1042/epoch_040.pt",
+      "bytes": 12639098
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ln_lr0.0003_seed1042/epoch_045.pt",
+      "bytes": 12639098
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ln_lr0.0003_seed1042/epoch_050.pt",
+      "bytes": 12639098
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ln_lr0.0003_seed1042/epoch_055.pt",
+      "bytes": 12639098
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ln_lr0.0003_seed1042/epoch_060.pt",
+      "bytes": 12639098
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ln_lr0.0003_seed1042/epoch_065.pt",
+      "bytes": 12639098
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ln_lr0.0003_seed1042/epoch_070.pt",
+      "bytes": 12639098
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ln_lr0.0003_seed1042/epoch_075.pt",
+      "bytes": 12639098
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ln_lr0.0003_seed1042/epoch_080.pt",
+      "bytes": 12639098
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ln_lr0.0003_seed1042/epoch_085.pt",
+      "bytes": 12639098
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ln_lr0.0003_seed1042/epoch_090.pt",
+      "bytes": 12639098
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ln_lr0.0003_seed1042/epoch_095.pt",
+      "bytes": 12639098
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ln_lr0.0003_seed1042/epoch_100.pt",
+      "bytes": 12639098
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ln_lr0.0003_seed1042/final.pt",
+      "bytes": 12636698
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ln_lr0.0003_seed2024/final.pt",
+      "bytes": 12636698
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ln_lr0.0003_seed3407/final.pt",
+      "bytes": 12636698
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps-ln_lr0.0003_seed1042/epoch_001.pt",
+      "bytes": 12636730
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps-ln_lr0.0003_seed1042/epoch_002.pt",
+      "bytes": 12636730
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps-ln_lr0.0003_seed1042/epoch_003.pt",
+      "bytes": 12636730
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps-ln_lr0.0003_seed1042/epoch_004.pt",
+      "bytes": 12636730
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps-ln_lr0.0003_seed1042/epoch_005.pt",
+      "bytes": 12636730
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps-ln_lr0.0003_seed1042/epoch_006.pt",
+      "bytes": 12636730
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps-ln_lr0.0003_seed1042/epoch_007.pt",
+      "bytes": 12636730
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps-ln_lr0.0003_seed1042/epoch_008.pt",
+      "bytes": 12636730
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps-ln_lr0.0003_seed1042/epoch_009.pt",
+      "bytes": 12636730
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps-ln_lr0.0003_seed1042/epoch_010.pt",
+      "bytes": 12636730
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps-ln_lr0.0003_seed1042/epoch_011.pt",
+      "bytes": 12636730
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps-ln_lr0.0003_seed1042/epoch_012.pt",
+      "bytes": 12636730
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps-ln_lr0.0003_seed1042/epoch_013.pt",
+      "bytes": 12636730
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps-ln_lr0.0003_seed1042/epoch_014.pt",
+      "bytes": 12636730
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps-ln_lr0.0003_seed1042/epoch_015.pt",
+      "bytes": 12636730
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps-ln_lr0.0003_seed1042/epoch_016.pt",
+      "bytes": 12636730
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps-ln_lr0.0003_seed1042/epoch_017.pt",
+      "bytes": 12636730
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps-ln_lr0.0003_seed1042/epoch_018.pt",
+      "bytes": 12636730
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps-ln_lr0.0003_seed1042/epoch_019.pt",
+      "bytes": 12636730
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps-ln_lr0.0003_seed1042/epoch_020.pt",
+      "bytes": 12636730
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps-ln_lr0.0003_seed1042/epoch_025.pt",
+      "bytes": 12636730
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps-ln_lr0.0003_seed1042/epoch_030.pt",
+      "bytes": 12636730
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps-ln_lr0.0003_seed1042/epoch_035.pt",
+      "bytes": 12636730
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps-ln_lr0.0003_seed1042/epoch_040.pt",
+      "bytes": 12636730
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps-ln_lr0.0003_seed1042/epoch_045.pt",
+      "bytes": 12636730
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps-ln_lr0.0003_seed1042/epoch_050.pt",
+      "bytes": 12636730
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps-ln_lr0.0003_seed1042/epoch_055.pt",
+      "bytes": 12636730
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps-ln_lr0.0003_seed1042/epoch_060.pt",
+      "bytes": 12636730
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps-ln_lr0.0003_seed1042/epoch_065.pt",
+      "bytes": 12636730
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps-ln_lr0.0003_seed1042/epoch_070.pt",
+      "bytes": 12636730
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps-ln_lr0.0003_seed1042/epoch_075.pt",
+      "bytes": 12636730
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps-ln_lr0.0003_seed1042/epoch_080.pt",
+      "bytes": 12636730
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps-ln_lr0.0003_seed1042/epoch_085.pt",
+      "bytes": 12636730
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps-ln_lr0.0003_seed1042/epoch_090.pt",
+      "bytes": 12636730
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps-ln_lr0.0003_seed1042/epoch_095.pt",
+      "bytes": 12636730
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps-ln_lr0.0003_seed1042/epoch_100.pt",
+      "bytes": 12636730
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps-ln_lr0.0003_seed1042/final.pt",
+      "bytes": 12634330
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps-ln_lr0.0003_seed2024/final.pt",
+      "bytes": 12634330
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps-ln_lr0.0003_seed3407/final.pt",
+      "bytes": 12634330
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_001.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_002.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_003.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_004.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_005.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_006.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_007.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_008.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_009.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_010.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_011.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_012.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_013.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_014.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_015.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_016.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_017.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_018.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_019.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_020.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_025.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_030.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_035.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_040.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_045.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_050.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_055.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_060.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_065.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_070.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_075.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_080.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_085.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_090.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_095.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig-ps_lr0.0003_seed1042/epoch_100.pt",
+      "bytes": 12638647
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig_lr0.0003_seed1042/epoch_001.pt",
+      "bytes": 12641015
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig_lr0.0003_seed1042/epoch_002.pt",
+      "bytes": 12641015
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig_lr0.0003_seed1042/epoch_003.pt",
+      "bytes": 12641015
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig_lr0.0003_seed1042/epoch_004.pt",
+      "bytes": 12641015
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig_lr0.0003_seed1042/epoch_005.pt",
+      "bytes": 12641015
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig_lr0.0003_seed1042/epoch_006.pt",
+      "bytes": 12641015
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig_lr0.0003_seed1042/epoch_007.pt",
+      "bytes": 12641015
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig_lr0.0003_seed1042/epoch_008.pt",
+      "bytes": 12641015
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig_lr0.0003_seed1042/epoch_009.pt",
+      "bytes": 12641015
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig_lr0.0003_seed1042/epoch_010.pt",
+      "bytes": 12641015
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig_lr0.0003_seed1042/epoch_011.pt",
+      "bytes": 12641015
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig_lr0.0003_seed1042/epoch_012.pt",
+      "bytes": 12641015
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig_lr0.0003_seed1042/epoch_013.pt",
+      "bytes": 12641015
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig_lr0.0003_seed1042/epoch_014.pt",
+      "bytes": 12641015
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig_lr0.0003_seed1042/epoch_015.pt",
+      "bytes": 12641015
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig_lr0.0003_seed1042/epoch_016.pt",
+      "bytes": 12641015
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig_lr0.0003_seed1042/epoch_017.pt",
+      "bytes": 12641015
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig_lr0.0003_seed1042/epoch_018.pt",
+      "bytes": 12641015
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig_lr0.0003_seed1042/epoch_019.pt",
+      "bytes": 12641015
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig_lr0.0003_seed1042/epoch_020.pt",
+      "bytes": 12641015
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig_lr0.0003_seed1042/epoch_025.pt",
+      "bytes": 12641015
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig_lr0.0003_seed1042/epoch_030.pt",
+      "bytes": 12641015
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig_lr0.0003_seed1042/epoch_035.pt",
+      "bytes": 12641015
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig_lr0.0003_seed1042/epoch_040.pt",
+      "bytes": 12641015
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig_lr0.0003_seed1042/epoch_045.pt",
+      "bytes": 12641015
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig_lr0.0003_seed1042/epoch_050.pt",
+      "bytes": 12641015
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig_lr0.0003_seed1042/epoch_055.pt",
+      "bytes": 12641015
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig_lr0.0003_seed1042/epoch_060.pt",
+      "bytes": 12641015
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig_lr0.0003_seed1042/epoch_065.pt",
+      "bytes": 12641015
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig_lr0.0003_seed1042/epoch_070.pt",
+      "bytes": 12641015
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig_lr0.0003_seed1042/epoch_075.pt",
+      "bytes": 12641015
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig_lr0.0003_seed1042/epoch_080.pt",
+      "bytes": 12641015
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig_lr0.0003_seed1042/epoch_085.pt",
+      "bytes": 12641015
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig_lr0.0003_seed1042/epoch_090.pt",
+      "bytes": 12641015
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig_lr0.0003_seed1042/epoch_095.pt",
+      "bytes": 12641015
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig_lr0.0003_seed1042/epoch_100.pt",
+      "bytes": 12641015
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig_lr0.0003_seed1042/final.pt",
+      "bytes": 12638475
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig_lr0.0003_seed2024/final.pt",
+      "bytes": 12638475
+    },
+    {
+      "path": "runs/20260922T184129389577Z_head_norm_full/checkpoints/R-fig_lr0.0003_seed3407/final.pt",
+      "bytes": 12638475
+    }
+  ]
+}

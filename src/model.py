@@ -32,7 +32,7 @@ TEXT_CAPPED_128 = ((1, 32, 32), (32, 64, 64), (64, 128, 128),
 # 256 in Resnet4 and 512 inside Resnet5, contradicting Section 5.2's "from 1 to
 # 128 step by step". Restored 2026-09-23: both flatten cells of the v7.0 ladder
 # scored 0.032 and 0.049 below their counterparts on the previous project's
-# wider backbone, which is evidence for the figure; see docs/baseline-ladder.md.
+# wider backbone, which is evidence for the figure; see baseline.md section 4.2.
 FIGURE_WIDTHS = ((1, 32, 32), (32, 64, 64), (64, 128, 128),
                  (128, 256, 256), (256, 512, 128))
 
@@ -80,7 +80,7 @@ VARIANTS: dict[str, dict] = {
 
 
 # Retired 2026-09-23. Global average pooling cost -0.078 target mean, separable
-# on both levels of the other factor; see docs/baseline-ladder.md. The paper's
+# on both levels of the other factor; see baseline.md section 4.1. The paper's
 # "this network doesn't apply the pooling layer" is load-bearing. These two stay
 # defined so the 400 frozen epoch checkpoints of the v7.0 ladder remain loadable
 # and that result stays reproducible; `src.config` refuses them in a new

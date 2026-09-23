@@ -376,7 +376,7 @@ class HeadNormalisationTests(unittest.TestCase):
         """track_running_stats=False would normalise a target batch by its own
         statistics at inference, which is test-time adaptation on target data and
         makes a prediction depend on which other samples share its batch. It is
-        prohibited; see docs/head-normalisation.md."""
+        prohibited; see baseline.md section 4.3."""
         for variant in VARIANTS:
             for module in build(variant).modules():
                 if isinstance(module, torch.nn.modules.batchnorm._BatchNorm):

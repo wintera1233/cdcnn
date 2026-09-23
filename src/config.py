@@ -57,7 +57,7 @@ def validate(config: dict) -> dict:
     if retired and config["implementation_version"] != LADDER_VERSION:
         raise ProtocolError(
             f"retired variant(s) {retired}: global average pooling was measured at "
-            "-0.078 target mean and withdrawn; see docs/baseline-ladder.md")
+            "-0.078 target mean and withdrawn; see baseline.md section 4.1")
 
     unknown = [name for name in config["variants"] if name not in VARIANTS]
     if unknown:

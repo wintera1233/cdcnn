@@ -83,7 +83,7 @@ re-deriving any of the following.
   see `docs/early-stopping.md`. The epoch count must be fixed by fiat.
 - **Ethylene does not transfer.** Source recall 1.000, target recall 0.001.
   Class weighting cannot help it. The paper loses Acetaldehyde instead and leads
-  on five of six classes; see `docs/dead-class.md`.
+  on five of six classes; see `baseline.md` section 5.
 - **A fixed epoch budget confounds augmentation**, because doubling the rows at a
   fixed epoch count doubles the gradient steps. Any comparison between augmented
   and unaugmented training must state which of step count and per-sample exposure
