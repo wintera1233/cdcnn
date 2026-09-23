@@ -21,7 +21,31 @@ all three send it substantially to Ethanol:
 | paper CDCNN | 0.00 | 100 % Ethanol |
 | paper CDWC | 0.00 | 92 % Ethanol |
 
-Acetaldehyde (CH3CHO) and Ethanol (C2H5OH) are both C2 oxygenates.
+### This is not chemical similarity
+
+Batch 1 centroid distances in units of the two classes' mean radius:
+
+| pair | distance |
+|---|---:|
+| Acetaldehyde - Acetone | **1.02** |
+| Ammonia - Ethylene | 2.29 |
+| Acetaldehyde - Toluene | 3.78 |
+| **Ethanol - Acetaldehyde** | **4.42** |
+| ... | |
+| Ammonia - Toluene | 26.27 |
+
+Ethanol and Acetaldehyde are only the fourth closest pair. The closest,
+Acetaldehyde and Acetone at 1.02, all but overlap and are never confused. And the
+model separates all six classes perfectly on Batch 1 - Acetaldehyde's source
+recall is 1.000.
+
+Chemistry does organise the source space: the two carbonyls sit almost on top of
+each other, ethanol adjoins them, and ammonia and ethylene sit far from
+everything, which is what a surface-reaction sensor sensitive to functional group
+rather than carbon skeleton would give. But proximity is not the failure
+mechanism. The failure is that Acetaldehyde's cloud **moves**, by eighteen times
+its own radius, onto the position Ethanol occupied in Batch 1. Why the direction
+points at Ethanol is not answerable from this data.
 
 ## Every target batch's Acetaldehyde lands on Batch 1's Ethanol
 

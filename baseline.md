@@ -250,8 +250,12 @@ Acetaldehyde，到 Batches 2–10 只剩 0.001。本專案訓練過的所有設�
 
 **三個模型都在 Acetaldehyde 上得到 0.00，而且都主要把它送進 Ethanol**：
 論文 CDCNN 100%、CDWC 92%、本設計 37.7%（另有 59.3% 進 Toluene）。
-Acetaldehyde（CH₃CHO）與 Ethanol（C₂H₅OH）同為 C2 含氧化合物，化學上是最容易
-混淆的一對。
+這個混淆**不是化學相似性造成的**。Batch 1 上模型把六個類別全部分對，
+Acetaldehyde 的 source recall 是 1.000；而且以重心距離除以類內半徑衡量，
+Ethanol↔Acetaldehyde 只排第四近（4.42），最近的一對是 Acetaldehyde↔Acetone
+（1.02，幾乎重疊）卻完全沒有混淆問題。成因是 5.1 節的 drift：乙醛的雲團移動
+18 倍自身半徑，**落到 Batch 1 時期乙醇所在的位置**。為何方向剛好指向乙醇，
+這份資料無法回答。
 
 Acetaldehyde 佔 target 的 14%（1,906/13,465），所以它歸零把論文的 pooled 準確率
 壓到約 0.80；target mean 是逐 batch 的未加權平均、對難的後段 batch 權重更高，

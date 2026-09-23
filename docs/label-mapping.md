@@ -52,10 +52,17 @@ not before:
 | dead class | **Acetaldehyde, recall 0.000** | **Acetaldehyde, recall 0.00** |
 | where it goes | 37.7 % Ethanol, 59.3 % Toluene | 100 % Ethanol |
 
-Acetaldehyde and Ethanol are both C2 oxygenates, which is the confusion a
-chemist would expect. Under the previous mapping the same numbers read as "this
-project loses Ethylene while the paper loses Acetaldehyde", two unrelated
-failures, and the confusion was Ethylene into Acetone, which has no such reading.
+Under the previous mapping the same numbers read as "this project loses Ethylene
+while the paper loses Acetaldehyde" - two unrelated failures on opposite classes.
+Three models failing on one class and sending it to one place is a far more
+economical reading of the same numbers.
+
+This corroboration is about agreement between models, not about chemistry. An
+earlier draft claimed Acetaldehyde and Ethanol are the pair a chemist would
+expect to confuse; measured on Batch 1 they are only the fourth closest pair
+(centroid distance 4.42 class radii) while Acetaldehyde and Acetone are the
+closest at 1.02, and the model separates all six perfectly at source. See
+`docs/why-acetaldehyde.md`.
 
 The geometry agrees. Every target batch's Acetaldehyde centroid lands nearest
 Batch 1's **Ethanol** centroid, eight times of nine; see `docs/why-acetaldehyde.md`.
