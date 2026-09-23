@@ -100,6 +100,15 @@ re-deriving any of the following.
   CDCNN also scores 0.00 on Acetaldehyde** and sends 100% of it to Ethanol, so
   the gap to the paper lies in the other five classes; see `baseline.md`
   section 5 and `docs/why-acetaldehyde.md`.
+- **Feature generation is worth +0.0004** on five seeds, against a separability
+  threshold of 0.0090. The block is not inert: it moves `z_f` by 0.0448, inside
+  the 0.047 to 0.105 range of a real acquisition-session drift, and `L_MSE` falls
+  2 to 5 times over training, so the network does learn the invariance the loss
+  asks for. It buys nothing, because the backbone still passes 94% of the real
+  drift and the block only improves that from 5.7% removed to 6.3%. Raising
+  lambda_MSE to 1.0, the ceiling Eq. (4) allows, moves the mean by 0.0002. See
+  `docs/v9-feature-generation.md`; this independently replicates the previous
+  branch's +0.001 to +0.014.
 - **A fixed epoch budget confounds augmentation**, because doubling the rows at a
   fixed epoch count doubles the gradient steps. Any comparison between augmented
   and unaugmented training must state which of step count and per-sample exposure

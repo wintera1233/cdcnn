@@ -2,8 +2,8 @@
 
 The narrative and the evidence live in `baseline.md`; this file is the raw table.
 
-Every cell this branch has trained, sorted by target mean. All are the plain
-ResNet baseline with `L_ce` only - no augmentation, no feature generation, no
+The plain-baseline cells, sorted by target mean. All are the bare
+ResNet with `L_ce` only - no augmentation, no feature generation, no
 contrastive loss. Seeds 1042, 2024, 3407, and for the v7.5 grid also 42 and 123.
 
 | Cell | run | channels | head | input `Normal` | head norm | lr | seeds | Batch 1 | Target mean | SD |
@@ -23,6 +23,36 @@ contrastive loss. Seeds 1042, 2024, 3407, and for the v7.5 grid also 42 and 123.
 | `R-lite-ps` | v7.0 | capped 128 | GAP | per-sample | BatchNorm | 0.001 | 3 | 0.8787 | **0.3931** | 0.0412 |
 | `R-txt` | v7.0 | capped 128 | flatten | StandardScaler | BatchNorm | 0.001 | 3 | 1.0000 | **0.3777** | 0.0365 |
 | `R-lite` | v7.0 | capped 128 | GAP | StandardScaler | BatchNorm | 0.001 | 3 | 0.9551 | **0.2958** | 0.0524 |
+
+## Cells with CDCNN components
+
+Every cell below is `R-fig-logps` plus the named component, at lr 0.0003 on five
+seeds. The v8.1 and v9.0 cells all carry the directed augmentation, whose
+direction and displacement were both chosen against target data, so they are
+target-informed and report an upper bound. **The source-only settled number
+remains `R-fig-logps` at 0.5556.**
+
+| Cell | run | augmentation | feature generation | `L_MSE` | Batch 1 | Target mean | SD | vs its own reference |
+|---|---|---|---|---:|---:|---:|---:|---:|
+| `R-gen-m10` | v9.0 | directed, T=2 | per-position | λ=1.0 | 0.9933 | **0.5776** | 0.0062 | +0.0006 |
+| `R-gen` | v9.0 | directed, T=2 | per-position | λ=0.5 | 0.9942 | **0.5774** | 0.0065 | +0.0004 |
+| `R-aug-t2` | v8.1 | directed, T=2 | — | — | 0.9951 | **0.5770** | 0.0078 | +0.0214 |
+| `R-gen-ce2` | v9.0 | directed, T=2 | per-position, `L_ce` on both | λ=0.5 | 0.9937 | **0.5749** | 0.0062 | -0.0022 |
+| `R-aug-t3` | v8.1 | directed, T=3 | — | — | — | **0.5731** | 0.0104 | +0.0175 |
+| `R-aug-t4` | v8.1 | directed, T=4 | — | — | — | **0.5675** | 0.0108 | +0.0119 |
+| `R-aug-ethd` | v8.0 | directed, T=18 | — | — | 0.9924 | **0.5670** | 0.0096 | +0.0115 |
+| `R-fig-logps` | v7.5 | — | — | — | 0.9906 | **0.5556** | 0.0137 | — |
+| `R-aug-eth` | v8.0 | directed + isotropic, T=18 | — | — | 0.9825 | **0.5462** | 0.0190 | -0.0093 |
+| `R-aug-paper` | v8.0 | isotropic (Eq. 7) | — | — | 0.9811 | **0.5340** | 0.0249 | -0.0216 |
+
+The augmentation reference is `R-fig-logps`; the feature generation reference is
+`R-aug-t2`, because every v9 cell carries that augmentation.
+
+**Feature generation is worth nothing under this protocol.** The three v9 cells
+span 0.5749 to 0.5776 against a reference of 0.5770, and the separability
+threshold at five seeds is 0.0089 to 0.0091. `exp/a3-confound-ablation` measured
+the same component at +0.001 to +0.014 on a different backbone; v9.0 narrows
+that to +0.0004. See `docs/v9-feature-generation.md`.
 
 ## References
 
