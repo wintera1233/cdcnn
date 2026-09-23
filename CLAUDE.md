@@ -106,9 +106,18 @@ re-deriving any of the following.
   2 to 5 times over training, so the network does learn the invariance the loss
   asks for. It buys nothing, because the backbone still passes 94% of the real
   drift and the block only improves that from 5.7% removed to 6.3%. Raising
-  lambda_MSE to 1.0, the ceiling Eq. (4) allows, moves the mean by 0.0002. See
-  `docs/v9-feature-generation.md`; this independently replicates the previous
-  branch's +0.001 to +0.014.
+  lambda_MSE to 1.0, the ceiling Eq. (4) allows, moves the mean by 0.0002.
+- **The reason is the sign, not the axis.** Measured at block 3, the block's
+  perturbation is 25 times more concentrated in the real drift subspace than a
+  random direction (7.6% of its energy against a 0.3% null) and is only 2 times
+  smaller than the real drift in source radii (0.950 against 1.908). But its
+  signed alignment averages **-7.5%** of its typical magnitude: Eq. (14)'s
+  Gaussian displaces symmetrically along the drift axis, and an unsigned
+  perturbation cannot correct a signed displacement however well-aimed its axis.
+  This is geometrically the same failure as v8.0's isotropic noise, and v8.1
+  proved it from the other side: undirected -0.0216, the same displacement given
+  a direction +0.0115 to +0.0214. See `docs/v9-feature-generation.md`; the null
+  result independently replicates the previous branch's +0.001 to +0.014.
 - **A fixed epoch budget confounds augmentation**, because doubling the rows at a
   fixed epoch count doubles the gradient steps. Any comparison between augmented
   and unaugmented training must state which of step count and per-sample exposure
