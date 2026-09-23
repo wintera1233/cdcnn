@@ -1,0 +1,81 @@
+{
+  "implementation_version": "CDCNN_v8.1_displacement_sweep",
+  "description": "The displacement multiplier of the directed augmentation, in units of Batch 1's own two-month block offset, swept around the coverage peak. No isotropic component: any scale from 0.25 upward returns coverage to the unaugmented level. Direction is Ethanol's block offset throughout.",
+  "variants": [
+    "R-fig-logps",
+    "R-aug-t2",
+    "R-aug-t3",
+    "R-aug-t4"
+  ],
+  "learning_rates": [
+    0.0003
+  ],
+  "seeds": [
+    1042,
+    2024,
+    3407,
+    42,
+    123
+  ],
+  "training": {
+    "epochs": 100,
+    "batch_size": 64
+  },
+  "optimizer": {
+    "lr": 0.0003,
+    "momentum": 0.9,
+    "weight_decay": 0.0001
+  },
+  "scheduler": {
+    "step_size": 25,
+    "gamma": 0.5
+  },
+  "per_epoch_checkpoint_seed": 1042,
+  "augmentation": {
+    "isotropic": false,
+    "isotropic_note": "Swept at 0, 0.125, 0.25, 0.5 and 1.0 times the paper's noise. Anything from 0.25 up returns Acetaldehyde coverage to 38.4%, the unaugmented level, because the paper's noise displaces by 11.3 while the directed component is about 3. Dropped.",
+    "direction": "ethanol block offset",
+    "displacement_multiplier": [
+      2.0,
+      3.0,
+      4.0
+    ],
+    "displacement_note": "v8.0 used 18, from 36 months divided by Batch 1's two. That assumed linear accumulation. Measured, every real per-class drift in every target batch is 0.83 to 3.74 block offsets, and Batch 10 at 36 months drifts less than Batch 8 at 22: drift saturates and is not monotone in time. Mean coverage peaks at 3."
+  },
+  "escalation": {
+    "target_mean_sd_threshold": 0.02,
+    "rung_difference_standard_errors": 2.0
+  },
+  "confounds": {
+    "epoch_budget": "Augmentation doubles the rows and the epoch count is fixed at 100, so the augmented cells take twice the gradient steps. The paper concatenates and trains 100 epochs, so this follows it; comparisons against R-fig-logps carry both changes.",
+    "direction_choice": "The average of the three block offsets was the a-priori defensible choice, but a pre-training coverage check showed it leaves target Acetaldehyde coverage exactly at the unaugmented level, so those cells were dropped. Ethanol's offset was preferred after measuring alignment against target drift, so every directed cell here is target-informed.",
+    "estimator_support": "The second blocks hold 6, 10 and 7 rows.",
+    "displacement_choice": "The multiplier was chosen by a coverage metric computed against target data, so v8.1 is target-informed throughout and reports an upper bound on what a directed augmentation can do, not a source-only result."
+  },
+  "compare_against": {
+    "run": "20260923T033747817275Z_augmentation_full",
+    "R-fig-logps@lr0.0003": 0.5556,
+    "R-aug-ethd@lr0.0003": 0.567
+  },
+  "paper_reference": {
+    "model": "ResNet (the backbone of CDCNN), Table 3",
+    "printed_average": 0.6344
+  },
+  "prediction": {
+    "recorded_before_the_run": true,
+    "basis": "Mean over the six classes of the fraction of target rows within two source radii.",
+    "coverage": {
+      "R-fig-logps": 0.669,
+      "R-aug-t2": 0.818,
+      "R-aug-t3": 0.824,
+      "R-aug-t4": 0.818
+    },
+    "expectation": "All three should beat the unaugmented reference and each other only slightly, since 2, 3 and 4 differ by under a point of coverage. v8.0's T=18 scored 0.772 coverage and +0.0115 target mean; if these do not beat it, coverage does not predict target mean and the whole design rests on the wrong metric.",
+    "v8_0_reference": {
+      "R-aug-ethd_T18": {
+        "coverage": 0.772,
+        "target_mean": 0.567
+      }
+    }
+  }
+}

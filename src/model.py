@@ -60,9 +60,14 @@ def _head_norm(kind: str) -> nn.Module:
 _LOGPS = {"channels": FIGURE_WIDTHS, "head": "flatten",
           "normalizer": "signed_log_then_per_sample"}
 
-# The displacement multiplier: the collection spans 36 months and Batch 1 spans
-# two, so a two-month offset extrapolates by 18. Source-only reasoning.
-AUGMENT_DISPLACEMENT = 18.0
+# The displacement multiplier, in units of Batch 1's own two-month block offset.
+#
+# v8.0 used 18, from "36 months of collection divided by Batch 1's two". That
+# reasoning assumed drift accumulates linearly in time, and it does not: measured
+# against the block offset, every real per-class drift in every target batch lies
+# between 0.83 and 3.74, and Batch 10 at 36 months drifts *less* than Batch 8 at
+# 22. Coverage peaks at 3. Variants carry their own value; this is the default.
+AUGMENT_DISPLACEMENT = 3.0
 AUGMENT_LAMBDA = 0.5
 
 VARIANTS: dict[str, dict] = {
@@ -97,11 +102,19 @@ VARIANTS: dict[str, dict] = {
     # except the `augment` field, which train_one reads. isotropic is the
     # paper's Eq. (7) noise; direction adds a displacement along the drift
     # estimated from Batch 1's own two acquisition sessions.
-    "R-aug-paper": {**_LOGPS, "augment": {"isotropic": True, "direction": None}},
-    "R-aug-avg": {**_LOGPS, "augment": {"isotropic": True, "direction": "average"}},
-    "R-aug-avgd": {**_LOGPS, "augment": {"isotropic": False, "direction": "average"}},
-    "R-aug-eth": {**_LOGPS, "augment": {"isotropic": True, "direction": "ethanol"}},
-    "R-aug-ethd": {**_LOGPS, "augment": {"isotropic": False, "direction": "ethanol"}},
+    "R-aug-paper": {**_LOGPS, "augment": {"isotropic": True, "direction": None,
+                                          "displacement": 18.0}},
+    "R-aug-eth": {**_LOGPS, "augment": {"isotropic": True, "direction": "ethanol",
+                                        "displacement": 18.0}},
+    "R-aug-ethd": {**_LOGPS, "augment": {"isotropic": False, "direction": "ethanol",
+                                         "displacement": 18.0}},
+    # v8.1: the displacement multiplier, swept around the coverage peak at 3.
+    "R-aug-t2": {**_LOGPS, "augment": {"isotropic": False, "direction": "ethanol",
+                                       "displacement": 2.0}},
+    "R-aug-t3": {**_LOGPS, "augment": {"isotropic": False, "direction": "ethanol",
+                                       "displacement": 3.0}},
+    "R-aug-t4": {**_LOGPS, "augment": {"isotropic": False, "direction": "ethanol",
+                                       "displacement": 4.0}},
 }
 
 

@@ -21,6 +21,7 @@ CV_VERSION = "CDCNN_v7.3_cv_early_stop"
 NORMALISER_VERSION = "CDCNN_v7.4_input_normalisation"
 NORMALISER_5SEED_VERSION = "CDCNN_v7.5_input_normalisation_5seed"
 AUGMENT_VERSION = "CDCNN_v8.0_directed_augmentation"
+DISPLACEMENT_VERSION = "CDCNN_v8.1_displacement_sweep"
 
 # Frozen literals: the declared contents of the ladder. Adding a variant later
 # must not silently change what this version means.
@@ -63,6 +64,10 @@ ALL_SEEDS = (1042, 2024, 3407, 42, 123)
 # (off, none) cell is R-fig-logps, the settled baseline.
 AUGMENT_VARIANTS = ("R-fig-logps", "R-aug-paper", "R-aug-eth", "R-aug-ethd")
 
+# v8.1: the displacement multiplier around the coverage peak. v8.0's 18 sat well
+# past it; the real drift is 0.83 to 3.74 block offsets, never 18.
+DISPLACEMENT_VARIANTS = ("R-fig-logps", "R-aug-t2", "R-aug-t3", "R-aug-t4")
+
 REQUIRED = ("implementation_version", "variants", "seeds", "training", "optimizer",
             "scheduler")
 
@@ -86,6 +91,18 @@ def validate(config: dict) -> dict:
         raise ProtocolError("a variant is listed twice")
     if len(set(config["seeds"])) != len(config["seeds"]):
         raise ProtocolError("a seed is listed twice")
+
+    if config["implementation_version"] == DISPLACEMENT_VERSION:
+        for name, expected, actual in (
+                ("variants", list(DISPLACEMENT_VARIANTS), list(config["variants"])),
+                ("learning_rates", list(NORMALISER_LEARNING_RATES),
+                 [float(v) for v in config.get("learning_rates", [])]),
+                ("seeds", list(ALL_SEEDS), list(config["seeds"])),
+                ("training", LADDER_TRAINING, config["training"]),
+                ("scheduler", LADDER_SCHEDULER, config["scheduler"])):
+            if expected != actual:
+                raise ProtocolError(
+                    f"{DISPLACEMENT_VERSION} fixes {name} as {expected}, got {actual}")
 
     if config["implementation_version"] == AUGMENT_VERSION:
         for name, expected, actual in (

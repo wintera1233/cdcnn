@@ -82,7 +82,8 @@ def train_one(variant: str, seed: int, config: dict, source_x: np.ndarray,
         extra = augmentation.augment(
             normalised, source_y, generator,
             isotropic=spec["isotropic"], direction=spec["direction"],
-            lam=AUGMENT_LAMBDA, displacement=AUGMENT_DISPLACEMENT)
+            lam=AUGMENT_LAMBDA,
+            displacement=spec.get("displacement", AUGMENT_DISPLACEMENT))
         normalised = np.concatenate([normalised, extra], axis=0)
         labels = np.concatenate([source_y, source_y], axis=0)
 

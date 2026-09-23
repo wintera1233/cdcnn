@@ -424,6 +424,36 @@ class AugmentationTests(unittest.TestCase):
         from src import evaluate
         self.assertNotIn("augment", inspect.getsource(evaluate))
 
+    def test_the_displacement_lives_on_the_variant(self):
+        from src.model import VARIANTS as spec
+        self.assertEqual(spec["R-aug-t2"]["augment"]["displacement"], 2.0)
+        self.assertEqual(spec["R-aug-t3"]["augment"]["displacement"], 3.0)
+        self.assertEqual(spec["R-aug-t4"]["augment"]["displacement"], 4.0)
+        # v8.0's cells keep the 18 they were run with.
+        self.assertEqual(spec["R-aug-ethd"]["augment"]["displacement"], 18.0)
+
+    def test_the_displacement_scales_the_offset_not_the_class_radius(self):
+        """T multiplies ||block offset||, the distance between Batch 1's two
+        acquisition sessions - not the class radius, which is a different
+        quantity that happens to be numerically close."""
+        _, scale = self.augment.drift_direction(self.z, self.y, "ethanol")
+        for multiplier in (2.0, 4.0):
+            out = self.augment.augment(
+                self.z, self.y, np.random.default_rng(0), isotropic=False,
+                direction="ethanol", displacement=multiplier)
+            along = np.linalg.norm(out - self.z, axis=1)
+            self.assertLessEqual(along.max(), multiplier * scale + 1e-9)
+            self.assertGreater(along.max(), 0.9 * multiplier * scale)
+
+    def test_the_v8_1_config_is_valid_and_pins_its_grid(self):
+        config = load_config(ROOT / "configs" / "displacement.json")
+        self.assertEqual(config["variants"],
+                         ["R-fig-logps", "R-aug-t2", "R-aug-t3", "R-aug-t4"])
+        self.assertEqual(config["augmentation"]["displacement_multiplier"],
+                         [2.0, 3.0, 4.0])
+        self.assertFalse(config["augmentation"]["isotropic"])
+        self.assertTrue(config["prediction"]["recorded_before_the_run"])
+
     def test_the_v8_config_is_valid_and_pins_its_grid(self):
         config = load_config(ROOT / "configs" / "augmentation.json")
         self.assertEqual(config["variants"],
