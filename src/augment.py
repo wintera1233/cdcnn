@@ -112,9 +112,10 @@ def augment(z: np.ndarray, y: np.ndarray, rng: np.random.Generator, *,
     """One augmented copy of every row of `z`, with the same labels.
 
     `displacement` multiplies the block-offset scale; the drawn magnitude is
-    uniform on [0, displacement * ||offset||]. The ladder uses 18, the ratio of
-    the collection's 36 months to Batch 1's two - a source-only extrapolation
-    from "how far the domain moved in two months" to "how far it can move".
+    uniform on [0, displacement * ||offset||]. v8.0 used 18, from the
+    collection's 36 months over Batch 1's two, which assumed drift accumulates
+    linearly. It does not: every real per-class drift is 0.83 to 3.74 block
+    offsets. Each variant carries its own value.
     """
     if not isotropic and direction is None:
         raise ProtocolError("an augmentation must be isotropic, directed, or both")
