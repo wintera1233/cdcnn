@@ -15,13 +15,18 @@ format, 13,910 measurements, 128 features per measurement, six gas classes.
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
 | Rows | 445 | 1244 | 1586 | 161 | 197 | 2300 | 3613 | 294 | 470 | 3600 |
 
-Batch 1 class counts: Acetone 90, Acetaldehyde 98, Ethanol 83, Ethylene 30,
-Ammonia 70, Toluene 74.
+Batch 1 class counts by label: 90, 98, 83, **30**, 70, 74.
 
-Label mapping, verified against the paper's Table 2 in 8 of 10 batches (the two
-mismatches are errors in the paper, not in the loader):
+Label mapping (`docs/label-mapping.md`), from the dataset's own documentation
+with labels 2 and 3 exchanged on the evidence of Batch 1's principal-component
+structure against the paper's Fig. 4(a):
 
-`1 = Acetone, 2 = Acetaldehyde, 3 = Ethanol, 4 = Ethylene, 5 = Ammonia, 6 = Toluene`
+`1 = Ethanol, 2 = Ammonia, 3 = Ethylene, 4 = Acetaldehyde, 5 = Acetone, 6 = Toluene`
+
+The paper's Table 2 per-gas counts match this file in only one column under that
+mapping. The conflict is recorded, not resolved; the counts per label are the
+fact and the names are the interpretation. Changing the mapping changes no
+measurement, because only integer labels reach the model.
 
 Rules:
 
@@ -81,9 +86,12 @@ re-deriving any of the following.
 - **No source-only stopping rule exists.** Held-out accuracy and held-out loss
   are anti-correlated with target accuracy across the window where it collapses;
   see `docs/early-stopping.md`. The epoch count must be fixed by fiat.
-- **Ethylene does not transfer.** Source recall 1.000, target recall 0.001.
-  Class weighting cannot help it. The paper loses Acetaldehyde instead and leads
-  on five of six classes; see `baseline.md` section 5.
+- **Acetaldehyde does not transfer.** Source recall 1.000, target recall 0.001,
+  and every target batch's Acetaldehyde centroid lands off its own, eight times
+  of nine on Batch 1's Ethanol. Class weighting cannot help it. **The paper's own
+  CDCNN also scores 0.00 on Acetaldehyde** and sends 100% of it to Ethanol, so
+  the gap to the paper lies in the other five classes; see `baseline.md`
+  section 5 and `docs/why-acetaldehyde.md`.
 - **A fixed epoch budget confounds augmentation**, because doubling the rows at a
   fixed epoch count doubles the gradient steps. Any comparison between augmented
   and unaugmented training must state which of step count and per-sample exposure

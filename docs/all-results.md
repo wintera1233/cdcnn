@@ -50,7 +50,7 @@ contrastive loss. Three seeds each (1042, 2024, 3407); SD is across seeds.
 | 10 | 0.390 | 0.430 | -0.040 |
 
 Six of the nine batches match or beat the paper's ResNet. The whole deficit is
-B5, B8 and B9, and its cause is documented in `baseline.md` section 5.
+B5, B8 and B9, and its cause is documented in `baseline.md` section 5 and `docs/why-acetaldehyde.md`.
 
 ## What moved the number, and what did not
 

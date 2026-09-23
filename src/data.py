@@ -25,10 +25,14 @@ TARGET_BATCHES = (2, 3, 4, 5, 6, 7, 8, 9, 10)
 BATCH_ROWS = {1: 445, 2: 1244, 3: 1586, 4: 161, 5: 197,
               6: 2300, 7: 3613, 8: 294, 9: 470, 10: 3600}
 
-# Verified against the paper's Table 2 in 8 of 10 batches; the two mismatches
-# are errors in the paper, not in this mapping. See CLAUDE.md section 1.
-GAS_LABELS = {1: "Acetone", 2: "Acetaldehyde", 3: "Ethanol",
-              4: "Ethylene", 5: "Ammonia", 6: "Toluene"}
+# The dataset's own documentation states the encoding directly: "1: Ethanol;
+# 2: Ethylene; 3: Ammonia; 4: Acetaldehyde; 5: Acetone; 6: Toluene". Labels 2 and
+# 3 are exchanged relative to that statement on the evidence of Batch 1's
+# principal-component structure against the paper's Fig. 4(a); see
+# docs/label-mapping.md, which also records why the per-batch count table cannot
+# be used as the criterion.
+GAS_LABELS = {1: "Ethanol", 2: "Ammonia", 3: "Ethylene",
+              4: "Acetaldehyde", 5: "Acetone", 6: "Toluene"}
 
 
 def batch_path(index: int) -> Path:

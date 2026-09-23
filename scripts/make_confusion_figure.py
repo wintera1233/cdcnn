@@ -90,11 +90,12 @@ def main() -> int:
     for spine in axis.spines.values():
         spine.set_visible(False)
 
-    # The finding: Ethylene's diagonal is empty.
-    axis.add_patch(plt.Rectangle((-0.5, 2.5), 6, 1, fill=False,
+    # The finding: one class has an empty diagonal. Find it rather than assume it.
+    dead = int(np.argmin(recall.diagonal()))
+    axis.add_patch(plt.Rectangle((-0.5, dead - 0.5), 6, 1, fill=False,
                                  edgecolor=CRITICAL, linewidth=2.0, zorder=5))
-    axis.annotate("Ethylene: recall 0.000 in every batch",
-                  xy=(5.5, 3.0), xytext=(6.1, 3.0), fontsize=10, color=CRITICAL,
+    axis.annotate(f"{names[dead]}: recall {recall[dead, dead]:.3f} in every batch",
+                  xy=(5.5, dead), xytext=(6.1, dead), fontsize=10, color=CRITICAL,
                   va="center", annotation_clip=False)
 
     axis.set_title(f"{args.cell} — recall on Batches 2–10, three seeds pooled\n"

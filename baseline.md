@@ -199,9 +199,12 @@ pooled SD 0.0165，門檻 0.0269，**四個比較全部可分辨**，交互作�
 
 ## 5. 兩個結構性限制
 
-### 5.1 Ethylene 完全無法遷移
+> 氣體名稱依 `docs/label-mapping.md` 的對應（`1=Ethanol, 2=Ammonia, 3=Ethylene,
+> 4=Acetaldehyde, 5=Acetone, 6=Toluene`）。2026-09-23 更正，所有數值不變。
 
-| 設定 | 輸入 `Normal` | Batch 1 Ethylene | target Ethylene |
+### 5.1 Acetaldehyde 完全無法遷移
+
+| 設定 | 輸入 `Normal` | Batch 1 Acetaldehyde | target Acetaldehyde |
 |---|---|---:|---:|
 | `R-txt` | StandardScaler | **1.000** | **0.001** |
 | `R-txt-ps@lr0.001` | per-sample | 0.900 | 0.001 |
@@ -212,57 +215,56 @@ pooled SD 0.0165，門檻 0.0269，**四個比較全部可分辨**，交互作�
 
 兩件事同時發生：
 
-**在 source domain 上，per-sample 正規化專門傷害 Ethylene。** 用 Batch-1 擬合的
-`StandardScaler` 時 `R-txt` 把它學到滿分 1.000；換成 per-sample 掉到 0.90，
-隨 lr 下降再掉到 0.63、0.08，而**其他五個類別在所有設定下都 ≥ 0.94**。
-論文 Fig. 4 解釋了原因：Ethylene 在原始主成分空間中是一條往外延伸的臂，
-辨識它靠的主要是整體強度——而那正是把每一列除以自己標準差所移除的東西。
+**在 source domain 上，per-sample 正規化專門傷害 Acetaldehyde。** 用 Batch-1
+擬合的 `StandardScaler` 時 `R-txt` 把它學到滿分 1.000；換成 per-sample 掉到
+0.90，隨 lr 下降再掉到 0.63、0.08，而**其他五個類別在所有設定下都 ≥ 0.94**。
+它是 Batch 1 最小的類別（30/445），辨識它靠的主要是整體強度——而那正是把每一列
+除以自己標準差所移除的東西。
 
 **在 target domain 上，不管怎樣都會失去。** `R-txt` 在 Batch 1 上帶著 1.000 的
-Ethylene，到 Batches 2–10 只剩 0.001。本專案訓練過的所有設定都不超過 0.027。
+Acetaldehyde，到 Batches 2–10 只剩 0.001。本專案訓練過的所有設定都不超過 0.027。
 **類別加權無法解決**：這個類別在能學的地方已經學滿了。
 
-更根本的原因是資料幾何，不是模型。**每一個 target batch 的 Ethylene 重心，
-都落在離 Batch 1 的 Acetone 重心最近的位置——九個 batch，九次，沒有一次是自己。**
-在原始特徵、StandardScaler、per-sample、兩者複合、signed-log 五種輸入空間下
-都是 9/9。它的漂移距離是自身類內半徑的 **18.3 倍**，方向卻是六個類別裡最一致的
-（36 組 batch 配對的 cosine 最低 0.761）。
+更根本的原因是資料幾何，不是模型。**每一個 target batch 的 Acetaldehyde 重心，
+都不在自己原本的位置——九個 batch，九次，其中八次落在離 Batch 1 的 Ethanol
+重心最近的地方。** 在原始特徵、StandardScaler、per-sample、兩者複合、signed-log
+五種輸入空間下都是 9/9。它的漂移距離是自身類內半徑的 **18.3 倍**，方向卻是六個
+類別裡最一致的（36 組 batch 配對的 cosine 最低 0.761）。
 
 這解釋了為什麼架構、正規化、head、最佳化器完全不同的 v6.3 與 v7 會死在同一個
-類別上：**Batch 1 訓練出的邊界把那塊區域判給 Acetone 是正確的，是 target 讓它
-失效的。** 完整量測見 `docs/why-ethylene.md`。
+類別上：**Batch 1 訓練出的邊界把那塊區域判給 Ethanol 是正確的，是 target 讓它
+失效的。** 完整量測見 `docs/why-acetaldehyde.md`。
 
-### 5.2 論文死在相反的類別上
+### 5.2 論文死在同一個類別上
 
 論文自己的 Fig. S3 混淆矩陣對照本設計：
 
 | 類別 | 論文 CDCNN | 論文 CDWC | 本設計 |
 |---|---:|---:|---:|
-| Ethanol | 0.97 | 0.88 | 0.62 |
-| Ethylene | **0.95** | 0.87 | **0.00** |
-| Ammonia | 0.91 | 0.87 | 0.51 |
-| Acetaldehyde | **0.00** | **0.00** | **0.86** |
-| Acetone | 0.94 | 0.85 | 0.67 |
+| Ethanol | 0.97 | 0.88 | 0.67 |
+| Ethylene | 0.95 | 0.87 | 0.62 |
+| Ammonia | 0.91 | 0.87 | 0.86 |
+| **Acetaldehyde** | **0.00** | **0.00** | **0.00** |
+| Acetone | 0.94 | 0.85 | 0.51 |
 | Toluene | 0.92 | 0.27 | 0.39 |
 
-論文的 CDCNN 把 **100% 的 Acetaldehyde 判成 Ethanol**，CDWC 也一樣（0.92）。
-兩者都是 C2 含氧化合物，化學上混淆說得通。而本專案完全無法遷移的 Ethylene，
-它拿到 0.95。
+**三個模型都在 Acetaldehyde 上得到 0.00，而且都主要把它送進 Ethanol**：
+論文 CDCNN 100%、CDWC 92%、本設計 37.7%（另有 59.3% 進 Toluene）。
+Acetaldehyde（CH₃CHO）與 Ethanol（C₂H₅OH）同為 C2 含氧化合物，化學上是最容易
+混淆的一對。
 
-算術一致：Acetaldehyde 佔 target 的 21%，五個類別接近 0.94、一個 0 →
-約 0.74，對上它宣稱的 0.7230。
+Acetaldehyde 佔 target 的 14%（1,906/13,465），所以它歸零把論文的 pooled 準確率
+壓到約 0.80；target mean 是逐 batch 的未加權平均、對難的後段 batch 權重更高，
+因此落在它宣稱的 0.7230。
 
-**論文在六個類別中有五個領先**，所以剩餘差距不是單一類別的問題——
-任何解釋都必須涵蓋那五個。
+**論文在其餘五個類別上都領先**（最大差距 Toluene 0.92 vs 0.39、Acetone 0.94 vs
+0.51），所以剩餘的 0.112 差距不在死類別，而在那五個。
 
-> 更正：舊專案曾把 Fig. S3 的零對角線類別配成 Ethylene，那是錯的。
-> 零對角線是 Acetaldehyde。
+### 5.3 Acetone 在 B6 之後崩進 Toluene
 
-### 5.3 Ammonia 在 B6 之後崩進 Toluene
-
-逐 batch 的 Ammonia recall：B2–B6 都在 0.836–1.000，**B7 掉到 0.175，
-B8、B9、B10 全是 0.000**。B8 裡 429 個 Ammonia 有 417 個被判成 Toluene，
-而 Ammonia 佔該 batch 的一半——光這一個混淆就把 B8 的上限壓在 0.51。
+逐 batch 的 Acetone recall：B2–B6 都在 0.836–1.000，**B7 掉到 0.175，
+B8、B9、B10 全是 0.000**。B8 裡 143 個 Acetone 有 139 個被判成 Toluene，
+而 Acetone 佔該 batch 的一半——光這一個混淆就把 B8 的上限壓在 0.51。
 
 ### 5.4 上限
 
@@ -271,14 +273,15 @@ B8、B9、B10 全是 0.000**。B8 裡 429 個 Ammonia 有 417 個被判成 Tolue
 | | target mean |
 |---|---:|
 | 實測 | 0.5222 |
-| 只修好 Ethylene | **0.6683** |
-| Ethylene ＋ Ammonia 都修好 | **0.7854** |
+| 只修好 Acetaldehyde | **0.6683** |
+| Acetaldehyde ＋ Acetone 都修好 | **0.7854** |
 | 論文 ResNet | 0.6344 |
 | 論文 CDCNN | 0.7230 |
 
-**光是 Ethylene 就值 +0.146**，足以讓這個沒有任何 CDCNN 元件的裸 baseline
-超過論文的 ResNet。對照之下，第 4 節量過的所有架構與最佳化選擇加起來的跨度
-約 0.23，最大的單一槓桿值 0.112。
+**光是 Acetaldehyde 就值 +0.146**，足以讓這個沒有任何 CDCNN 元件的裸 baseline
+超過論文的 ResNet。但要注意**論文自己也沒救回這個類別**——它的 0.7230 就是在
+Acetaldehyde 為零的情況下達成的。對照之下，第 4 節量過的所有架構與最佳化選擇
+加起來的跨度約 0.23，最大的單一槓桿值 0.112。
 
 ### 5.5 Epoch 數無法選擇
 
@@ -315,10 +318,15 @@ Batches 2–10 在全部 checkpoint 寫入並雜湊之前不得開啟；`load_ta
 指標是 **target mean**：九個 batch 各自準確率的**未加權平均**，與論文 Table 3
 同一個統計量。
 
-Label 對應以論文 Table 2 驗證，60 個格子中 58 個吻合，且對應唯一
-（Batch 1 六個計數互異）。兩個不吻合是論文自己的錯——它的 B5 列加總 189、
-印的 Total 191、實際檔案 197 列；B7 列加總 3614、印的 Total 3613。
-`tests/test_baseline.py` 鎖住這個對應。
+Label 對應為 `1=Ethanol, 2=Ammonia, 3=Ethylene, 4=Acetaldehyde, 5=Acetone,
+6=Toluene`，取自資料集自身的說明文件（該文件寫的是 `2=Ethylene, 3=Ammonia`，
+2 與 3 依 Batch 1 的主成分結構對照論文 Fig. 4(a) 後對調）。**論文 Table 2 的
+每批計數表在此對應下只有 Toluene 一欄吻合，這個衝突被記錄而非消解**——說明文件
+是對「手上這些檔案」更直接的陳述。判準、證據與被否決的來源見
+`docs/label-mapping.md`；`tests/test_baseline.py` 鎖住的是每個 label 的**計數**
+（檔案的事實）與所採用的對應，而不是計數與名稱的配對。
+
+改動對應**不改變任何數值**：訓練與評估路徑只用整數標籤。
 
 ---
 
@@ -344,14 +352,16 @@ $DOCKER python scripts/run_baseline.py launch --config configs/head_normalisatio
 
 ## 8. 尚未解決
 
-1. **Ammonia 在 B6 之後崩進 Toluene**，單獨值 0.117，從未被解釋。
-2. **論文為何在五個類別上領先**——第 4 節掃過 head 形式、輸入正規化、head 正規化、
-   channel 寬度、學習率，加起來只有 0.23 的跨度，不足以解釋。
-3. **資料擴充的幅度**（`docs/why-ethylene.md`）。Ethylene 的漂移方向有 **96.9%**
-   落在 Batch 1 自身類內變異的前五個主軸內——也就是說沿著 Batch 1 自己的主方向
-   擴充，原理上到得了 target Ethylene 所在的位置。需要的位移是 18 個類內半徑。
+1. **Acetone 在 B6 之後崩進 Toluene**，單獨值 0.117，從未被解釋。
+2. **論文為何在其餘五個類別上領先**——第 4 節掃過 head 形式、輸入正規化、
+   head 正規化、channel 寬度、學習率，加起來只有 0.23 的跨度，不足以解釋。
+   注意論文與本設計在 Acetaldehyde 上同樣是 0.00，所以差距完全在另外五個類別。
+3. **資料擴充的幅度**（`docs/why-acetaldehyde.md`）。Acetaldehyde 的漂移方向有
+   **96.9%** 落在 Batch 1 自身類內變異的前五個主軸內——也就是說沿著 Batch 1 自己
+   的主方向擴充，原理上到得了 target Acetaldehyde 所在的位置。需要的位移是 18 個
+   類內半徑。
    舊專案掃過的擴充雜訊是 0 / 0.05 / 0.2 / 0.5，每個都測到 −0.013 到 −0.009，
    但那些尺度**產生不了這個量級的位移**，所以它回答的是另一個問題。
    這是論文擴充模組第一個不依賴論文說法、而是由本專案資料推導出來的存在理由。
-4. **`StandardScaler` 後再做 per-sample**：在重心錯位的檢查上把 Acetone 和
-   Ethanol 都降到 0/9（現用的 per-sample 是 2/9 和 5/9），從未訓練過。
+4. **`StandardScaler` 後再做 per-sample**：在重心錯位的檢查上把 Ethanol 和
+   Ethylene 都降到 0/9（現用的 per-sample 是 2/9 和 5/9），從未訓練過。
