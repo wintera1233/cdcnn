@@ -179,30 +179,58 @@ v9.0 在五個 seed、更小的 SD 下把它收窄到 **+0.0004**。這是獨立
   data manipulation block from the prediction process」），`src/evaluate.py` 走的是
   五個 block 的原始路徑，每個凍結 checkpoint 都是這樣評分的。
 
-## 未解決：生成域的覆蓋率要怎麼量才誠實
+## 生成域的覆蓋率：沿漂移軸的一維量法
 
-事後診斷中途卡住的一項，**留給下一個 session**。問題是：**把區塊只作用在
-Batch 1 上**（不是作用在目標批次上——那是循環論證，論文 Fig. 5 本身就犯了這個錯，
-它的 caption 寫「in one of the test domains (batch2)」而區塊就是套在 batch 2 上），
-產生的人工特徵雲，**涵蓋得到真實目標批次嗎**？
+三種量法互相矛盾（2D PCA 凸包 0–3%、全維「2 倍半徑內」0.90–1.00 因門檻超過所有
+質心距離而飽和、質心距離只比中心不比延伸），所以改用一維投影定案。腳本
+`scripts/make_generation_drift_projection_figure.py`，圖
+`reports/figures/generation_drift_projection.png`，數值
+`reports/generation_drift_projection.json`。
 
-三種量法互相矛盾，還沒有決定哪一個可信：
+**量法。** 在 block-3 輸出（區塊實際作用的位置）上，對每個（氣體, target batch）取
+`u = (target 質心 − source 質心)/‖·‖`，把三片雲投影到 `u` 上，並以漂移距離為單位：
+source 質心在 0，target 質心在 1。三片雲是 Batch 1 原始特徵、**從 Batch 1** 生成的
+人工特徵（訓練時網路唯一看到的），以及 target batch 的原始特徵。人工雲照訓練的方式
+抽：打亂的 64 筆 minibatch、混合氣體、五個 pass，checkpoint 是 v9.0 的 `R-gen`
+seed 1042。另外把每個人工樣本與它的原樣本配對，量區塊本身沿 `u` 的位移。
 
-| 量法 | 結果 | 問題 |
-|---|---|---|
-| 2D PCA 投影的凸包 | 0–3%（Ethanol B2 57%、Acetone B2 32% 例外） | 凸包在投影裡很緊，對其餘 16382 個軸一無所知 |
-| 全維「2 倍半徑內」（v8 用的） | 0.90–1.00 幾乎到處都是 | 人工雲半徑 1.43–1.88，門檻 2.9–3.8 超過所有 src→target 質心距離 1.57–2.66，**指標飽和**，不是覆蓋得好 |
-| 質心距離對比 | src→人工 0.31–1.01 對 src→target 1.57–2.66 | 只比質心，沒有比雲的延伸範圍 |
+**結果（51 格）。**
 
-**下一步是沿漂移方向的一維量法**：取 `u = (target 質心 − source 質心)/‖·‖`，把人工
-特徵投影到 `u` 上，問「人工雲沿 `u` 走到真實目標的百分之幾」。這既避開 2D 投影的
-假象，也避開高維球的空洞，而且直接對應上面「沒有正負號」的診斷——預期人工雲在 `u`
-的正負兩側各走一半。腳本還沒寫完就換 session 了。
+| 統計量 | 中位 | 範圍 |
+|---|---:|---:|
+| 人工雲與 target 的一維直方圖重疊 | **0.00** | 0.00–0.42 |
+| 人工雲 95 百分位到達的位置（target 質心 = 1） | 0.34 | 0.08–1.09 |
+| 人工雲 5–95% 寬度 ÷ Batch 1 原始雲寬度 | **1.01** | 0.80–1.16 |
+| 區塊沿 `u` 的配對位移 \|step\|（漂移距離為單位） | **0.03** | 0.007–0.166 |
+| 區塊沿 `u` 的配對位移有號平均 | +0.006 | −0.131 到 +0.148 |
 
-未進版控的產物：`scripts/make_generation_coverage_figure.py`、
-`reports/figures/feature_generation_coverage.png`、
-`reports/figures/feature_generation_batches.png`。**上面的 0–3% 標註不可信**，
-在一維量法定案前不要引用這張圖。
+重疊 ≥ 0.10 的只有六格（Ethanol B2、Ammonia B2、Ammonia B7、Acetone B2、B3、B10），
+而且全是 target 自己的雲寬到跨過 source 質心的格（target 5 百分位落在 −0.57 到
++0.44），重疊來自 target 的散佈，不是人工雲走過去。其餘 45 格重疊 ≤ 0.05。
+
+**沿漂移軸，人工雲與 Batch 1 原始雲幾乎是同一片雲。** 寬度比 1.01，配對位移中位只有
+漂移的 3%。區塊在全空間的位移幅度是 0.95 個 source 半徑（上節），但那是散在 16,384
+維上的模長；投影到任一條真實漂移軸上，只剩 1% 到 3% 的漂移距離。上節「幅度只差
+2 倍」說的是全空間模長，不是沿軸分量——沿軸分量差的是中位 30 倍，範圍 7 到 140 倍。
+
+有號位移逐類別的方向與上節一致：Ethylene 除 B10 外每一格都是負的（−0.03 到 −0.13，逆著
+漂移走），Ammonia 也全負，Ethanol、Acetaldehyde、Acetone、Toluene 微正。但幅度
+太小，正負號在這個尺度上是次要的。
+
+換 v8.1 的 `R-aug-t2` seed 1042 checkpoint（未帶區塊訓練）重跑，每一格差在小數第三位。
+
+**二維對齊圖看到的是同一件事。** `scripts/make_generation_drift_aligned_2d.py` 畫
+`reports/figures/generation_drift_aligned_2d.png`：每格 X 軸固定為該（氣體, batch）的
+真實漂移方向 `u`，Y 軸是扣掉 `u` 分量後三片雲殘差的第一主成分，兩軸同尺度。與一般
+2D PCA 不同，漂移軸是建構出來的，雲沒有沿它走就藏不起來。51 格裡橘色人工雲幾乎
+完全疊在灰色 Batch 1 雲上，區塊只沿 Batch 1 自己的類內弧線（Y 軸）把點抹開；藍色
+target 雲停在 target 質心那條線上，中間一段空隙。只有 B2 的 Ethanol、Ammonia、
+Acetone 三格橘藍相碰，都是 target 自己散回 source 附近所致。Ethylene 每格的橘色
+都略偏 X 軸負側，與配對位移為負一致。
+
+**結論：從 Batch 1 生成的人工特徵沒有覆蓋任何 target batch。** 舊圖
+`reports/figures/feature_generation_coverage.png` 的 0–3% 標註在結論上碰巧對，但理由
+是錯的（凸包看不到其餘軸）；引用時用本節的一維數字。
 
 ## 下一步：`L_con`（Eq. S5）
 
