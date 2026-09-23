@@ -378,6 +378,15 @@ class InputNormalisationTests(unittest.TestCase):
         fitted = normalize.fit("standard_then_per_sample", x)
         self.assertEqual(sorted(fitted), ["kind", "mean", "std"])
 
+    def test_the_v7_5_escalation_config_adds_only_the_reserve_seeds(self):
+        four = load_config(ROOT / "configs" / "input_normalisation.json")
+        five = load_config(ROOT / "configs" / "input_normalisation_5seed.json")
+        self.assertEqual(five["variants"], four["variants"])
+        self.assertEqual(five["learning_rates"], four["learning_rates"])
+        self.assertEqual(five["training"], four["training"])
+        self.assertEqual(five["optimizer"], four["optimizer"])
+        self.assertEqual(five["seeds"], four["seeds"] + four["reserve_seeds"])
+
     def test_the_v7_4_config_is_valid_and_pins_its_grid(self):
         config = load_config(ROOT / "configs" / "input_normalisation.json")
         self.assertEqual(config["variants"],

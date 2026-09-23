@@ -1,0 +1,47 @@
+{
+  "implementation_version": "CDCNN_v7.5_input_normalisation_5seed",
+  "description": "The v7.4 grid with the two reserve seeds added. v7.4's best difference, signed_log_then_per_sample over per-sample at +0.0331, fell just under its 0.0348 separability threshold, which is the case the escalation rule declared the reserve seeds for.",
+  "variants": [
+    "R-fig-ps",
+    "R-fig-ssps",
+    "R-fig-logps",
+    "R-fig-grp"
+  ],
+  "learning_rates": [
+    0.0003
+  ],
+  "seeds": [
+    1042,
+    2024,
+    3407,
+    42,
+    123
+  ],
+  "training": {
+    "epochs": 100,
+    "batch_size": 64
+  },
+  "optimizer": {
+    "lr": 0.0003,
+    "momentum": 0.9,
+    "weight_decay": 0.0001
+  },
+  "scheduler": {
+    "step_size": 25,
+    "gamma": 0.5
+  },
+  "per_epoch_checkpoint_seed": 1042,
+  "escalation": {
+    "target_mean_sd_threshold": 0.02,
+    "rung_difference_standard_errors": 2.0
+  },
+  "compare_against": {
+    "run": "20260923T024412142812Z_input_norm_full",
+    "R-fig-ps@lr0.0003": 0.5222,
+    "R-fig-logps@lr0.0003": 0.5553
+  },
+  "paper_reference": {
+    "model": "ResNet (the backbone of CDCNN), Table 3",
+    "printed_average": 0.6344
+  }
+}
