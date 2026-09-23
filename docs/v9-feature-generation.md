@@ -178,3 +178,38 @@ v9.0 在五個 seed、更小的 SD 下把它收窄到 **+0.0004**。這是獨立
 - 區塊在推論時完全不作用（Fig. 2：「during forecasting, the program separates the
   data manipulation block from the prediction process」），`src/evaluate.py` 走的是
   五個 block 的原始路徑，每個凍結 checkpoint 都是這樣評分的。
+
+## 未解決：生成域的覆蓋率要怎麼量才誠實
+
+事後診斷中途卡住的一項，**留給下一個 session**。問題是：**把區塊只作用在
+Batch 1 上**（不是作用在目標批次上——那是循環論證，論文 Fig. 5 本身就犯了這個錯，
+它的 caption 寫「in one of the test domains (batch2)」而區塊就是套在 batch 2 上），
+產生的人工特徵雲，**涵蓋得到真實目標批次嗎**？
+
+三種量法互相矛盾，還沒有決定哪一個可信：
+
+| 量法 | 結果 | 問題 |
+|---|---|---|
+| 2D PCA 投影的凸包 | 0–3%（Ethanol B2 57%、Acetone B2 32% 例外） | 凸包在投影裡很緊，對其餘 16382 個軸一無所知 |
+| 全維「2 倍半徑內」（v8 用的） | 0.90–1.00 幾乎到處都是 | 人工雲半徑 1.43–1.88，門檻 2.9–3.8 超過所有 src→target 質心距離 1.57–2.66，**指標飽和**，不是覆蓋得好 |
+| 質心距離對比 | src→人工 0.31–1.01 對 src→target 1.57–2.66 | 只比質心，沒有比雲的延伸範圍 |
+
+**下一步是沿漂移方向的一維量法**：取 `u = (target 質心 − source 質心)/‖·‖`，把人工
+特徵投影到 `u` 上，問「人工雲沿 `u` 走到真實目標的百分之幾」。這既避開 2D 投影的
+假象，也避開高維球的空洞，而且直接對應上面「沒有正負號」的診斷——預期人工雲在 `u`
+的正負兩側各走一半。腳本還沒寫完就換 session 了。
+
+未進版控的產物：`scripts/make_generation_coverage_figure.py`、
+`reports/figures/feature_generation_coverage.png`、
+`reports/figures/feature_generation_batches.png`。**上面的 0–3% 標註不可信**，
+在一維量法定案前不要引用這張圖。
+
+## 下一步：`L_con`（Eq. S5）
+
+論文三個元件只剩對比損失。`docs/drift-geometry.md` 的結論是它是**唯一**有不變性
+機制的元件，而它需要特徵生成先存在（提供 `z̄_f`）。`model.forward_pair` 已經回傳
+`(z_f, z̄_f)` 這一對，接上去即可。
+
+另有一個 v10 構想但**使用者尚未授權**：給 Eq. (14) 的抽樣一個**正負號**，用 Batch 1
+自己的兩個採集區塊偏移當方向估計（source-only，對 Acetaldehyde 真實漂移 cos 0.850）。
+這直接針對上面量到的失效機制。

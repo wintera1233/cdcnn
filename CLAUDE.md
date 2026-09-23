@@ -1,10 +1,12 @@
 # Project Instructions for AI Agents
 
-This branch (`exp/v7-redesign`) restarts the study from the baseline. It holds the
-raw data, the source paper, and this file; no model code exists yet. The rules
-below constrain how any new code must behave. They are protocol, not method: they
-say nothing about which architecture, optimizer, or training schedule to use,
-because those are what the redesign is for.
+This branch (`exp/v7-redesign`) restarts the study from the baseline. It has
+reached v9.0: the baseline is settled (`baseline.md`), directed augmentation and
+feature generation are both measured (section 4), and the contrastive loss
+`L_con` is the one remaining CDCNN component. The rules below are protocol, not
+method: they say nothing about which architecture, optimizer, or training
+schedule to use, because those are what the redesign is for. Section 4 records
+what has already been measured - do not spend GPU time re-deriving any of it.
 
 ## 1. Data
 
@@ -72,10 +74,13 @@ Reference values from the paper's Table 3:
 `baseline.md` holds the settled baseline design. Do not spend GPU time
 re-deriving any of the following.
 
-### From this branch (v7.0 to v7.3, `docs/`)
+### From this branch (v7.0 to v9.0, `docs/`)
+
+#### The baseline (v7.0 to v7.3)
 
 - **The baseline stands at target mean 0.5556** over five seeds against the
-  paper's 0.6344. `docs/all-results.md` lists every cell trained.
+  paper's 0.6344. This is the settled source-only number and nothing since has
+  replaced it. `docs/all-results.md` lists every cell trained.
 - **Per-sample input normalisation is worth +0.112**; it and a LayerNorm head are
   substitutes with an interaction of -0.141, so use exactly one, at the input.
 - **A signed-log before per-sample is worth a further +0.032**, separable at five
@@ -100,28 +105,163 @@ re-deriving any of the following.
   CDCNN also scores 0.00 on Acetaldehyde** and sends 100% of it to Ethanol, so
   the gap to the paper lies in the other five classes; see `baseline.md`
   section 5 and `docs/why-acetaldehyde.md`.
-- **Feature generation is worth +0.0004** on five seeds, against a separability
-  threshold of 0.0090. The block is not inert: it moves `z_f` by 0.0448, inside
-  the 0.047 to 0.105 range of a real acquisition-session drift, and `L_MSE` falls
-  2 to 5 times over training, so the network does learn the invariance the loss
-  asks for. It buys nothing, because the backbone still passes 94% of the real
-  drift and the block only improves that from 5.7% removed to 6.3%. Raising
-  lambda_MSE to 1.0, the ceiling Eq. (4) allows, moves the mean by 0.0002.
-- **The reason is the sign, not the axis.** Measured at block 3, the block's
-  perturbation is 25 times more concentrated in the real drift subspace than a
-  random direction (7.6% of its energy against a 0.3% null) and is only 2 times
-  smaller than the real drift in source radii (0.950 against 1.908). But its
-  signed alignment averages **-7.5%** of its typical magnitude: Eq. (14)'s
-  Gaussian displaces symmetrically along the drift axis, and an unsigned
-  perturbation cannot correct a signed displacement however well-aimed its axis.
-  This is geometrically the same failure as v8.0's isotropic noise, and v8.1
-  proved it from the other side: undirected -0.0216, the same displacement given
-  a direction +0.0115 to +0.0214. See `docs/v9-feature-generation.md`; the null
-  result independently replicates the previous branch's +0.001 to +0.014.
+
+#### The drift geometry (`docs/drift-geometry.md`)
+
+Measured on the 51 class-by-batch centroid displacements (6 gases x 9 batches,
+less the three where Toluene is absent), by uncentred SVD.
+
+- **Drift is roughly four-dimensional.** PC1 carries 70.6%, and 90% of the energy
+  needs four components. A single shared direction - what v8.0 and v8.1 use -
+  captures 70.6% of it. The spectrum falls smoothly, so "four" is a cut through a
+  continuous curve, and 51 vectors in 128 dimensions make the tail noisy.
+- **Ethylene is the exception**: k=1 covers only 23.9% of its drift and Batch 1's
+  own block-offset subspace only 24.9%, against 76% to 81% for the other five.
+  This is why Ethylene is the one class every directed method damages.
+- **The geometry is the same at every depth**, so analysing it in the normalised
+  input space is representative: PC1 is 70.6% at the input, 65.4% after block 3
+  and 64.5% at `z_f`, and 90% needs 4, 5 and 5 components respectively.
+- **The backbone does not learn drift invariance.** Drift over within-class radius
+  falls from 1.798 at the input to 1.662 at `z_f` - five ResNet blocks remove
+  **7.5%** of it. Directed augmentation makes this worse, not better: `R-aug-t2`
+  gains +0.0214 in accuracy while its compression drops to 5.7%. **Augmentation
+  therefore does not work by inducing invariance** - no loss term asks for it. It
+  moves the decision boundary: Ethanol's over-prediction falls from 2.46x to
+  1.83x and the freed quota goes to Acetone (0.57x to 1.05x), paid for by
+  Ethylene.
+- **Only the contrastive loss has an invariance mechanism.** `L_con` (Eq. S5) and
+  `L_MSE` (Eq. S4) are the only terms that tie the original and generated
+  branches together, and `L_con` needs feature generation to exist first. Testing
+  the paper's central claim requires reaching that step.
+
+#### v8.0 directed augmentation (`docs/v8-augmentation.md`)
+
+Run `runs/20260923T033747817275Z_augmentation_full`, four cells x five seeds,
+pooled SD 0.0177, threshold 0.0224.
+
+| variant | augmentation | target mean | SD | vs baseline | separable |
+|---|---|---:|---:|---:|---|
+| `R-aug-ethd` | directed only, T=18 | 0.5670 | 0.0096 | +0.0115 | no |
+| `R-fig-logps` | none (baseline) | 0.5556 | 0.0137 | - | - |
+| `R-aug-eth` | directed + isotropic | 0.5462 | 0.0190 | -0.0093 | no |
+| `R-aug-paper` | the paper's isotropic | 0.5340 | 0.0249 | -0.0216 | no |
+
+- **The pre-registered coverage prediction was directionally right**: the ordering
+  of the four cells matched the predicted coverage exactly, and only the cell
+  predicted to move did. No cell was separable, so this is agreement in trend.
+- **The mechanism runs, on the wrong classes.** Acetone +0.250 and Toluene +0.124;
+  Ethylene **-0.326**, and Ethylene is precisely the class whose drift is least
+  aligned with the shared direction (cosine 0.451 against 0.77 to 0.94).
+- **Acetaldehyde stays dead** (0.000 to 0.001). It drifts almost alongside Ethanol
+  - cosine 0.761, magnitude ratio 1.24 - so a single shared direction translates
+  both by the same amount and leaves them on top of each other. Undoing that needs
+  a **per-class** displacement magnitude, and that ratio is only knowable from the
+  target. This is the structural limit of shared-direction augmentation.
+
+#### v8.1 the displacement sweep (`docs/v8-augmentation.md`)
+
+Run `runs/20260923T045843638020Z_displacement_full`, four cells x five seeds,
+pooled SD 0.0109, threshold 0.0137. Two changes from v8.0: T from 18 to 2/3/4,
+and isotropic noise removed entirely.
+
+| variant | T | target mean | SD | vs baseline | separable |
+|---|---:|---:|---:|---:|---|
+| **`R-aug-t2`** | 2 | **0.5770** | 0.0078 | **+0.0214** | **yes** |
+| `R-aug-t3` | 3 | 0.5731 | 0.0104 | +0.0175 | **yes** |
+| `R-aug-t4` | 4 | 0.5675 | 0.0108 | +0.0119 | no |
+| `R-fig-logps` | - | 0.5556 | 0.0137 | - | - |
+
+- **This is the project's first separable CDCNN-component gain.**
+- **v8.0's T=18 was six times too large.** Drift does not accumulate linearly with
+  time: measured in units of Batch 1's own block offset, every real class-by-batch
+  drift lands between **0.83 and 3.74**, and B10 (36 months) is smaller than B8
+  (22.5 months). The 18 came from extrapolating 36/2.
+- **Isotropic noise was swept and then cut.** At sigma >= 0.25 Acetaldehyde's
+  coverage falls back to the unaugmented 38.4%; the paper's noise displaces by
+  11.3 with a directional component of about 3.
+- **The whole gain is Acetone (+0.255), paid for by Ethylene (-0.272), and the
+  dead class stays dead** (0.000 to 0.003). Larger T trades more Ethylene for more
+  Acetone and Toluene.
+- **Coverage is a crude predictor only.** It ranked T=3 first when T=2 won, and for
+  Toluene it points the wrong way (T=18: coverage 5.3%, recall 0.477; T=2:
+  coverage 32.5%, recall 0.362). It sees proximity to the target region, not how
+  the classifier then reallocates its prediction quota - and the quota is what
+  drives the Ethylene loss.
+- **`R-aug-t2`'s 0.5770 is not a new baseline.** The direction, T, and the decision
+  to drop isotropic noise were all made against target-derived metrics, so it is
+  **target-informed** - an upper bound on what directed augmentation can do. The
+  source-only number remains 0.5556.
+
+#### v9.0 feature generation and `L_MSE` (`docs/v9-feature-generation.md`)
+
+Run `runs/20260923T071856507630Z_baseline_ladder_full`, four cells x five seeds,
+pooled SD 0.0062 to 0.0078, threshold 0.0089 to 0.0091. The paper's Eqs. (8)-(16)
+block sits between ResNet blocks 3 and 4 (section 2.4: "Rs(.) means the first
+three convolutional layers"), with Eq. (S4)'s `L_MSE` added to the objective. All
+four cells carry v8.1's `R-aug-t2` augmentation, so the block itself is the only
+factor under test and `R-aug-t2` is the control row.
+
+| variant | lambda_MSE | `L_ce` on | target mean | SD | vs `R-aug-t2` |
+|---|---:|---|---:|---:|---:|
+| `R-gen-m10` | 1.0 | original branch | 0.5776 | 0.0062 | +0.0006 |
+| `R-gen` | 0.5 | original branch | 0.5774 | 0.0065 | +0.0004 |
+| `R-aug-t2` | - | - | 0.5770 | 0.0078 | - |
+| `R-gen-ce2` | 0.5 | both branches | 0.5749 | 0.0062 | -0.0022 |
+
+- **Feature generation is worth +0.0004** - an order of magnitude below section 3's
+  0.005 floor and a twentieth of the separability threshold. Every per-batch
+  accuracy agrees within 0.01 across the four cells except `R-gen-ce2`'s B9.
+- **The block is not inert**, on three independent measurements. It moves `z_f` by
+  **0.0448**, inside the 0.047 to 0.105 range of a real two-session drift within
+  Batch 1 (per-channel 0.0269, per-scalar 0.0114 - the per-position style axis was
+  chosen because it spans 30.1% of the real drift against 15.3% and 1.2%, itself a
+  target-informed reading). `L_MSE` falls **2 to 5 times** over 100 epochs. And
+  raising lambda_MSE to 1.0, the ceiling Eq. (4) allows, moves the mean by 0.0002.
+  So the network does learn the invariance the loss asks for, and that invariance
+  buys zero target accuracy.
+- **It does not compress the real drift.** Drift over within-class radius: 1.952 at
+  the input, 1.824 to 1.841 at `z_f` - the block improves compression from 5.7% to
+  6.3-6.5%, leaving **94% of the real drift passing through untouched**.
+- **The reason is the sign, not the axis.** Measured at block 3 (16,384 dimensions,
+  random-direction cosine 0.0078): the perturbation's |cos| against real drift is
+  0.0243 to 0.0360 (**3.1-4.6x** the null) and **7.6%** of its energy lies in the
+  51-dimensional drift span against a 0.3% null (**25x**). Its magnitude is 0.950
+  source radii against real drift's 1.908 - only **2x** short. But the signed
+  component averages **-7.5%** of its typical magnitude (per class +3%, -34%, -45%,
+  +23%, -4%, +12%). **Eq. (14)'s Gaussian displaces symmetrically along the drift
+  axis**; teaching a classifier to be invariant over a symmetric +/-epsilon
+  neighbourhood inflates the decision region evenly and never moves the boundary
+  toward where the drifted data actually is. An unsigned perturbation cannot
+  correct a signed displacement however well-aimed its axis.
+- **This is geometrically the same failure as v8.0's isotropic noise**, and v8.1
+  proved it from the other side: undirected -0.0216, the same displacement given a
+  direction +0.0115 to +0.0214. Direction is the entire effect, and Eq. (14)
+  discards it.
+- **The pre-registered prediction hit**: the config predicted a sub-threshold gain
+  "because the block moves the drift component the backbone was not removing
+  anyway". The recorded falsifier did not trigger, but it compares two quantities
+  that are both noise, so it establishes nothing.
+- **Independent replication.** `exp/a3-confound-ablation` measured the same
+  component at +0.001 to +0.014 on a different backbone; v9.0 narrows it to
+  +0.0004 at five seeds with a smaller SD.
+- **Confounds.** All four cells carry target-informed augmentation, so the whole
+  ladder is an upper bound, not a source-only result. Gradient steps and
+  per-sample exposure are matched; only wall-clock differs. Eq. (14)'s draw is
+  left untruncated as the paper writes it - the negative-scale fraction is 0.000
+  per-position and 0.015 per-channel, so it costs nothing at this depth. The block
+  is inactive at inference (Fig. 2), and `src/evaluate.py` scores every frozen
+  checkpoint through the plain five-block path.
+
+#### Standing methodological facts
+
 - **A fixed epoch budget confounds augmentation**, because doubling the rows at a
   fixed epoch count doubles the gradient steps. Any comparison between augmented
   and unaugmented training must state which of step count and per-sample exposure
   it matches; it cannot match both.
+- **Two of the paper's three components now measure at about zero under this
+  protocol**: augmentation as the paper specifies it (isotropic) at -0.0216, and
+  feature generation at +0.0004. The contrastive loss `L_con` (Eq. S5) is not yet
+  implemented; `forward_pair` already returns the `(z_f, z_bar_f)` pair it needs.
 
 ### From the previous branch
 
