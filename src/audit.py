@@ -18,6 +18,7 @@ from src.data import ROOT, dataset_hashes
 from src.protocol import ProtocolError, TargetAccessLog, utc_now
 
 CODE_FILES = ("src/protocol.py", "src/data.py", "src/normalize.py", "src/model.py",
+              "src/augment.py", "src/generate.py",
               "src/loss.py", "src/train.py", "src/evaluate.py", "src/audit.py",
               "src/config.py",
               "scripts/run_baseline.py")

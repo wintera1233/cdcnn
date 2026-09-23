@@ -46,17 +46,25 @@ ORDER = ["Ethanol", "Ethylene", "Ammonia", "Acetaldehyde", "Acetone", "Toluene"]
 
 
 def trim(points: np.ndarray, keep: float) -> np.ndarray:
-    """Drop the points furthest from the centroid.
+    """The points that sit in dense regions, by k-nearest-neighbour distance.
 
-    The hulls are meant to show where a cloud lives, and a convex hull is
-    dragged out of shape by a single stray point. Trimming is for the drawing
-    only; no number reported anywhere in this project is computed on trimmed
-    data.
+    Used to decide **which points the hull encloses**; every point is still
+    drawn. A convex hull is dragged out of shape by a single stray, and these
+    clouds are thin curved arcs, so distance from the centroid is the wrong
+    criterion - it would cut the ends off the arc while keeping a stray near the
+    middle. Distance to the k-th nearest neighbour measures local density, which
+    is what "outlier" means here.
+
+    This affects the drawing only; no number reported anywhere in this project is
+    computed on a trimmed set.
     """
-    if len(points) < 4:
+    if len(points) < 8:
         return points
-    distance = np.linalg.norm(points - np.median(points, axis=0), axis=1)
-    return points[distance <= np.quantile(distance, keep)]
+    k = max(3, int(round(0.05 * len(points))))
+    distances = np.sqrt(((points[:, None, :] - points[None, :, :]) ** 2).sum(-1))
+    distances.sort(axis=1)
+    density = distances[:, k]          # distance to the k-th neighbour
+    return points[density <= np.quantile(density, keep)]
 
 
 def hull(axis, points, colour):
@@ -76,7 +84,7 @@ def main() -> int:
                         choices=("scalar", "channel", "position"))
     parser.add_argument("--batch", type=int, default=2)
     parser.add_argument("--seed", type=int, default=1042)
-    parser.add_argument("--keep", type=float, default=0.95,
+    parser.add_argument("--keep", type=float, default=0.88,
                         help="fraction of points kept when drawing; 1.0 keeps all")
     parser.add_argument("--out", default="reports/figures/feature_generation.png")
     args = parser.parse_args()
@@ -131,13 +139,23 @@ def main() -> int:
         projected = centred @ components[:2].T
         a, b = projected[:len(rows)], projected[len(rows):]
 
-        a, b = trim(a, args.keep), trim(b, args.keep)
-        hull(axis, a, ORIGINAL)
-        hull(axis, b, ARTIFICIAL)
+        # The hull encloses the dense part; every point is still plotted.
+        dense_a, dense_b = trim(a, args.keep), trim(b, args.keep)
+        hull(axis, dense_a, ORIGINAL)
+        hull(axis, dense_b, ARTIFICIAL)
         axis.scatter(b[:, 0], b[:, 1], s=9, color=ARTIFICIAL, alpha=0.75,
                      linewidths=0, zorder=3, label="Artificial feature")
         axis.scatter(a[:, 0], a[:, 1], s=9, color=ORIGINAL, alpha=0.85,
                      linewidths=0, zorder=4, label="Original feature")
+        # Limits from the dense part, widened by 40 %. Ethanol's originals
+        # include an arm reaching to PC1 = -12, which on a full-range axis
+        # squashes every cloud in the panel into a sliver. Nearby strays stay
+        # visible; the far arm falls outside the axes.
+        dense = np.vstack([dense_a, dense_b])
+        for setter, column in ((axis.set_xlim, 0), (axis.set_ylim, 1)):
+            low, high = dense[:, column].min(), dense[:, column].max()
+            pad = (high - low) * 0.20 or 1.0
+            setter(low - pad, high + pad)
         axis.set_title(name, fontsize=12.5, color=INK)
         axis.set_xlabel("PC1", fontsize=9, color=INK_MUTED)
         axis.set_ylabel("PC2", fontsize=9, color=INK_MUTED)

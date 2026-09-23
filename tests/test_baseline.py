@@ -18,8 +18,9 @@ from src import audit, normalize
 from src.config import load as load_config, validate
 from src.data import (BATCH_ROWS, GAS_LABELS, batch_path, class_counts,
                       load_source, load_target)
-from src.loss import EpochLoss, cross_entropy, loss_module
-from src.model import VARIANTS, build, parameter_breakdown, to_input
+from src.loss import EpochLoss, cross_entropy, loss_module, mse_consistency
+from src.model import (GENERATION_SPLIT, LAMBDA_MSE, VARIANTS, build,
+                       parameter_breakdown, to_input)
 from src.protocol import ProtocolError, TargetAccessLog
 from src.train import train_one
 
@@ -400,6 +401,110 @@ class FeatureGenerationTests(unittest.TestCase):
         import inspect
         from src import evaluate
         self.assertNotIn("FeatureGeneration", inspect.getsource(evaluate))
+
+
+class GenerationWiringTests(unittest.TestCase):
+    """v9.0: the block inside the network, and L_MSE on the pair."""
+
+    GENERATION_CELLS = ("R-gen", "R-gen-ce2", "R-gen-m10")
+
+    def setUp(self):
+        self.x = to_input(np.random.default_rng(0).normal(size=(8, 128)))
+
+    def test_the_block_sits_after_the_first_three_resnet_blocks(self):
+        """Section 2.4: 'Rs(.) means the first three convolutional layers'."""
+        self.assertEqual(GENERATION_SPLIT, 3)
+        model = build("R-gen")
+        mid = model.stem(self.x)
+        torch.testing.assert_close(model.trunk(mid), model.features(self.x))
+
+    def test_the_block_adds_no_parameters(self):
+        """So a v9 checkpoint has the same state_dict as a v8 one, and the
+        comparison against R-aug-t2 changes capacity by nothing."""
+        plain, generating = build("R-aug-t2"), build("R-gen")
+        self.assertEqual(parameter_breakdown(plain), parameter_breakdown(generating))
+        self.assertEqual(set(plain.state_dict()), set(generating.state_dict()))
+
+    def test_forward_is_the_plain_backbone_even_when_a_block_is_declared(self):
+        """Fig. 2 separates the data manipulation block from forecasting, so
+        `forward` - and with it every evaluation - must not call it."""
+        model = build("R-gen").eval()
+        with torch.no_grad():
+            torch.testing.assert_close(model(self.x), model.head(model.features(self.x)))
+            torch.testing.assert_close(model(self.x), model.forward_pair(self.x).logits)
+
+    def test_forward_pair_returns_a_second_branch_only_when_declared(self):
+        model = build("R-gen").eval()
+        with torch.no_grad():
+            branches = model.forward_pair(self.x)
+        self.assertIsNotNone(branches.logits_generated)
+        self.assertEqual(branches.logits_generated.shape, branches.logits.shape)
+        self.assertGreater(
+            float((branches.logits_generated - branches.logits).abs().sum()), 0.0)
+
+        plain = build("R-aug-t2").eval()
+        with torch.no_grad():
+            empty = plain.forward_pair(self.x)
+        self.assertIsNone(empty.logits_generated)
+        self.assertIsNone(empty.features_generated)
+
+    def test_the_generation_cells_keep_v8_1_augmentation(self):
+        """The factor under test is the block, so `augment` must be identical."""
+        reference = VARIANTS["R-aug-t2"]["augment"]
+        for name in self.GENERATION_CELLS:
+            self.assertEqual(VARIANTS[name]["augment"], reference, name)
+            self.assertEqual(VARIANTS[name]["generate"],
+                             {"style": "position", "pool": 2}, name)
+
+    def test_mse_is_zero_on_identical_branches_and_sums_over_classes(self):
+        logits = torch.randn(4, 6, generator=torch.Generator().manual_seed(2))
+        self.assertAlmostEqual(float(mse_consistency(logits, logits)), 0.0, places=6)
+        other = torch.randn(4, 6, generator=torch.Generator().manual_seed(3))
+        # Eq. (S4) prints no 1/C, so the class axis is summed, not averaged.
+        expected = float((logits.softmax(1) - other.softmax(1)).pow(2).sum(1).mean())
+        self.assertAlmostEqual(float(mse_consistency(logits, other)), expected, places=6)
+
+    def test_mse_is_bounded_by_two(self):
+        """It compares probabilities, so it cannot outgrow L_ce by scale."""
+        one = torch.tensor([[50.0, -50.0, 0.0, 0.0, 0.0, 0.0]])
+        two = torch.tensor([[-50.0, 50.0, 0.0, 0.0, 0.0, 0.0]])
+        self.assertLessEqual(float(mse_consistency(one, two)), 2.0 + 1e-6)
+
+    def test_the_declared_lambda_is_the_one_the_grid_uses(self):
+        self.assertEqual(LAMBDA_MSE, 0.5)
+        self.assertEqual(VARIANTS["R-gen"]["lambda_mse"], 0.5)
+        self.assertEqual(VARIANTS["R-gen-m10"]["lambda_mse"], 1.0)
+        self.assertFalse(VARIANTS["R-gen"]["ce_on_generated"])
+        self.assertTrue(VARIANTS["R-gen-ce2"]["ce_on_generated"])
+
+    def test_training_records_both_loss_terms(self):
+        config = load_config(Path("configs/feature_generation.json"))
+        config = copy.deepcopy(config)
+        config["training"] = {"epochs": 1, "batch_size": 32}
+        x, y = load_source()
+        with tempfile.TemporaryDirectory() as directory:
+            summary = train_one("R-gen", 1042, config, x, y,
+                                Path(directory) / "cell", "cpu", False,
+                                learning_rate=0.0003)
+        record = summary["history"][-1]
+        self.assertIn("loss_ce", record)
+        self.assertIn("loss_mse", record)
+        # loss_s2 is the weighted total of Eq. (4).
+        self.assertAlmostEqual(record["loss_s2"],
+                               record["loss_ce"] + 0.5 * record["loss_mse"], places=5)
+        self.assertEqual(summary["lambda_mse"], 0.5)
+        self.assertIsNotNone(summary["negative_scale_fraction"])
+
+    def test_a_cell_without_a_block_records_no_components(self):
+        config = copy.deepcopy(load_config(Path("configs/feature_generation.json")))
+        config["training"] = {"epochs": 1, "batch_size": 32}
+        x, y = load_source()
+        with tempfile.TemporaryDirectory() as directory:
+            summary = train_one("R-aug-t2", 1042, config, x, y,
+                                Path(directory) / "cell", "cpu", False,
+                                learning_rate=0.0003)
+        self.assertNotIn("loss_mse", summary["history"][-1])
+        self.assertIsNone(summary["lambda_mse"])
 
 
 class AugmentationTests(unittest.TestCase):

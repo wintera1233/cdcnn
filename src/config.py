@@ -23,6 +23,7 @@ NORMALISER_5SEED_VERSION = "CDCNN_v7.5_input_normalisation_5seed"
 AUGMENT_VERSION = "CDCNN_v8.0_directed_augmentation"
 DISPLACEMENT_VERSION = "CDCNN_v8.1_displacement_sweep"
 SUBSPACE_VERSION = "CDCNN_v8.2_drift_subspace"
+GENERATION_VERSION = "CDCNN_v9.0_feature_generation"
 
 # Frozen literals: the declared contents of the ladder. Adding a variant later
 # must not silently change what this version means.
@@ -75,6 +76,14 @@ DISPLACEMENT_VARIANTS = ("R-fig-logps", "R-aug-t2", "R-aug-t3", "R-aug-t4")
 # Ethanol direction is not.
 SUBSPACE_VARIANTS = ("R-fig-logps", "R-aug-sub2", "R-aug-sub4", "R-aug-sph2")
 
+# v9.0: the feature generation block and L_MSE, on top of v8.1's `R-aug-t2`,
+# which supplies the reference row. Three readings are settled in advance and
+# are not swept: per-position style axis, the residual restyled, and a batch of
+# Eqs. (12)-(13) meaning the training minibatch. What the grid varies is the one
+# term the paper leaves open - which branches L_ce sees - and the one constant
+# it never states, lambda_MSE.
+GENERATION_VARIANTS = ("R-aug-t2", "R-gen", "R-gen-ce2", "R-gen-m10")
+
 REQUIRED = ("implementation_version", "variants", "seeds", "training", "optimizer",
             "scheduler")
 
@@ -98,6 +107,18 @@ def validate(config: dict) -> dict:
         raise ProtocolError("a variant is listed twice")
     if len(set(config["seeds"])) != len(config["seeds"]):
         raise ProtocolError("a seed is listed twice")
+
+    if config["implementation_version"] == GENERATION_VERSION:
+        for name, expected, actual in (
+                ("variants", list(GENERATION_VARIANTS), list(config["variants"])),
+                ("learning_rates", list(NORMALISER_LEARNING_RATES),
+                 [float(v) for v in config.get("learning_rates", [])]),
+                ("seeds", list(ALL_SEEDS), list(config["seeds"])),
+                ("training", LADDER_TRAINING, config["training"]),
+                ("scheduler", LADDER_SCHEDULER, config["scheduler"])):
+            if expected != actual:
+                raise ProtocolError(
+                    f"{GENERATION_VERSION} fixes {name} as {expected}, got {actual}")
 
     if config["implementation_version"] == SUBSPACE_VERSION:
         for name, expected, actual in (

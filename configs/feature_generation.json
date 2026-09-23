@@ -1,0 +1,78 @@
+{
+  "implementation_version": "CDCNN_v9.0_feature_generation",
+  "description": "The paper's feature generation block, Eqs. (8)-(16), placed between the third and fourth ResNet blocks, with L_MSE (Eq. S4) added to the objective. Every cell carries v8.1's R-aug-t2 directed augmentation, so the factor under test is the generation block alone; R-aug-t2 itself supplies the reference row.",
+  "variants": [
+    "R-aug-t2",
+    "R-gen",
+    "R-gen-ce2",
+    "R-gen-m10"
+  ],
+  "learning_rates": [
+    0.0003
+  ],
+  "seeds": [
+    1042,
+    2024,
+    3407,
+    42,
+    123
+  ],
+  "training": {
+    "epochs": 100,
+    "batch_size": 64
+  },
+  "optimizer": {
+    "lr": 0.0003,
+    "momentum": 0.9,
+    "weight_decay": 0.0001
+  },
+  "scheduler": {
+    "step_size": 25,
+    "gamma": 0.5
+  },
+  "per_epoch_checkpoint_seed": 1042,
+  "feature_generation": {
+    "position": "between the third and fourth ResNet block, Section 2.4: 'Rs(.) means the first three convolutional layers; the remaining part is recorded as Rf(.)'",
+    "decomposition": "MaxPool(kernel 2, stride 2) then nearest-neighbour upsample gives z^H; z^L = z - z^H. Eqs. (8)-(9).",
+    "restyled_part": "the residual z^L, per Eq. (15) z~ = z^H + z~^L. The paper calls the residual the low-frequency component, which reads correctly if the frequency meant is temporal: the residual carries the environment and the slow drift.",
+    "style_axis": "position",
+    "style_axis_note": "Eqs. (10)-(11) sum over both the channel and the length axis, giving one scalar per sample; the sentence after says the result lives in R^{BxCH}, which is the shape of z^L itself and would make the restyle an identity. Neither is AdaIN's per-channel convention. Measured against the real target drift at this depth the three readings explain 1.2%, 15.3% and 30.1% of it, so per-position was taken. It corresponds approximately to per-sensor: position 8(s-1)+k came from sensor s's statistic k, smeared by a receptive field of plus or minus six.",
+    "batch_meaning": "the training minibatch. The paper says only 'Bs is the number of batches of z_s', and z_s is the current minibatch's feature tensor, so Bs is its batch dimension. Measured, the style spread across a minibatch's samples is 1.40x the real target drift in the same space; the alternative of splitting Batch 1 by its two acquisition blocks gives 1.27x with a direction anti-correlated to the real drift (cosine -0.692), so it offers nothing and was dropped.",
+    "negative_scale": "Eq. (14) draws delta' from an ordinary Gaussian, which can return a negative scale. This follows the paper rather than truncating, and records the fraction of negative draws in each run's history.",
+    "inference": "never applied. Fig. 2: 'during forecasting, the program separates the data manipulation block from the prediction process', so src.evaluate runs the plain five-block backbone and every frozen checkpoint is scored without the block."
+  },
+  "loss": {
+    "equation": "Eq. (4): min(L_ce + lambda_MSE L_MSE + lambda_con L_con). L_con is not implemented yet, so lambda_con is zero in every cell.",
+    "L_MSE": "Eq. (S4): the mean over samples of the summed squared difference between the two branches' softmax probabilities. The class axis carries no 1/C in the printed formula, so the six squared differences are summed; F.mse_loss's default reduction would be six times smaller and is exactly lambda_MSE/6 of this.",
+    "lambda_mse": 0.5,
+    "lambda_mse_note": "Eq. (4) calls lambda_MSE 'a weighting factor that belongs to [0,1]' and neither the paper nor the supplement gives a value. 0.5 is the declared default; R-gen-m10 runs 1.0 to measure the sensitivity.",
+    "ce_branches": "Eq. (S2) writes L_ce over Phi alone, so the generated branch reaches the objective only through L_MSE. The algorithm box's line 6, 'Compute the output of network out = FC(Zs), out = FC(Zs) and calculate Ll2 and Lce', reads as both branches. R-gen takes the first reading, R-gen-ce2 the second, averaging the two branches so the term keeps its scale."
+  },
+  "escalation": {
+    "target_mean_sd_threshold": 0.02,
+    "rung_difference_standard_errors": 2.0
+  },
+  "confounds": {
+    "inherited_target_informed_choices": "Every cell carries R-aug-t2, whose direction and displacement were both chosen against target data. v9.0 therefore reports an upper bound in the same sense v8.1 did; the source-only settled number remains R-fig-logps at 0.5556.",
+    "style_axis_choice": "The per-position reading was chosen by measuring how much of the real target drift each reading spans, which used target data. The choice is target-informed and the run reports it as such.",
+    "gradient_steps": "The generation cells run two forward passes through Rf and the head per minibatch but take the same number of optimizer steps as R-aug-t2, so step count is matched and wall-clock is not."
+  },
+  "compare_against": {
+    "run": "20260923T060614260906Z_displacement_full",
+    "R-aug-t2@lr0.0003": 0.577,
+    "R-fig-logps@lr0.0003": 0.5556
+  },
+  "paper_reference": {
+    "model": "ResNet (the backbone of CDCNN), Table 3",
+    "printed_average": 0.6344,
+    "CDWC": 0.6705,
+    "CDCNN": 0.723,
+    "note": "CDWC is CDCNN without contrastive learning, so it is the closest published counterpart to a cell with augmentation and feature generation but no L_con. The paper's step from ResNet to CDWC is +0.036."
+  },
+  "prediction": {
+    "recorded_before_the_run": true,
+    "basis": "The per-position style displacement a minibatch supplies is 1.40x the real target drift at block 3, but the block reaches only the 30.1% of that drift the style axes span; the backbone already suppresses 7.5% of the input drift, and augmentation made that fraction worse rather than better.",
+    "expectation": "A gain of the paper's order (+0.036 from ResNet to CDWC) is the optimistic case. The realistic case is a gain under the separability threshold, because the block moves a component of the drift the backbone was not removing anyway. R-gen-ce2 should not differ much from R-gen: averaging L_ce over the two branches changes the term's target set but not its scale.",
+    "falsifier": "If R-gen-m10 and R-gen differ by more than R-gen differs from R-aug-t2, the result is a lambda_MSE effect rather than a feature generation effect and the block's contribution is not established."
+  }
+}

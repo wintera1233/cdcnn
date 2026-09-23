@@ -19,9 +19,9 @@ from torch.utils.data import DataLoader, TensorDataset
 
 from src import augment as augmentation, normalize
 from src.data import N_CLASSES
-from src.loss import EpochLoss, cross_entropy
-from src.model import (AUGMENT_DISPLACEMENT, AUGMENT_LAMBDA, VARIANTS, build,
-                       parameter_breakdown, to_input)
+from src.loss import EpochLoss, cross_entropy, mse_consistency
+from src.model import (AUGMENT_DISPLACEMENT, AUGMENT_LAMBDA, LAMBDA_MSE,
+                       VARIANTS, build, parameter_breakdown, to_input)
 from src.protocol import ProtocolError, utc_now
 
 
@@ -107,6 +107,13 @@ def train_one(variant: str, seed: int, config: dict, source_x: np.ndarray,
     loader = _loader(x, y, training["batch_size"], generator)
     checkpoint_dir.mkdir(parents=True, exist_ok=False)
 
+    # Eq. (4): min(L_ce + lambda_MSE L_MSE + lambda_con L_con). A variant with no
+    # generation block has no second branch, so both auxiliary terms are absent
+    # and this reduces to the S2 cross-entropy every v7 and v8 cell trained on.
+    generates = model.generation is not None
+    lambda_mse = float(VARIANTS[variant].get("lambda_mse", LAMBDA_MSE))
+    ce_on_generated = bool(VARIANTS[variant].get("ce_on_generated", False))
+
     history: list[dict] = []
     for epoch in range(1, training["epochs"] + 1):
         model.train()
@@ -115,11 +122,28 @@ def train_one(variant: str, seed: int, config: dict, source_x: np.ndarray,
             batch_x = batch_x.to(device)
             batch_y = batch_y.to(device)
             optimizer.zero_grad(set_to_none=True)
-            logits = model(batch_x)
-            loss = cross_entropy(logits, batch_y)
+            components: dict[str, torch.Tensor] = {}
+            if not generates:
+                logits = model(batch_x)
+                loss = cross_entropy(logits, batch_y)
+            else:
+                # The block's Gaussian draws come from the global RNG, which
+                # `seed_everything` fixes, so the pair is reproducible per seed.
+                branches = model.forward_pair(batch_x)
+                logits = branches.logits
+                # Eq. (S2) writes L_ce over Phi alone; `ce_on_generated` is the
+                # algorithm box's reading, averaging the two branches so the
+                # term keeps its scale and only its target set changes.
+                entropy = cross_entropy(logits, batch_y)
+                if ce_on_generated:
+                    entropy = 0.5 * (entropy + cross_entropy(
+                        branches.logits_generated, batch_y))
+                mse = mse_consistency(logits, branches.logits_generated)
+                loss = entropy + lambda_mse * mse
+                components = {"ce": entropy, "mse": mse}
             loss.backward()
             optimizer.step()
-            accumulator.update(loss, logits, batch_y)
+            accumulator.update(loss, logits, batch_y, components)
         scheduler.step()
         record = {"epoch": epoch, "learning_rate": scheduler.get_last_lr()[0],
                   **accumulator.summary()}
@@ -137,6 +161,11 @@ def train_one(variant: str, seed: int, config: dict, source_x: np.ndarray,
                "source_rows": int(len(source_y)),
                "training_rows": int(len(labels)),
                "augment": VARIANTS[variant].get("augment"),
+               "generate": VARIANTS[variant].get("generate"),
+               "lambda_mse": lambda_mse if generates else None,
+               "ce_on_generated": ce_on_generated if generates else None,
+               "negative_scale_fraction": (
+                   model.generation.negative_scale_fraction if generates else None),
                "batches_per_epoch": int(history[-1]["batches"]),
                "final_train_accuracy": history[-1]["accuracy"],
                "final_train_loss_s2": history[-1]["loss_s2"],

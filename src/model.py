@@ -15,9 +15,12 @@ so adding a variant can never change what an existing one builds.
 
 from __future__ import annotations
 
+from typing import NamedTuple
+
 import torch
 from torch import nn
 
+from src.generate import FeatureGeneration
 from src.protocol import ProtocolError
 
 N_FEATURES = 128
@@ -69,6 +72,17 @@ _LOGPS = {"channels": FIGURE_WIDTHS, "head": "flatten",
 # 22. Coverage peaks at 3. Variants carry their own value; this is the default.
 AUGMENT_DISPLACEMENT = 3.0
 AUGMENT_LAMBDA = 0.5
+
+# Section 2.4: "Rs(.) means the first three convolutional layers; the remaining
+# part is recorded as Rf(.)" and "The feature generates a block in the middle of
+# the third and the fourth ResNet block." The block carries no parameters, so a
+# variant that declares it has the same state_dict as one that does not.
+GENERATION_SPLIT = 3
+
+# Eq. (4) weights L_MSE by lambda_MSE, "a weighting factor that belongs to
+# [0,1]". Neither the paper nor the supplement gives its value. 0.5 is the
+# declared default; `R-gen-m10` measures the sensitivity to it.
+LAMBDA_MSE = 0.5
 
 VARIANTS: dict[str, dict] = {
     "R-txt": {"channels": TEXT_CAPPED_128, "head": "flatten",
@@ -125,6 +139,28 @@ VARIANTS: dict[str, dict] = {
     "R-aug-sph2": {**_LOGPS, "augment": {"isotropic": False, "direction": "sphere",
                                          "displacement": 2.0}},
 }
+
+# v9.0: the feature generation block, on top of v8.1's best augmentation
+# (`R-aug-t2`, target mean 0.5770, the only separable augmentation gain). Every
+# v9 cell carries that same `augment` field, so the factor under test is the
+# generation block alone.
+#
+# `style` is the axis Eqs. (10)-(11) reduce over. Per-position is settled: the
+# three readings explain 1.2 %, 15.3 % and 30.1 % of the real drift at this
+# depth; see `src/generate.py` and `docs/drift-geometry.md`.
+#
+# `ce_on_generated` is the one textual ambiguity left. Eq. (S2) writes L_ce over
+# Phi alone, so the generated branch reaches the loss only through L_MSE; the
+# algorithm box's line 6, "out = FC(Zs), out = FC(Zs) and calculate Ll2 and Lce",
+# reads as both. The grid runs both.
+_GEN = {**VARIANTS["R-aug-t2"],
+        "generate": {"style": "position", "pool": 2}}
+
+VARIANTS.update({
+    "R-gen": {**_GEN, "lambda_mse": LAMBDA_MSE, "ce_on_generated": False},
+    "R-gen-ce2": {**_GEN, "lambda_mse": LAMBDA_MSE, "ce_on_generated": True},
+    "R-gen-m10": {**_GEN, "lambda_mse": 1.0, "ce_on_generated": False},
+})
 
 
 # Retired 2026-09-23. Global average pooling cost -0.078 target mean, separable
@@ -194,6 +230,19 @@ class GapHead(nn.Module):
         return self.fc6(self.norm(self.fc128(self.reduce(x))))
 
 
+class Branches(NamedTuple):
+    """One forward pass of a model that carries a feature generation block.
+
+    `generated` fields are `None` when the variant declares no block, which is
+    every v7 and v8 cell.
+    """
+
+    logits: torch.Tensor
+    features: torch.Tensor
+    logits_generated: torch.Tensor | None
+    features_generated: torch.Tensor | None
+
+
 class BaselineResNet(nn.Module):
     def __init__(self, variant: str):
         super().__init__()
@@ -213,13 +262,44 @@ class BaselineResNet(nn.Module):
             self.head = GapHead(out_channels, norm=norm)
         else:
             raise ProtocolError(f"unknown head {head!r}")
+        generate = spec.get("generate")
+        self.generation = (None if generate is None
+                           else FeatureGeneration(**generate))
+
+    def stem(self, x):
+        """`Rs(X)` of Section 2.4: the first three blocks."""
+        return self.blocks[:GENERATION_SPLIT](x)
+
+    def trunk(self, z):
+        """`Rf(.)`: the remaining two blocks."""
+        return self.blocks[GENERATION_SPLIT:](z)
 
     def features(self, x):
-        """`Phi(X)` of Eq. (S2): the five blocks, before the classifier."""
+        """`Phi(X)` of Eq. (S2): the five blocks, before the classifier.
+
+        The generation block is never on this path. Fig. 2 requires it: "during
+        forecasting, the program separates the data manipulation block from the
+        prediction process", so `forward`, and with it every evaluation, runs
+        the plain backbone whether or not the variant declares a block.
+        """
         return self.blocks(x)
 
     def forward(self, x):
         return self.head(self.features(x))
+
+    def forward_pair(self, x, generator: torch.Generator | None = None
+                     ) -> Branches:
+        """Both branches of Eq. (S4), sharing `Rs` and the classifier head.
+
+        `Phi_bar` of S4 is `Rf . generation . Rs`; `Phi` is `Rf . Rs`. Each is
+        run once, so the block sees `Rs(X)` exactly as Section 2.4 specifies.
+        """
+        mid = self.stem(x)
+        z_f = self.trunk(mid)
+        if self.generation is None:
+            return Branches(self.head(z_f), z_f, None, None)
+        z_bar_f = self.trunk(self.generation(mid, generator=generator))
+        return Branches(self.head(z_f), z_f, self.head(z_bar_f), z_bar_f)
 
 
 def build(variant: str) -> BaselineResNet:
