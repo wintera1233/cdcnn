@@ -2,6 +2,13 @@
 
 Branch `exp/v7-redesign`. Written 2026-09-23.
 
+## Status: closed 2026-09-23
+
+The reconstruction ran to v7.5. The settled design and every result are in
+`baseline.md`; this proposal is kept as the record of what was planned and how
+the plan changed. Final target mean **0.5556** over five seeds against the
+paper's 0.6344.
+
 ## 0. Work plan
 
 Thirty items in five stages. Two stopping points, marked STOP, where the work
