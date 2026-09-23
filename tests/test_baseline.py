@@ -345,6 +345,99 @@ class CrossValidationTests(unittest.TestCase):
                 audit.leakage_audit(Path(directory), log)
 
 
+class AugmentationTests(unittest.TestCase):
+    def setUp(self):
+        from src import augment
+        self.augment = augment
+        x, self.y = load_source()
+        self.z = normalize.apply(
+            normalize.fit("signed_log_then_per_sample", x), x)
+
+    def test_the_block_layout_matches_the_labels(self):
+        offsets = self.augment.block_offsets(self.z, self.y)
+        self.assertEqual(sorted(offsets), [1, 2, 3])
+        for label, ((a, b), (c, d)) in self.augment.SOURCE_BLOCKS.items():
+            self.assertTrue((self.y[a:b] == label).all(), label)
+            self.assertTrue((self.y[c:d] == label).all(), label)
+        # Acetaldehyde, Acetone and Toluene have one block each, so no offset.
+        self.assertNotIn(4, offsets)
+
+    def test_lambda_is_inert_under_per_sample_normalisation(self):
+        """Eq. (7) mixes two samples' mean and variance, but per-sample
+        normalisation sets every sample's to 0 and 1, so the weight does
+        nothing. Recorded rather than assumed; see baseline.md."""
+        for lam in (0.0, 0.5, 1.0):
+            drawn = self.augment.paper_noise(
+                self.z, self.y, lam, np.random.default_rng(7))
+            reference = self.augment.paper_noise(
+                self.z, self.y, 0.5, np.random.default_rng(7))
+            np.testing.assert_allclose(drawn, reference, atol=1e-12)
+
+    def test_the_direction_is_a_unit_vector_and_reproducible(self):
+        for source in self.augment.DIRECTION_SOURCES:
+            unit, scale = self.augment.drift_direction(self.z, self.y, source)
+            self.assertAlmostEqual(float(np.linalg.norm(unit)), 1.0, places=10)
+            self.assertGreater(scale, 0.0)
+            again, _ = self.augment.drift_direction(self.z, self.y, source)
+            np.testing.assert_allclose(unit, again, atol=0)
+
+    def test_the_average_direction_weighs_the_three_classes_equally(self):
+        offsets = self.augment.block_offsets(self.z, self.y)
+        expected = np.mean([v / np.linalg.norm(v) for v in offsets.values()], axis=0)
+        expected = expected / np.linalg.norm(expected)
+        unit, _ = self.augment.drift_direction(self.z, self.y, "average")
+        np.testing.assert_allclose(unit, expected, atol=1e-12)
+
+    def test_a_directed_only_augmentation_moves_along_one_line(self):
+        unit, _ = self.augment.drift_direction(self.z, self.y, "average")
+        out = self.augment.augment(self.z, self.y, np.random.default_rng(0),
+                                   isotropic=False, direction="average")
+        delta = out - self.z
+        # Every displacement is a non-negative multiple of the same unit vector.
+        along = delta @ unit
+        np.testing.assert_allclose(delta, along[:, None] * unit[None, :], atol=1e-10)
+        self.assertTrue((along >= -1e-10).all())
+
+    def test_an_augmentation_must_do_something(self):
+        with self.assertRaisesRegex(ProtocolError, "isotropic, directed, or both"):
+            self.augment.augment(self.z, self.y, np.random.default_rng(0),
+                                 isotropic=False, direction=None)
+
+    def test_training_doubles_the_rows_and_keeps_the_labels(self):
+        x, y = load_source()
+        with tempfile.TemporaryDirectory() as directory:
+            plain = train_one("R-fig-logps", 1042, _smoke_config(), x, y,
+                              Path(directory) / "a", "cpu", save_every_epoch=False)
+        with tempfile.TemporaryDirectory() as directory:
+            augmented = train_one("R-aug-avg", 1042, _smoke_config(), x, y,
+                                  Path(directory) / "b", "cpu", save_every_epoch=False)
+        self.assertEqual(plain["training_rows"], 445)
+        self.assertEqual(augmented["training_rows"], 890)
+        self.assertIsNone(plain["augment"])
+        self.assertEqual(augmented["augment"],
+                         {"isotropic": True, "direction": "average"})
+
+    def test_evaluation_never_augments(self):
+        """Fig. 2: 'During forecasting, the program separates the data
+        manipulation block from the prediction process.'"""
+        import inspect
+        from src import evaluate
+        self.assertNotIn("augment", inspect.getsource(evaluate))
+
+    def test_the_v8_config_is_valid_and_pins_its_grid(self):
+        config = load_config(ROOT / "configs" / "augmentation.json")
+        self.assertEqual(config["variants"],
+                         ["R-fig-logps", "R-aug-paper", "R-aug-eth", "R-aug-ethd"])
+        self.assertEqual(config["augmentation"]["displacement_multiplier"], 18.0)
+        # The prediction is recorded before the run so it cannot be revised after.
+        self.assertTrue(config["prediction"]["recorded_before_the_run"])
+        self.assertEqual(config["prediction"]["coverage"]["R-aug-ethd"], 0.813)
+        changed = copy.deepcopy(config)
+        changed["variants"] = config["variants"][:3]
+        with self.assertRaisesRegex(ProtocolError, "fixes variants"):
+            validate(changed)
+
+
 class InputNormalisationTests(unittest.TestCase):
     def test_every_normalizer_is_finite_and_standardised(self):
         x, _ = load_source()

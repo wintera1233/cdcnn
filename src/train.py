@@ -17,10 +17,11 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
 
-from src import normalize
+from src import augment as augmentation, normalize
 from src.data import N_CLASSES
 from src.loss import EpochLoss, cross_entropy
-from src.model import VARIANTS, build, parameter_breakdown, to_input
+from src.model import (AUGMENT_DISPLACEMENT, AUGMENT_LAMBDA, VARIANTS, build,
+                       parameter_breakdown, to_input)
 from src.protocol import ProtocolError, utc_now
 
 
@@ -69,9 +70,25 @@ def train_one(variant: str, seed: int, config: dict, source_x: np.ndarray,
     # The Normal block is part of the variant's definition, not a free knob:
     # the 2x2 in proposal.md section 6 crosses it with the head.
     normalizer = normalize.fit(VARIANTS[variant]["normalizer"], source_x)
-    x = to_input(normalize.apply(normalizer, source_x))
+    normalised = normalize.apply(normalizer, source_x)
+    labels = source_y
+
+    # Fig. 2 places augmentation after the `Normal` block and concatenates the
+    # augmented copies with the originals, keeping their labels (Table 1, step 1).
+    # It is training-only: `src.evaluate` never calls this path.
+    spec = VARIANTS[variant].get("augment")
+    if spec is not None:
+        generator = np.random.default_rng(seed)
+        extra = augmentation.augment(
+            normalised, source_y, generator,
+            isotropic=spec["isotropic"], direction=spec["direction"],
+            lam=AUGMENT_LAMBDA, displacement=AUGMENT_DISPLACEMENT)
+        normalised = np.concatenate([normalised, extra], axis=0)
+        labels = np.concatenate([source_y, source_y], axis=0)
+
+    x = to_input(normalised)
     # Labels on disk are 1..6; the model has 6 outputs indexed from zero.
-    y = torch.as_tensor(source_y, dtype=torch.int64) - 1
+    y = torch.as_tensor(labels, dtype=torch.int64) - 1
     if int(y.min()) < 0 or int(y.max()) >= N_CLASSES:
         raise ProtocolError("labels outside 1..6 after the zero-based shift")
 
@@ -117,6 +134,8 @@ def train_one(variant: str, seed: int, config: dict, source_x: np.ndarray,
                "finished_at": utc_now(),
                "parameters": parameter_breakdown(model),
                "source_rows": int(len(source_y)),
+               "training_rows": int(len(labels)),
+               "augment": VARIANTS[variant].get("augment"),
                "batches_per_epoch": int(history[-1]["batches"]),
                "final_train_accuracy": history[-1]["accuracy"],
                "final_train_loss_s2": history[-1]["loss_s2"],

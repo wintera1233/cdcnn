@@ -56,6 +56,15 @@ def _head_norm(kind: str) -> nn.Module:
 
 # The 2x2 factorial of the v7.0 ladder: {flatten, GAP} head x {StandardScaler,
 # per-sample} Normal block, on one backbone.
+# The settled baseline of `baseline.md`, which every v8 cell builds on.
+_LOGPS = {"channels": FIGURE_WIDTHS, "head": "flatten",
+          "normalizer": "signed_log_then_per_sample"}
+
+# The displacement multiplier: the collection spans 36 months and Batch 1 spans
+# two, so a two-month offset extrapolates by 18. Source-only reasoning.
+AUGMENT_DISPLACEMENT = 18.0
+AUGMENT_LAMBDA = 0.5
+
 VARIANTS: dict[str, dict] = {
     "R-txt": {"channels": TEXT_CAPPED_128, "head": "flatten",
               "normalizer": "standard_scaler"},
@@ -81,10 +90,18 @@ VARIANTS: dict[str, dict] = {
     # matches R-fig-ps@lr0.0003.
     "R-fig-ssps": {"channels": FIGURE_WIDTHS, "head": "flatten",
                    "normalizer": "standard_then_per_sample"},
-    "R-fig-logps": {"channels": FIGURE_WIDTHS, "head": "flatten",
-                    "normalizer": "signed_log_then_per_sample"},
+    "R-fig-logps": dict(_LOGPS),
     "R-fig-grp": {"channels": FIGURE_WIDTHS, "head": "flatten",
                   "normalizer": "per_statistic_group"},
+    # v8.0: the data-augmentation factorial. Everything matches R-fig-logps
+    # except the `augment` field, which train_one reads. isotropic is the
+    # paper's Eq. (7) noise; direction adds a displacement along the drift
+    # estimated from Batch 1's own two acquisition sessions.
+    "R-aug-paper": {**_LOGPS, "augment": {"isotropic": True, "direction": None}},
+    "R-aug-avg": {**_LOGPS, "augment": {"isotropic": True, "direction": "average"}},
+    "R-aug-avgd": {**_LOGPS, "augment": {"isotropic": False, "direction": "average"}},
+    "R-aug-eth": {**_LOGPS, "augment": {"isotropic": True, "direction": "ethanol"}},
+    "R-aug-ethd": {**_LOGPS, "augment": {"isotropic": False, "direction": "ethanol"}},
 }
 
 

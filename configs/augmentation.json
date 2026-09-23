@@ -1,0 +1,69 @@
+{
+  "implementation_version": "CDCNN_v8.0_directed_augmentation",
+  "description": "The paper's isotropic data augmentation against a directed variant, with and without the isotropic component. The direction is Batch 1's Ethanol block offset. Everything else is the settled baseline R-fig-logps.",
+  "variants": [
+    "R-fig-logps",
+    "R-aug-paper",
+    "R-aug-eth",
+    "R-aug-ethd"
+  ],
+  "learning_rates": [
+    0.0003
+  ],
+  "seeds": [
+    1042,
+    2024,
+    3407,
+    42,
+    123
+  ],
+  "training": {
+    "epochs": 100,
+    "batch_size": 64
+  },
+  "optimizer": {
+    "lr": 0.0003,
+    "momentum": 0.9,
+    "weight_decay": 0.0001
+  },
+  "scheduler": {
+    "step_size": 25,
+    "gamma": 0.5
+  },
+  "per_epoch_checkpoint_seed": 1042,
+  "augmentation": {
+    "lambda": 0.5,
+    "lambda_note": "Eq. (7)'s mixing weight. Under per-sample normalisation every sample has mean 0 and variance 1, so the weight is inert; three values give identical output. Fixed at 0.5 and recorded.",
+    "displacement_multiplier": 18.0,
+    "displacement_note": "The collection spans 36 months and Batch 1 spans two, so a two-month block offset extrapolates by 18. Source-only reasoning, declared before the run.",
+    "magnitude": "uniform on [0, 18 * ||block offset||]"
+  },
+  "escalation": {
+    "target_mean_sd_threshold": 0.02,
+    "rung_difference_standard_errors": 2.0
+  },
+  "confounds": {
+    "epoch_budget": "Augmentation doubles the rows and the epoch count is fixed at 100, so the augmented cells take twice the gradient steps. The paper concatenates and trains 100 epochs, so this follows it; comparisons against R-fig-logps carry both changes.",
+    "direction_choice": "The average of the three block offsets was the a-priori defensible choice, but a pre-training coverage check showed it leaves target Acetaldehyde coverage exactly at the unaugmented level, so those cells were dropped. Ethanol's offset was preferred after measuring alignment against target drift, so every directed cell here is target-informed.",
+    "estimator_support": "The second blocks hold 6, 10 and 7 rows."
+  },
+  "compare_against": {
+    "run": "20260923T024922889421Z_input_norm_5seed",
+    "R-fig-logps@lr0.0003": 0.5556
+  },
+  "paper_reference": {
+    "model": "ResNet (the backbone of CDCNN), Table 3",
+    "printed_average": 0.6344
+  },
+  "prediction": {
+    "recorded_before_the_run": true,
+    "basis": "Fraction of the 1,906 target Acetaldehyde rows within two source class radii of some augmented source Acetaldehyde row, computed on Batch 1 plus a post-hoc target diagnostic.",
+    "coverage": {
+      "R-fig-logps": 0.384,
+      "R-aug-paper": 0.384,
+      "R-aug-eth": 0.384,
+      "R-aug-ethd": 0.813
+    },
+    "expectation": "Only R-aug-ethd changes coverage. R-aug-paper and R-aug-eth are identical to no augmentation on this metric because the isotropic displacement of 11.3 swamps the directed component. If R-aug-eth or R-aug-paper moves the target mean, the coverage metric is not what matters and this reasoning is wrong."
+  }
+}
