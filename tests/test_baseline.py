@@ -345,6 +345,63 @@ class CrossValidationTests(unittest.TestCase):
                 audit.leakage_audit(Path(directory), log)
 
 
+class FeatureGenerationTests(unittest.TestCase):
+    def setUp(self):
+        from src.generate import FeatureGeneration, STYLE_AXES
+        self.FeatureGeneration = FeatureGeneration
+        self.styles = STYLE_AXES
+        self.z = torch.randn(64, 128, 128,
+                             generator=torch.Generator().manual_seed(0))
+
+    def test_the_decomposition_is_exact(self):
+        """Eqs. (8)-(9): the pooled part and the residual must sum to z."""
+        block = self.FeatureGeneration()
+        pooled, residual = block.decompose(self.z)
+        torch.testing.assert_close(pooled + residual, self.z)
+
+    def test_the_pooled_part_is_piecewise_constant(self):
+        """MaxPool then nearest upsample repeats each pooled value, so the
+        pooled part carries half as many distinct values along the length."""
+        block = self.FeatureGeneration(pool=2)
+        pooled, _ = block.decompose(self.z)
+        torch.testing.assert_close(pooled[..., 0::2], pooled[..., 1::2])
+
+    def test_each_style_axis_reduces_the_declared_dimensions(self):
+        from src.generate import reduce_dims
+        expected = {"scalar": (64, 1, 1), "channel": (64, 128, 1),
+                    "position": (64, 1, 128)}
+        for style in self.styles:
+            shape = tuple(self.z.mean(dim=reduce_dims(style), keepdim=True).shape)
+            self.assertEqual(shape, expected[style], style)
+
+    def test_the_restyle_changes_the_features_and_is_reproducible(self):
+        for style in self.styles:
+            block = self.FeatureGeneration(style=style)
+            first = block(self.z, torch.Generator().manual_seed(1))
+            again = block(self.z, torch.Generator().manual_seed(1))
+            torch.testing.assert_close(first, again)
+            self.assertGreater(float((first - self.z).norm()), 0.0, style)
+
+    def test_a_batch_of_one_is_returned_unchanged(self):
+        """Eqs. (12)-(13) estimate the style distribution from the batch, so a
+        single sample has no distribution to draw from."""
+        block = self.FeatureGeneration()
+        single = self.z[:1]
+        torch.testing.assert_close(block(single, torch.Generator().manual_seed(1)),
+                                   single)
+
+    def test_an_unknown_style_axis_is_refused(self):
+        with self.assertRaisesRegex(ProtocolError, "unknown style axis"):
+            self.FeatureGeneration(style="sensor")
+
+    def test_evaluation_never_generates_features(self):
+        """Fig. 2: 'during forecasting, the program separates the data
+        manipulation block from the prediction process'."""
+        import inspect
+        from src import evaluate
+        self.assertNotIn("FeatureGeneration", inspect.getsource(evaluate))
+
+
 class AugmentationTests(unittest.TestCase):
     def setUp(self):
         from src import augment
