@@ -74,11 +74,19 @@ re-deriving any of the following.
 
 ### From this branch (v7.0 to v7.3, `docs/`)
 
-- **The baseline stands at target mean 0.5222** against the paper's 0.6344, with
-  six of the nine batches at or above the paper and the whole deficit in B5, B8
-  and B9. `docs/all-results.md` lists every cell trained.
+- **The baseline stands at target mean 0.5556** over five seeds against the
+  paper's 0.6344. `docs/all-results.md` lists every cell trained.
 - **Per-sample input normalisation is worth +0.112**; it and a LayerNorm head are
   substitutes with an interaction of -0.141, so use exactly one, at the input.
+- **A signed-log before per-sample is worth a further +0.032**, separable at five
+  seeds, improving Ethanol and Ethylene and leaving Acetone and Toluene alone.
+  Grouping the normalisation by statistic across sensors costs -0.097; averaging
+  seeds' softmax is worth +0.004.
+- **Drift is a sensor phenomenon, not a gas one.** Ethanol, Acetaldehyde, Acetone
+  and Toluene drift along one shared direction, pairwise cosine 0.87 to 0.985,
+  and Batch 1's own two-session block offset estimates that direction at cosine
+  0.850 against Acetaldehyde's real drift - from Batch 1 alone. See
+  `docs/batch1-internal-drift.md`.
 - **Global average pooling costs -0.078.** The paper's "this network doesn't
   apply the pooling layer" is load-bearing.
 - **Memorisation is not the defect.** The flatten head reaches 1.0000 on Batch 1

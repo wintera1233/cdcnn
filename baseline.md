@@ -3,8 +3,8 @@
 重建論文（*Sensors and Actuators: A. Physical* 372 (2024) 115314）Table 3 的
 ResNet baseline。只有 `L_ce`，沒有資料擴充、特徵生成、對比損失。
 
-分支 `exp/v7-redesign`，2026-09-23 定案。最佳設定 `R-fig-ps@lr0.0003`，
-**target mean 0.5222 ± 0.0277**（論文 ResNet 0.6344）。
+分支 `exp/v7-redesign`，2026-09-23。最佳設定 `R-fig-logps@lr0.0003`，
+**target mean 0.5556 ± 0.0137**（五個 seed；論文 ResNet 0.6344）。
 
 ---
 
@@ -13,7 +13,7 @@ ResNet baseline。只有 `L_ce`，沒有資料擴充、特徵生成、對比損�
 ```mermaid
 flowchart TD
     X["輸入 x ∈ R^128<br/>16 sensors × 每個 8 統計量<br/>禁止 reshape 成 16×8 影像"]
-    N["Normal — per-sample 正規化<br/>(x − mean(x)) ÷ max(std(x), 1e-8)<br/>無參數，不從 Batch 1 擬合任何東西"]
+    N["Normal — signed-log 後 per-sample<br/>u = sign(x)·log(1+|x|)<br/>(u − mean(u)) ÷ max(std(u), 1e-8)<br/>無參數，不從 Batch 1 擬合任何東西"]
     R["reshape → [N, 1, 128]<br/>1 channel，長度 128"]
     B1["Resnet1 &nbsp; 1 → 32 &nbsp; (mid 32)"]
     B2["Resnet2 &nbsp; 32 → 64 &nbsp; (mid 64)"]
@@ -56,16 +56,16 @@ flowchart LR
 
 | 項目 | 值 | 位置 |
 |---|---|---|
-| `Normal` | `(x − mean(x, axis=1)) / max(std(x, axis=1), 1e-8)` | `src/normalize.py` |
+| `Normal` | `u = sign(x)·log1p(\|x\|)`，再 `(u − mean(u, axis=1)) / max(std(u, axis=1), 1e-8)` | `src/normalize.py` |
 | Block | `Conv1d(k=3, padding=1) → ReLU → Conv1d(k=3, padding=1)` ＋ `Conv1d(k=1)`，相加後 ReLU | `src/model.py:ResidualBlock1D` |
 | Channel（out） | `32, 64, 128, 256, 128` | `FIGURE_WIDTHS` |
 | Channel（mid） | `32, 64, 128, 256, 512` | 同上 |
 | Head | `Flatten → Linear(16384,128) → BatchNorm1d(128) → Linear(128,6)` | `src/model.py:FlattenHead` |
 | 損失 | `L_ce`，Eq. (S2)：批內平均後跨批平均 | `src/loss.py` |
-| 最佳化 | `SGD(lr=0.0003, momentum=0.9, weight_decay=1e-4)` | `configs/head_normalisation.json` |
+| 最佳化 | `SGD(lr=0.0003, momentum=0.9, weight_decay=1e-4)` | `configs/input_normalisation_5seed.json` |
 | 排程 | `StepLR(step_size=25, gamma=0.5)` | 同上 |
 | Epochs / batch | 100 / 64（445 筆 ＝ 6×64 ＋ 1×61） | 同上 |
-| Seeds | 1042, 2024, 3407 | 同上 |
+| Seeds | 1042, 2024, 3407, 42, 123 | 同上 |
 
 `L_ce` 的批內平均再跨批平均（Eq. S2）與全域平均在 445 筆配 batch 64 時差約 2e-3，
 `src/loss.py:EpochLoss` 兩者都記錄。
@@ -76,33 +76,34 @@ flowchart LR
 
 | | target mean |
 |---|---:|
-| **本設計** | **0.5222** ± 0.0277 |
+| **本設計** | **0.5556** ± 0.0137（5 seeds） |
 | 論文 ResNet | 0.6344 |
 | 論文 CDWC | 0.6705 |
 | 論文 CDCNN | 0.7230 |
 
-Batch 1 準確率 0.9633。逐 batch 對照論文 ResNet：
+Batch 1 準確率 0.9906。逐 batch 對照論文 ResNet：
 
 | Batch | 本設計 | 論文 | 差 |
 |---|---:|---:|---:|
-| 2 | 0.827 | 0.769 | **+0.058** |
-| 3 | 0.729 | 0.662 | **+0.067** |
-| 4 | 0.673 | 0.642 | **+0.030** |
-| 6 | 0.688 | 0.725 | −0.038 |
-| 7 | 0.466 | 0.502 | −0.036 |
-| 10 | 0.390 | 0.430 | −0.040 |
-| 5 | 0.501 | 0.716 | **−0.215** |
-| 9 | 0.255 | 0.604 | **−0.349** |
-| 8 | 0.171 | 0.660 | **−0.489** |
+| 2 | 0.888 | 0.769 | **+0.119** |
+| 10 | 0.544 | 0.430 | **+0.113** |
+| 3 | 0.723 | 0.662 | **+0.062** |
+| 7 | 0.499 | 0.502 | −0.003 |
+| 4 | 0.591 | 0.642 | −0.051 |
+| 5 | 0.566 | 0.716 | **−0.150** |
+| 6 | 0.560 | 0.725 | **−0.166** |
+| 9 | 0.397 | 0.604 | **−0.206** |
+| 8 | 0.231 | 0.660 | **−0.429** |
 
-**九個 batch 有六個追平或超過論文的 ResNet。** 整個 0.112 的缺口全部來自
-B5、B8、B9，而這三個有共同成因（第 5 節）。
+逐類別 recall：Ethanol 0.832、Ammonia 0.867、Ethylene 0.750、**Acetaldehyde 0.000**、
+Acetone 0.498、Toluene 0.353。缺口集中在 Acetaldehyde（全滅）、Toluene 與 Acetone。
 
 ### 混淆矩陣
 
 ![最佳設定的混淆矩陣](reports/figures/confusion_best.png)
 
-`R-fig-ps@lr0.0003` 在 v7.1、v7.2 兩次獨立 run 中都回傳 0.5222，小數點後四位相同。
+`R-fig-ps@lr0.0003` 在 v7.1、v7.2、v7.4 三次獨立 run 中都回傳 0.5222，
+小數點後四位相同（v7.5 加入兩個 seed 後為 0.5232）。
 
 ---
 
@@ -111,9 +112,13 @@ B5、B8、B9，而這三個有共同成因（第 5 節）。
 所有訓練過的設定，依 target mean 排序。全部 `L_ce` only、100 epochs、
 SGD(momentum 0.9, wd 1e-4)、StepLR(25, 0.5)、batch 64、三個 seed。
 
+完整表格見 `docs/all-results.md`。
+
 | 設定 | Channel | Head | 輸入 `Normal` | Head 正規化 | lr | target mean |
 |---|---|---|---|---|---:|---:|
-| **`R-fig-ps@lr0.0003`** | **Fig. 2** | **flatten** | **per-sample** | **BatchNorm** | **0.0003** | **0.5222** |
+| **`R-fig-logps@lr0.0003`** | **Fig. 2** | **flatten** | **signed-log→per-sample** | **BatchNorm** | **0.0003** | **0.5556** |
+| `R-fig-ps@lr0.0003` | Fig. 2 | flatten | per-sample | BatchNorm | 0.0003 | 0.5232 |
+| `R-fig-ssps@lr0.0003` | Fig. 2 | flatten | SS→per-sample | BatchNorm | 0.0003 | 0.5034 |
 | `R-txt-ps@lr0.0003` | 封頂 128 | flatten | per-sample | BatchNorm | 0.0003 | 0.4928 |
 | `R-fig-ps@lr0.001` | Fig. 2 | flatten | per-sample | BatchNorm | 0.001 | 0.4770 |
 | `R-fig-ln@lr0.0003` | Fig. 2 | flatten | StandardScaler | LayerNorm | 0.0003 | 0.4760 |
@@ -124,6 +129,7 @@ SGD(momentum 0.9, wd 1e-4)、StepLR(25, 0.5)、batch 64、三個 seed。
 | `R-fig@lr0.0003` | Fig. 2 | flatten | StandardScaler | BatchNorm | 0.0003 | 0.4105 |
 | `R-lite-ps` | 封頂 128 | **GAP** | per-sample | BatchNorm | 0.001 | 0.3931 |
 | `R-txt` | 封頂 128 | flatten | StandardScaler | BatchNorm | 0.001 | 0.3777 |
+| `R-fig-grp@lr0.0003` | Fig. 2 | flatten | 每統計量跨 sensor | BatchNorm | 0.0003 | 0.4263 |
 | `R-lite` | 封頂 128 | **GAP** | StandardScaler | BatchNorm | 0.001 | 0.2958 |
 
 「封頂 128」＝ channel `32, 64, 128, 128, 128`，內文 Section 5.2 說
@@ -194,6 +200,35 @@ pooled SD 0.0165，門檻 0.0269，**四個比較全部可分辨**，交互作�
 統計量正規化 target，屬於對 target 的測試期調適，且預測會依賴同批次有哪些樣本。
 `tests/test_baseline.py` 斷言所有變體的每一個 `_BatchNorm` 都保持
 `track_running_stats=True` 且有 `running_mean`。
+
+---
+
+### 4.4 輸入正規化的第二輪（v7.4／v7.5）
+
+四種輸入 `Normal`，其餘全部固定在 Fig. 2 通道 + flatten + BatchNorm + lr 0.0003。
+v7.5 用五個 seed，pooled SD 0.0168，門檻 0.0212：
+
+| 輸入 `Normal` | Batch 1 | target mean | SD | vs per-sample |
+|---|---:|---:|---:|---:|
+| **signed-log → per-sample** | 0.9906 | **0.5556** | 0.0137 | **+0.032 可分辨** |
+| per-sample | 0.9636 | 0.5232 | 0.0203 | — |
+| StandardScaler → per-sample | 0.9982 | 0.5034 | 0.0138 | −0.020 不可分辨 |
+| 每統計量跨 16 sensor | 0.9982 | 0.4263 | 0.0183 | **−0.097 可分辨** |
+
+signed-log（`sign(x)·log1p(|x|)`）在 per-sample 之前壓縮動態範圍。它改善的是
+**Ethanol 0.668→0.832 與 Ethylene 0.616→0.750**，Acetone 與 Toluene 不動。
+五個 seed 中最差的（0.5442）仍高過 per-sample 最好的（0.5384）。
+
+**每統計量分組正規化失敗得很清楚（−0.097）。** 動機是合理的——128 維裡每組
+sensor 的前 2 個是量級 10⁴ 的穩態電阻、後 6 個是量級 10⁰ 的瞬態，一起做 per-sample
+會讓穩態主導。但把每種統計量各自標準化，顯然也消掉了氣體辨識所依賴的跨統計量比例。
+
+**多 seed 集成無效**：平均三個 seed 的 softmax 值 +0.0039，低於 0.005 門檻，
+且救不回較差的那個 seed（0.4903 vs 0.5380／0.5385）。
+
+**一個反覆出現的模式**：source 準確率最高的兩個設定（每統計量 0.9982、
+SS→per-sample 0.9982）target 最差。跟 5.5 節的早停發現是同一件事——把 Batch 1
+擬合得更好，就把漂移後的泛化做壞。
 
 ---
 
@@ -342,8 +377,8 @@ DOCKER="docker run --rm --gpus all --user $(id -u):$(id -g) -e HOME=/tmp \
   -v $PWD:/workspace -w /workspace cdcnn:cu121"
 
 $DOCKER python -m unittest discover -s tests
-$DOCKER python scripts/run_baseline.py gpu-smoke --config configs/head_normalisation.json
-$DOCKER python scripts/run_baseline.py launch --config configs/head_normalisation.json \
+$DOCKER python scripts/run_baseline.py gpu-smoke --config configs/input_normalisation_5seed.json
+$DOCKER python scripts/run_baseline.py launch --config configs/input_normalisation_5seed.json \
   --max-workers 1 --gpu-smoke-run runs/<passing_gpu_smoke>
 ```
 
@@ -360,12 +395,18 @@ $DOCKER python scripts/run_baseline.py launch --config configs/head_normalisatio
 2. **論文為何在其餘五個類別上領先**——第 4 節掃過 head 形式、輸入正規化、
    head 正規化、channel 寬度、學習率，加起來只有 0.23 的跨度，不足以解釋。
    注意論文與本設計在 Acetaldehyde 上同樣是 0.00，所以差距完全在另外五個類別。
-3. **資料擴充的幅度**（`docs/why-acetaldehyde.md`）。Acetaldehyde 的漂移方向有
+3. **有方向的資料擴充**（`docs/batch1-internal-drift.md`）。Batch 1 的前三個類別
+   各有兩個區塊，像是兩次採集；**Ethanol 兩區塊之間的偏移，與 Acetaldehyde 真實
+   三年漂移方向對齊 0.850**，而且完全由 Batch 1 算出。漂移是感測器層級的現象——
+   Ethanol、Acetaldehyde、Acetone、Toluene 四者的漂移方向兩兩 cosine 0.87–0.985。
+   這給出方向；下一項給出幅度。
+4. **資料擴充的幅度**（`docs/why-acetaldehyde.md`）。Acetaldehyde 的漂移方向有
    **96.9%** 落在 Batch 1 自身類內變異的前五個主軸內——也就是說沿著 Batch 1 自己
    的主方向擴充，原理上到得了 target Acetaldehyde 所在的位置。需要的位移是 18 個
    類內半徑。
    舊專案掃過的擴充雜訊是 0 / 0.05 / 0.2 / 0.5，每個都測到 −0.013 到 −0.009，
    但那些尺度**產生不了這個量級的位移**，所以它回答的是另一個問題。
    這是論文擴充模組第一個不依賴論文說法、而是由本專案資料推導出來的存在理由。
-4. **`StandardScaler` 後再做 per-sample**：在重心錯位的檢查上把 Ethanol 和
-   Ethylene 都降到 0/9（現用的 per-sample 是 2/9 和 5/9），從未訓練過。
+5. **重心錯位診斷不能預測 target 準確率**：它把 `SS→per-sample` 排第一（錯位 12
+   vs per-sample 的 21），實際訓練卻比 per-sample 差 0.020；贏的是它排第二的
+   signed-log。該診斷指對了**哪些類別**會改善（Ethanol、Ethylene），但選錯了變換。
