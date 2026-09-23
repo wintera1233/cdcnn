@@ -74,5 +74,37 @@
     "basis": "The per-position style displacement a minibatch supplies is 1.40x the real target drift at block 3, but the block reaches only the 30.1% of that drift the style axes span; the backbone already suppresses 7.5% of the input drift, and augmentation made that fraction worse rather than better.",
     "expectation": "A gain of the paper's order (+0.036 from ResNet to CDWC) is the optimistic case. The realistic case is a gain under the separability threshold, because the block moves a component of the drift the backbone was not removing anyway. R-gen-ce2 should not differ much from R-gen: averaging L_ce over the two branches changes the term's target set but not its scale.",
     "falsifier": "If R-gen-m10 and R-gen differ by more than R-gen differs from R-aug-t2, the result is a lambda_MSE effect rather than a feature generation effect and the block's contribution is not established."
+  },
+  "pre_run_measurement": {
+    "when": "before the v9.0 launch, on the frozen R-aug-t2 lr0.0003 seed1042 checkpoint of run 20260923T045843638020Z_displacement_full. Batch 1 only; no target file was opened.",
+    "question": "does the block perturb anything, and by how much against a real drift?",
+    "relative_change_by_style_axis": {
+      "scalar": {
+        "block_output": 0.0175,
+        "z_f": 0.0114,
+        "softmax": 0.0411,
+        "argmax_flipped": 0.007
+      },
+      "channel": {
+        "block_output": 0.0501,
+        "z_f": 0.0269,
+        "softmax": 0.0578,
+        "argmax_flipped": 0.002
+      },
+      "position": {
+        "block_output": 0.0732,
+        "z_f": 0.0448,
+        "softmax": 0.1098,
+        "argmax_flipped": 0.022
+      }
+    },
+    "reference_scale": {
+      "what": "Batch 1's own first-to-second acquisition block centroid offset at z_f, relative to the mean feature norm",
+      "label_1_ethanol": 0.0469,
+      "label_2_ammonia": 0.0631,
+      "label_3_ethylene": 0.1051
+    },
+    "reading": "The per-position restyle moves z_f by 0.0448, which sits inside the 0.047 to 0.105 range a real two-month acquisition drift moves it. The block is doing work of the right magnitude, and it is the largest of the three style axes here as it was on the drift-span measurement. Negative delta draws, which Eq. (14) permits, occur at 0.0 under the per-position and scalar readings and 0.015 under per-channel, so following the paper rather than truncating costs nothing at this depth.",
+    "consequence_for_the_loss": "L_MSE lands near 0.004 in the 3-epoch CPU smoke, about 0.9 % of the total loss, because a 0.11 relative change to a near-one-hot softmax is small once squared and summed. With ce_on_generated false the generated branch reaches the objective only through that term, so R-gen gives the block a small gradient weight by construction. R-gen-m10 doubles it to the ceiling Eq. (4) allows; R-gen-ce2 is the cell where the generated branch enters at full weight. No cell goes outside the paper's declared lambda range of [0,1]."
   }
 }

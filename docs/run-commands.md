@@ -30,3 +30,19 @@ $DOCKER python scripts/run_baseline.py launch \
 manifest's code hashes match the current files. Editing any module in
 `src/audit.py:CODE_FILES` invalidates the gate, so re-run `gpu-smoke` after a
 code change.
+
+## v9.0, the feature generation block
+
+```bash
+$DOCKER python scripts/run_baseline.py gpu-smoke \
+  --config configs/feature_generation.json --epochs 3
+
+$DOCKER python scripts/run_baseline.py launch \
+  --config configs/feature_generation.json --max-workers 1 \
+  --gpu-smoke-run runs/<passing_gpu_smoke>
+```
+
+`src/augment.py` and `src/generate.py` joined `src/audit.py:CODE_FILES` with
+this version, so the gate now invalidates on a change to either. `augment.py`
+had been outside it since v8.0, which means the v8 gates did not cover the one
+module those runs were testing.
