@@ -18,6 +18,7 @@ LADDER_VERSION = "CDCNN_v7.0_baseline_ladder"
 CHANNEL_VERSION = "CDCNN_v7.1_channel_restore"
 HEAD_NORM_VERSION = "CDCNN_v7.2_head_normalisation"
 CV_VERSION = "CDCNN_v7.3_cv_early_stop"
+NORMALISER_VERSION = "CDCNN_v7.4_input_normalisation"
 
 # Frozen literals: the declared contents of the ladder. Adding a variant later
 # must not silently change what this version means.
@@ -44,6 +45,12 @@ HEAD_NORM_LEARNING_RATES = (0.0003,)
 CV_VARIANTS = ("R-fig", "R-fig-ps")
 CV_LEARNING_RATES = (0.001, 0.0003)
 
+# v7.4 holds everything at R-fig-ps@lr0.0003 and varies only the input Normal
+# block, across the three candidates the centroid diagnostic ranks above plain
+# per-sample. R-fig-ps re-runs the incumbent as the reference.
+NORMALISER_VARIANTS = ("R-fig-ps", "R-fig-ssps", "R-fig-logps", "R-fig-grp")
+NORMALISER_LEARNING_RATES = (0.0003,)
+
 REQUIRED = ("implementation_version", "variants", "seeds", "training", "optimizer",
             "scheduler")
 
@@ -67,6 +74,18 @@ def validate(config: dict) -> dict:
         raise ProtocolError("a variant is listed twice")
     if len(set(config["seeds"])) != len(config["seeds"]):
         raise ProtocolError("a seed is listed twice")
+
+    if config["implementation_version"] == NORMALISER_VERSION:
+        for name, expected, actual in (
+                ("variants", list(NORMALISER_VARIANTS), list(config["variants"])),
+                ("learning_rates", list(NORMALISER_LEARNING_RATES),
+                 [float(v) for v in config.get("learning_rates", [])]),
+                ("seeds", list(LADDER_SEEDS), list(config["seeds"])),
+                ("training", LADDER_TRAINING, config["training"]),
+                ("scheduler", LADDER_SCHEDULER, config["scheduler"])):
+            if expected != actual:
+                raise ProtocolError(
+                    f"{NORMALISER_VERSION} fixes {name} as {expected}, got {actual}")
 
     if config["implementation_version"] == CV_VERSION:
         for name, expected, actual in (

@@ -76,6 +76,15 @@ VARIANTS: dict[str, dict] = {
                  "normalizer": "standard_scaler", "head_norm": "layernorm"},
     "R-fig-ps-ln": {"channels": FIGURE_WIDTHS, "head": "flatten",
                     "normalizer": "per_sample", "head_norm": "layernorm"},
+    # v7.4: three input normalisations that the centroid-misplacement diagnostic
+    # in docs/why-acetaldehyde.md ranks above plain per-sample. Everything else
+    # matches R-fig-ps@lr0.0003.
+    "R-fig-ssps": {"channels": FIGURE_WIDTHS, "head": "flatten",
+                   "normalizer": "standard_then_per_sample"},
+    "R-fig-logps": {"channels": FIGURE_WIDTHS, "head": "flatten",
+                    "normalizer": "signed_log_then_per_sample"},
+    "R-fig-grp": {"channels": FIGURE_WIDTHS, "head": "flatten",
+                  "normalizer": "per_statistic_group"},
 }
 
 

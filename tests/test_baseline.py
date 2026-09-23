@@ -345,6 +345,49 @@ class CrossValidationTests(unittest.TestCase):
                 audit.leakage_audit(Path(directory), log)
 
 
+class InputNormalisationTests(unittest.TestCase):
+    def test_every_normalizer_is_finite_and_standardised(self):
+        x, _ = load_source()
+        for kind in normalize.NORMALIZERS:
+            z = normalize.apply(normalize.fit(kind, x), x)
+            self.assertEqual(z.shape, x.shape, kind)
+            self.assertTrue(np.isfinite(z).all(), kind)
+            self.assertAlmostEqual(float(z.std()), 1.0, places=6, msg=kind)
+
+    def test_composed_normalizers_equal_their_stages(self):
+        x, _ = load_source()
+        scaler = normalize.fit("standard_scaler", x)
+        expected = normalize.apply({"kind": "per_sample"},
+                                   normalize.apply(scaler, x))
+        actual = normalize.apply(normalize.fit("standard_then_per_sample", x), x)
+        np.testing.assert_allclose(actual, expected, rtol=0, atol=1e-12)
+
+    def test_per_statistic_group_standardises_each_statistic_across_sensors(self):
+        x, _ = load_source()
+        z = normalize.apply(normalize.fit("per_statistic_group", x), x)
+        grouped = z.reshape(-1, normalize.N_SENSORS, normalize.N_STATISTICS)
+        np.testing.assert_allclose(grouped.mean(axis=1), 0, atol=1e-10)
+        np.testing.assert_allclose(grouped.std(axis=1), 1, atol=1e-10)
+        # Sensor-major layout: statistic k of sensor s sits at 8*(s-1)+k.
+        self.assertEqual(normalize.N_SENSORS * normalize.N_STATISTICS, 128)
+
+    def test_only_the_scaler_stage_carries_fitted_parameters(self):
+        x, _ = load_source()
+        for kind in ("per_sample", "signed_log_then_per_sample", "per_statistic_group"):
+            self.assertEqual(normalize.fit(kind, x), {"kind": kind}, kind)
+        fitted = normalize.fit("standard_then_per_sample", x)
+        self.assertEqual(sorted(fitted), ["kind", "mean", "std"])
+
+    def test_the_v7_4_config_is_valid_and_pins_its_grid(self):
+        config = load_config(ROOT / "configs" / "input_normalisation.json")
+        self.assertEqual(config["variants"],
+                         ["R-fig-ps", "R-fig-ssps", "R-fig-logps", "R-fig-grp"])
+        changed = copy.deepcopy(config)
+        changed["variants"] = ["R-fig-ps"]
+        with self.assertRaisesRegex(ProtocolError, "fixes variants"):
+            validate(changed)
+
+
 class HeadNormalisationTests(unittest.TestCase):
     def test_the_four_cells_cross_both_normalisations_at_equal_cost(self):
         from src.model import VARIANTS as spec
