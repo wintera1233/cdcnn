@@ -1,0 +1,88 @@
+{
+  "implementation_version": "CDCNN_v8.2_drift_subspace",
+  "description": "Displacement inside the span of all three Batch 1 block offsets rather than along one of them. The drift needs four components for 90% of its energy (reports/drift_dimension.json), so one direction cannot reach it. The basis also requires no choosing, which makes this estimator source-only where picking Ethanol's offset was not.",
+  "variants": [
+    "R-fig-logps",
+    "R-aug-sub2",
+    "R-aug-sub4",
+    "R-aug-sph2"
+  ],
+  "learning_rates": [
+    0.0003
+  ],
+  "seeds": [
+    1042,
+    2024,
+    3407,
+    42,
+    123
+  ],
+  "training": {
+    "epochs": 100,
+    "batch_size": 64
+  },
+  "optimizer": {
+    "lr": 0.0003,
+    "momentum": 0.9,
+    "weight_decay": 0.0001
+  },
+  "scheduler": {
+    "step_size": 25,
+    "gamma": 0.5
+  },
+  "per_epoch_checkpoint_seed": 1042,
+  "augmentation": {
+    "isotropic": false,
+    "direction": "span of the three block offsets",
+    "subspace_modes": {
+      "subspace": "non-negative combination of the three unit offsets, forward in time",
+      "sphere": "uniform direction within the span, magnitude uniform in [0, T*mean offset]"
+    },
+    "displacement_multiplier": [
+      2.0,
+      4.0,
+      2.0
+    ],
+    "equal_weighting_note": "The raw offsets differ in length by more than twice and the longest, Ethylene's, points furthest from the drift, so raw weighting is dominated by the least useful direction. Each offset is normalised before combining."
+  },
+  "escalation": {
+    "target_mean_sd_threshold": 0.02,
+    "rung_difference_standard_errors": 2.0
+  },
+  "confounds": {
+    "epoch_budget": "Augmentation doubles the rows and the epoch count is fixed at 100, so the augmented cells take twice the gradient steps. The paper concatenates and trains 100 epochs, so this follows it; comparisons against R-fig-logps carry both changes.",
+    "direction_choice": "The average of the three block offsets was the a-priori defensible choice, but a pre-training coverage check showed it leaves target Acetaldehyde coverage exactly at the unaugmented level, so those cells were dropped. Ethanol's offset was preferred after measuring alignment against target drift, so every directed cell here is target-informed.",
+    "estimator_support": "The second blocks hold 6, 10 and 7 rows.",
+    "displacement_choice": "The multiplier was chosen by a coverage metric computed against target data, so v8.1 is target-informed throughout and reports an upper bound on what a directed augmentation can do, not a source-only result."
+  },
+  "compare_against": {
+    "run": "20260923T045843638020Z_displacement_full",
+    "R-fig-logps@lr0.0003": 0.5556,
+    "R-aug-t2@lr0.0003": 0.577
+  },
+  "paper_reference": {
+    "model": "ResNet (the backbone of CDCNN), Table 3",
+    "printed_average": 0.6344
+  },
+  "prediction": {
+    "recorded_before_the_run": true,
+    "basis": "Mean over six classes of target rows within two source radii of an augmented row.",
+    "coverage": {
+      "R-fig-logps": 0.669,
+      "R-aug-sub2": 0.751,
+      "R-aug-sub4": 0.67,
+      "R-aug-sph2": 0.755
+    },
+    "expectation": "Every subspace cell scores below the single Ethanol direction's 0.824 at T=3 and 0.818 at T=2, because 445 augmented rows spread over three dimensions are far sparser than the same rows along one line. If coverage predicts target mean, these should land between the unaugmented 0.5556 and v8.1's 0.5770. If a subspace cell beats 0.5770, coverage is the wrong metric and reaching the target region matters less than spanning the drift's directions.",
+    "reference": {
+      "R-aug-t2_v8_1": {
+        "coverage": 0.818,
+        "target_mean": 0.577
+      },
+      "R-fig-logps": {
+        "coverage": 0.669,
+        "target_mean": 0.5556
+      }
+    }
+  }
+}

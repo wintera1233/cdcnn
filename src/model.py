@@ -115,6 +115,15 @@ VARIANTS: dict[str, dict] = {
                                        "displacement": 3.0}},
     "R-aug-t4": {**_LOGPS, "augment": {"isotropic": False, "direction": "ethanol",
                                        "displacement": 4.0}},
+    # v8.2: displace inside the span of all three block offsets rather than
+    # along one of them. The basis needs no choosing, so unlike the Ethanol
+    # direction it is a source-only estimator.
+    "R-aug-sub2": {**_LOGPS, "augment": {"isotropic": False, "direction": "subspace",
+                                         "displacement": 2.0}},
+    "R-aug-sub4": {**_LOGPS, "augment": {"isotropic": False, "direction": "subspace",
+                                         "displacement": 4.0}},
+    "R-aug-sph2": {**_LOGPS, "augment": {"isotropic": False, "direction": "sphere",
+                                         "displacement": 2.0}},
 }
 
 

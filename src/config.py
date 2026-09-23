@@ -22,6 +22,7 @@ NORMALISER_VERSION = "CDCNN_v7.4_input_normalisation"
 NORMALISER_5SEED_VERSION = "CDCNN_v7.5_input_normalisation_5seed"
 AUGMENT_VERSION = "CDCNN_v8.0_directed_augmentation"
 DISPLACEMENT_VERSION = "CDCNN_v8.1_displacement_sweep"
+SUBSPACE_VERSION = "CDCNN_v8.2_drift_subspace"
 
 # Frozen literals: the declared contents of the ladder. Adding a variant later
 # must not silently change what this version means.
@@ -68,6 +69,12 @@ AUGMENT_VARIANTS = ("R-fig-logps", "R-aug-paper", "R-aug-eth", "R-aug-ethd")
 # past it; the real drift is 0.83 to 3.74 block offsets, never 18.
 DISPLACEMENT_VARIANTS = ("R-fig-logps", "R-aug-t2", "R-aug-t3", "R-aug-t4")
 
+# v8.2: displace inside the span of all three block offsets. The drift needs four
+# components for 90% of its energy, so one direction cannot reach it; but the
+# basis also needs no choosing, which makes it source-only where the single
+# Ethanol direction is not.
+SUBSPACE_VARIANTS = ("R-fig-logps", "R-aug-sub2", "R-aug-sub4", "R-aug-sph2")
+
 REQUIRED = ("implementation_version", "variants", "seeds", "training", "optimizer",
             "scheduler")
 
@@ -91,6 +98,18 @@ def validate(config: dict) -> dict:
         raise ProtocolError("a variant is listed twice")
     if len(set(config["seeds"])) != len(config["seeds"]):
         raise ProtocolError("a seed is listed twice")
+
+    if config["implementation_version"] == SUBSPACE_VERSION:
+        for name, expected, actual in (
+                ("variants", list(SUBSPACE_VARIANTS), list(config["variants"])),
+                ("learning_rates", list(NORMALISER_LEARNING_RATES),
+                 [float(v) for v in config.get("learning_rates", [])]),
+                ("seeds", list(ALL_SEEDS), list(config["seeds"])),
+                ("training", LADDER_TRAINING, config["training"]),
+                ("scheduler", LADDER_SCHEDULER, config["scheduler"])):
+            if expected != actual:
+                raise ProtocolError(
+                    f"{SUBSPACE_VERSION} fixes {name} as {expected}, got {actual}")
 
     if config["implementation_version"] == DISPLACEMENT_VERSION:
         for name, expected, actual in (

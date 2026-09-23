@@ -38,7 +38,7 @@ SOURCE_BLOCKS = {
     2: ((84, 172), (254, 264)),    # Ammonia
     3: ((172, 248), (264, 271)),   # Ethylene
 }
-DIRECTION_SOURCES = ("average", "ethanol")
+DIRECTION_SOURCES = ("average", "ethanol", "subspace", "sphere")
 AUGMENTATIONS = ("paper", "directed")
 
 
@@ -106,6 +106,42 @@ def paper_noise(z: np.ndarray, y: np.ndarray, lam: float,
     return rng.normal(mixed_mean[:, None], scale[:, None], size=z.shape)
 
 
+def subspace_displacement(z: np.ndarray, y: np.ndarray,
+                          rng: np.random.Generator, displacement: float,
+                          rows: int, mode: str = "subspace") -> np.ndarray:
+    """A displacement inside the span of all three block offsets, per sample.
+
+    A single direction captures only the first of the drift's several
+    components: `reports/drift_dimension.json` puts 70.6 % of the drift energy in
+    one component and needs four for 90 %. The three offsets are three observed
+    two-month domain displacements, so the domain plausibly moves like some
+    combination of them, and their span reaches a good deal more of the drift
+    than any one of them does.
+
+    Each offset keeps its own magnitude - the relative sizes are data, not an
+    artefact - and each weight is drawn on [0, 1], so the displacement stays
+    forward in time, the direction each offset points.
+    """
+    raw = list(block_offsets(z, y).values())
+    scale = float(np.mean([np.linalg.norm(v) for v in raw]))
+    unit = np.stack([v / np.linalg.norm(v) for v in raw], axis=0)
+    if mode == "subspace":
+        # A non-negative combination of the three observed directions, each
+        # weighted equally: their raw lengths differ by more than twice and the
+        # longest points furthest from the drift, so raw weighting is dominated
+        # by the least useful offset.
+        weights = rng.uniform(0.0, 1.0, size=(rows, len(unit)))
+        return displacement * scale * (weights @ unit)
+    if mode == "sphere":
+        # Uniform direction within the span, magnitude uniform in [0, T*scale].
+        basis, _ = np.linalg.qr(unit.T)
+        coefficients = rng.normal(size=(rows, basis.shape[1]))
+        coefficients /= np.linalg.norm(coefficients, axis=1, keepdims=True)
+        magnitude = rng.uniform(0.0, displacement * scale, size=(rows, 1))
+        return magnitude * (coefficients @ basis.T)
+    raise ProtocolError(f"unknown subspace mode {mode!r}")
+
+
 def augment(z: np.ndarray, y: np.ndarray, rng: np.random.Generator, *,
             isotropic: bool = True, direction: str | None = None,
             lam: float = 0.5, displacement: float = 18.0) -> np.ndarray:
@@ -122,7 +158,10 @@ def augment(z: np.ndarray, y: np.ndarray, rng: np.random.Generator, *,
     out = z.copy()
     if isotropic:
         out = out + paper_noise(z, y, lam, rng)
-    if direction is not None:
+    if direction in ("subspace", "sphere"):
+        out = out + subspace_displacement(z, y, rng, displacement, len(z),
+                                          mode=direction)
+    elif direction is not None:
         unit, scale = drift_direction(z, y, direction)
         magnitude = rng.uniform(0.0, displacement * scale, size=(len(z), 1))
         out = out + magnitude * unit[None, :]
