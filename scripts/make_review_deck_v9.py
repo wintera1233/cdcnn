@@ -378,43 +378,95 @@ def build() -> Path:
         "與問題 5 是同一件事的兩面：無方向的位移是負的或零，方向就是全部效應，而 Eq. (14) 把它丟掉了",
     ], M, Inches(3.8), W - 2 * M, Inches(3.4), size=14, gap=9)
 
+    # 9b. v10.0: the sign did not help either --------------------------------------------
+    s = content_slide(prs, "把正負號補上也沒用（v10.0）", number=8,
+                      kicker="方向用 Batch 1 自己兩個採集區塊的偏移，在 block 3 的 style 空間估，每個 epoch 重估，不碰 target")
+    table(s, ["變體", "Eq. (14)", "target mean", "SD", "vs R-gen", "可分辨"], [
+        ["R-gen-shift", "論文噪聲 + 2 個區塊偏移的定向位移", "0.5796", "0.0077", "+0.0023", "否"],
+        ["R-gen", "論文原版，對稱高斯", "0.5773", "0.0069", "—", "—"],
+        ["R-aug-t2", "無區塊", "0.5770", "0.0078", "−0.0003", "否"],
+        ["R-gen-sign", "只修正負號，幅度照論文", "0.5767", "0.0115", "−0.0006", "否"],
+    ], M, Inches(1.75), Inches(7.6), col_fracs=(0.15, 0.35, 0.14, 0.11, 0.14, 0.11), size=11,
+       row_h=Inches(0.4), bold_rows=(1,), aligns=["left", "left", "right", "right", "right", "center"])
+    table(s, ["類別", "cos 與真實漂移", "位移 / 漂移"], [
+        ["Ethanol", "+0.769", "1.05"], ["Ammonia", "+0.558", "1.16"], ["Ethylene", "+0.305", "1.41"],
+        ["Acetaldehyde", "+0.596", "0.83"], ["Acetone", "+0.693", "0.96"], ["Toluene", "+0.662", "0.73"],
+        ["51 格平均", "+0.593", "—"],
+    ], Inches(8.5), Inches(1.75), Inches(4.25), col_fracs=(0.4, 0.34, 0.26), size=11,
+       row_h=Inches(0.3), bold_rows=(7,))
+    caption(s, "事後在 style 空間量；隨機方向的虛無值 0.088（scripts/measure_signed_direction.py）", Inches(8.5), Inches(4.3), Inches(4.25))
+    bullets(s, [
+        ("方向是對的、幅度也對：六類 cos 全為正，位移是真實漂移的 0.73 到 1.41 倍。事前記錄的「可能反向」風險沒有發生", "key"),
+        "每個 batch、每個類別的差都在 0.012 內；同樣的定向位移在輸入端（v8.1）能把 Acetone、Ethylene 各搬 0.25 以上",
+        ("事前否證條件觸發。特徵生成區塊作為機制關掉了，與 Eq. (14) 有沒有正負號無關：它能碰到的子空間不是決策邊界會回應的那一個", "key"),
+        "混淆：四格都帶輸入端的 R-aug-t2，shift 量到的是同方向位移之上的邊際效應",
+    ], M, Inches(4.05), Inches(7.6), Inches(3.2), size=12.5, gap=6)
+
+    # 9c. L_con: implemented, not run -------------------------------------------------------
+    s = content_slide(prs, "最後一個元件 L_con（Eq. S5）：已實作，決定不跑",
+                      kicker="論文三個元件裡唯一要求不變性的損失，但它要求的不變性對象已經被 v9、v10 量掉了")
+    rect(s, M, Inches(1.75), Inches(6.0), Inches(1.5), TINT, shape=MSO_SHAPE.ROUNDED_RECTANGLE)
+    tf = textbox(s, M + Inches(0.25), Inches(1.9), Inches(5.5), Inches(1.3), anchor=MSO_ANCHOR.MIDDLE)
+    run(tf.paragraphs[0], "L_con = − Σᵢ (1/|P(i)|) Σₚ∈P(i) log [ exp(f(zᵢ)·f(zₚ)/τ) / Σₐ∈A(i) exp(f(zᵢ)·f(zₐ)/τ) ]",
+        size=13, color=INK, font="Cambria")
+    pp = tf.add_paragraph(); pp.space_before = Pt(6)
+    run(pp, "Z = z_f ∪ z̄_f，生成特徵沿用原標籤；f 投影到單位球。τ 與 λ_con 論文都沒給。", size=11.5, color=MUTED)
+    bullets(s, [
+        ("做好的東西", "head"),
+        "src/loss.py 的 supervised_contrastive；train.py 接上 Eq. (4) 第三項；四格 config（R-con、R-con-shift、R-con-t5 對 R-gen）含事前預測；單元測試與單一 minibatch 前向通過",
+        ("為什麼不跑", "head"),
+        ("它要求 z_f 對 z̄_f 不變。v9、v10 量過 z̄_f：從 Batch 1 生成的雲沒有離開 Batch 1（沿漂移軸重疊 0.00、寬度比 1.01）；連方向對、幅度對的 z̄_f 都只值 +0.0023。對一個沒離開 source 的擾動做不變性，不會變成對真實漂移的不變性", "key"),
+        "前一分支在另一個 backbone 上量了五次：−0.005 到 +0.003",
+    ], M, Inches(3.5), Inches(6.0), Inches(3.8), size=12.5, gap=5)
+    cw = Inches(5.9)
+    stat(s, Inches(7.0), Inches(1.75), Inches(2.85), "4.8", "L_con 的起始值 ≈ log(127)，是 L_ce 的兩倍多；乘 0.5 後主導前期梯度", color=CHARCOAL)
+    stat(s, Inches(9.95), Inches(1.75), Inches(2.8), "1.5", "論文 Fig. S1(b) 裡 CDCNN 的 loss 平台，另外兩個是 0.5。與上面一致", color=CHARCOAL)
+    bullets(s, [
+        ("結論", "head"),
+        ("論文三個元件：兩個量到零，第三個的前提已被量掉。復現到此為止", "key"),
+        "config 與預測留檔；要補跑是一次 gpu-smoke 加一次 launch，約 15 分鐘",
+        "否證條件也寫好了：R-con 若與 R-gen 可分辨，代表前一分支的五次零是 backbone 的問題，論文的 +0.053 在 source-only 下有立足點",
+    ], Inches(7.0), Inches(3.7), Inches(5.75), Inches(3.6), size=12.5, gap=6)
+
     # 10. Summary ---------------------------------------------------------------------
     s = content_slide(prs, "總結：機制都重現了，增益沒有",
                       kicker="兩個分支、兩個 backbone，兩個元件在 source-only 下都約零")
     table(s, ["元件", "本分支（五 seed）", "前一分支（另一 backbone）", "論文宣稱"], [
         ["資料擴充（論文等向）", "−0.0216", "−0.013 到 −0.009", "ResNet→CDWC +0.036"],
         ["資料擴充（有方向，target-informed）", "+0.0214", "—", "—"],
-        ["特徵生成 + L_MSE", "+0.0004", "+0.001 到 +0.014", "（含在上列）"],
-        ["對比損失 L_con", "未做", "−0.005 到 +0.003", "CDWC→CDCNN +0.053"],
-    ], M, Inches(1.75), W - 2 * M, col_fracs=(0.34, 0.2, 0.24, 0.22), size=13,
-       row_h=Inches(0.44), bold_rows=(3,), aligns=["left", "right", "right", "right"])
+        ["特徵生成 + L_MSE（論文原版）", "+0.0004", "+0.001 到 +0.014", "（含在上列）"],
+        ["特徵生成，Eq. (14) 加正負號與幅度（v10.0）", "+0.0023", "—", "—"],
+        ["對比損失 L_con", "已實作，未跑", "−0.005 到 +0.003", "CDWC→CDCNN +0.053"],
+    ], M, Inches(1.75), W - 2 * M, col_fracs=(0.36, 0.16, 0.26, 0.22), size=13,
+       row_h=Inches(0.42), bold_rows=(3, 4), aligns=["left", "right", "right", "right"])
     bullets(s, [
         ("重現了的：架構、Eq. (7) 擴充、Eqs. (8)–(16) 生成、Fig. 5 的畫法、Acetaldehyde 的死亡", "head"),
         ("重現不了的：論文的準確率增益。source-only 定案 0.5556，所有 0.577 系列都是看過 target 的上界", "head"),
+        "與論文的差距在 Acetaldehyde 之外的五類，來源不在這三個元件裡",
         "Fig. 5 用 target 資料畫圖、標籤對不上 Table 2、Fig. S1 的曲線來源不明，三件事都寫進了文件，只記錄、不推測動機",
-    ], M, Inches(4.35), W - 2 * M, Inches(2.8), size=14, gap=9)
+    ], M, Inches(4.6), W - 2 * M, Inches(2.6), size=13.5, gap=7)
 
     # 11. Next steps (dark) -----------------------------------------------------------
     s = blank(prs, dark=True)
     tf = textbox(s, M, Inches(0.6), W - 2 * M, Inches(0.9))
-    run(tf.paragraphs[0], "下一步", size=34, bold=True, color=WHITE, font=HEAD_FONT)
+    run(tf.paragraphs[0], "結論與留下的東西", size=34, bold=True, color=WHITE, font=HEAD_FONT)
     cards = [
-        ("1", "對比損失 L_con（S5）",
-         "最後一個元件，也是三個裡唯一有不變性機制的。forward_pair 已回傳 (z_f, z̄_f)，train.py 已預留 Eq. (4) 的位置。事前預測與否證條件寫進 config 再跑。"),
-        ("2", "給 Eq. (14) 加正負號（待決定）",
-         "方向用 Batch 1 自己的採集區塊偏移（source-only，對真實漂移 cos 0.850）。直接針對上一頁量到的失效機制，而且不看 target。"),
-        ("3", "分開報告五類與六類",
-         "Acetaldehyde 是所有共用方向方法的天花板，論文也沒救回它。任何後續結果都應同時給含它與不含它的 target mean。"),
+        ("1", "復現的結論",
+         "三個元件在 source-only 協定下沒有一個重現得出增益：等向擴充 −0.0216、特徵生成 +0.0004、補上正負號 +0.0023，L_con 的前提已被量掉。與論文的 0.11 差距在其他五類，不在這三個元件。"),
+        ("2", "留著的東西",
+         "L_con 的實作、四格 config、事前預測與否證條件都在版控裡，補跑是 15 分鐘。另一個沒跑的乾淨對照：R-gen-shift 不帶輸入擴充對 R-fig-logps。"),
+        ("3", "如果要往前走",
+         "唯一可分辨的槓桿是輸入端有方向的位移（+0.0214），而它的方向能從 Batch 1 自己估（cos 0.850）。任何後續結果都分五類與六類報告，Acetaldehyde 是共用方向方法的天花板。"),
     ]
     cw = (W - 2 * M - Inches(0.4) * 2) / 3
     for i, (n, head, body) in enumerate(cards):
         x = M + i * (cw + Inches(0.4))
         rect(s, x, Inches(1.9), cw, Inches(4.4), RGBColor(0x3A, 0x3D, 0x55), shape=MSO_SHAPE.ROUNDED_RECTANGLE)
-        badge(s, x + Inches(0.3), Inches(2.2), n, fill=ORANGE if i < 2 else BLUE)
+        badge(s, x + Inches(0.3), Inches(2.2), n, fill=CHARCOAL if i == 0 else (ORANGE if i == 1 else BLUE))
         tf = textbox(s, x + Inches(0.3), Inches(3.05), cw - Inches(0.6), Inches(0.8))
         run(tf.paragraphs[0], head, size=18, bold=True, color=WHITE, font=HEAD_FONT)
-        tf = textbox(s, x + Inches(0.3), Inches(3.9), cw - Inches(0.6), Inches(2.2))
-        run(tf.paragraphs[0], body, size=13, color=RGBColor(0xDD, 0xE0, 0xE8))
+        tf = textbox(s, x + Inches(0.3), Inches(3.9), cw - Inches(0.6), Inches(2.3))
+        run(tf.paragraphs[0], body, size=12.5, color=RGBColor(0xDD, 0xE0, 0xE8))
 
     # 12. Appendix -----------------------------------------------------------------------
     s = content_slide(prs, "附錄：圖檔、執行目錄、設定")
@@ -426,6 +478,8 @@ def build() -> Path:
         ["5", "—", "drift_dimension.png、augmentation_pca.png"],
         ["6", "fig5-feature-generation.png", "feature_generation.png"],
         ["7", "—", "generation_drift_aligned_2d.png、generation_drift_projection.png"],
+        ["8", "—", "表格；runs/20260929T031927475103Z_baseline_ladder_full"],
+        ["L_con", "—", "configs/contrastive.json、src/loss.py"],
     ], M, Inches(1.6), Inches(7.6), col_fracs=(0.08, 0.4, 0.52), size=11, row_h=Inches(0.34),
        aligns=["center", "left", "left"])
     bullets(s, [
@@ -434,6 +488,7 @@ def build() -> Path:
         ("v8.0  runs/20260923T033747817275Z_augmentation_full", "sub"),
         ("v8.1  runs/20260923T045843638020Z_displacement_full", "sub"),
         ("v9.0  runs/20260923T071856507630Z_baseline_ladder_full", "sub"),
+        ("v10.0  runs/20260929T031927475103Z_baseline_ladder_full", "sub"),
         ("設定", "head"),
         ("seeds 1042 / 2024 / 3407 / 42 / 123；lr 0.0003、100 epochs、batch 64；BatchNorm、flatten head、signed-log → per-sample", "sub"),
         ("文件", "head"),

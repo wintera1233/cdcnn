@@ -1,9 +1,9 @@
 # Project Instructions for AI Agents
 
 This branch (`exp/v7-redesign`) restarts the study from the baseline. It has
-reached v10.0: the baseline is settled (`baseline.md`), directed augmentation,
+reached v11.0: the baseline is settled (`baseline.md`), directed augmentation,
 feature generation and a signed feature generation are all measured (section 4),
-and the contrastive loss `L_con` is the one remaining CDCNN component. The rules below are protocol, not
+and the contrastive loss `L_con` is implemented but, by decision, not run. The rules below are protocol, not
 method: they say nothing about which architecture, optimizer, or training
 schedule to use, because those are what the redesign is for. Section 4 records
 what has already been measured - do not spend GPU time re-deriving any of it.
@@ -313,10 +313,15 @@ never from a target file. All cells carry `R-aug-t2`, lambda_MSE 0.5.
 - **Two of the paper's three components now measure at about zero under this
   protocol**: augmentation as the paper specifies it (isotropic) at -0.0216, and
   feature generation at +0.0004 as written and +0.0023 with a correctly signed,
-  drift-sized displacement (v10.0). The contrastive loss `L_con` (Eq. S5) is not
-  yet implemented; `forward_pair` already returns the `(z_f, z_bar_f)` pair it
-  needs, and after v10.0 `z_bar_f` can be the paper's, the signed, or the shifted
-  version.
+  drift-sized displacement (v10.0). **The contrastive loss `L_con` (Eq. S5) is
+  implemented (v11.0, `src/loss.py:supervised_contrastive`, variants `R-con`,
+  `R-con-shift`, `R-con-t5`, `configs/contrastive.json` with a pre-registered
+  prediction) and was deliberately not run**, by the user's decision on
+  2026-09-29: the invariance it asks for is to `z_bar_f`, and v9.0 and v10.0
+  measured that `z_bar_f` never leaves Batch 1 along the drift axis, so the
+  premise is already gone. The previous branch measured it five times at -0.005
+  to +0.003. The run is one `gpu-smoke` plus one `launch`, about fifteen
+  minutes, if it is ever wanted.
 - **Coverage in a high-dimensional feature space has to be measured along the
   drift axis.** A 2D-PCA hull is blind to the other axes, a full-dimensional
   radius test saturates, and a centroid comparison ignores extent; the three
