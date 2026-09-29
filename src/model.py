@@ -162,6 +162,24 @@ VARIANTS.update({
     "R-gen-m10": {**_GEN, "lambda_mse": 1.0, "ce_on_generated": False},
 })
 
+# v10.0: a signed Eq. (14). v9.0 measured the block's perturbation as well aimed
+# (7.6 % of its energy in the drift span, 25x the null) but symmetric along the
+# drift axis (signed component -7.5 % of its magnitude), and its paired
+# displacement along any single drift axis at 3 % of the drift. Two repairs, both
+# directed by Batch 1's own acquisition-block offset measured in style space:
+# "fold" keeps the paper's magnitude and fixes only the sign; "shift" adds two
+# block offsets along the direction, the v8.1 construction moved to block 3.
+# The Ethanol offset is used, as R-aug-t2 does, so the direction choice is
+# target-informed in the same sense; the sign itself is computed from Batch 1.
+VARIANTS.update({
+    "R-gen-sign": {**_GEN, "lambda_mse": LAMBDA_MSE, "ce_on_generated": False,
+                   "generate": {"style": "position", "pool": 2, "sign": "fold",
+                                "direction": "ethanol"}},
+    "R-gen-shift": {**_GEN, "lambda_mse": LAMBDA_MSE, "ce_on_generated": False,
+                    "generate": {"style": "position", "pool": 2, "sign": "shift",
+                                 "direction": "ethanol", "displacement": 2.0}},
+})
+
 
 # Retired 2026-09-23. Global average pooling cost -0.078 target mean, separable
 # on both levels of the other factor; see baseline.md section 4.1. The paper's

@@ -1,0 +1,93 @@
+{
+  "implementation_version": "CDCNN_v10.0_signed_generation",
+  "description": "Eq. (14) with a sign. v9.0 measured the paper's block as well aimed but symmetric along the drift axis, with a paired displacement of 3 % of the drift along any single drift direction. R-gen-sign folds the Gaussian along the sign of Batch 1's Ethanol acquisition-block offset in style space; R-gen-shift adds two block offsets along that direction on top of the paper's noise. R-aug-t2 and R-gen are re-run as the reference rows so every comparison is within one run.",
+  "variants": [
+    "R-aug-t2",
+    "R-gen",
+    "R-gen-sign",
+    "R-gen-shift"
+  ],
+  "learning_rates": [
+    0.0003
+  ],
+  "seeds": [
+    1042,
+    2024,
+    3407,
+    42,
+    123
+  ],
+  "training": {
+    "epochs": 100,
+    "batch_size": 64
+  },
+  "optimizer": {
+    "lr": 0.0003,
+    "momentum": 0.9,
+    "weight_decay": 0.0001
+  },
+  "scheduler": {
+    "step_size": 25,
+    "gamma": 0.5
+  },
+  "per_epoch_checkpoint_seed": 1042,
+  "feature_generation": {
+    "position": "between the third and fourth ResNet block, Section 2.4: 'Rs(.) means the first three convolutional layers; the remaining part is recorded as Rf(.)'",
+    "decomposition": "MaxPool(kernel 2, stride 2) then nearest-neighbour upsample gives z^H; z^L = z - z^H. Eqs. (8)-(9).",
+    "restyled_part": "the residual z^L, per Eq. (15) z~ = z^H + z~^L. The paper calls the residual the low-frequency component, which reads correctly if the frequency meant is temporal: the residual carries the environment and the slow drift.",
+    "style_axis": "position",
+    "style_axis_note": "Eqs. (10)-(11) sum over both the channel and the length axis, giving one scalar per sample; the sentence after says the result lives in R^{BxCH}, which is the shape of z^L itself and would make the restyle an identity. Neither is AdaIN's per-channel convention. Measured against the real target drift at this depth the three readings explain 1.2%, 15.3% and 30.1% of it, so per-position was taken. It corresponds approximately to per-sensor: position 8(s-1)+k came from sensor s's statistic k, smeared by a receptive field of plus or minus six.",
+    "batch_meaning": "the training minibatch. The paper says only 'Bs is the number of batches of z_s', and z_s is the current minibatch's feature tensor, so Bs is its batch dimension. Measured, the style spread across a minibatch's samples is 1.40x the real target drift in the same space; the alternative of splitting Batch 1 by its two acquisition blocks gives 1.27x with a direction anti-correlated to the real drift (cosine -0.692), so it offers nothing and was dropped.",
+    "negative_scale": "Eq. (14) draws delta' from an ordinary Gaussian, which can return a negative scale. This follows the paper rather than truncating, and records the fraction of negative draws in each run's history.",
+    "inference": "never applied. Fig. 2: 'during forecasting, the program separates the data manipulation block from the prediction process', so src.evaluate runs the plain five-block backbone and every frozen checkpoint is scored without the block."
+  },
+  "loss": {
+    "equation": "Eq. (4): min(L_ce + lambda_MSE L_MSE + lambda_con L_con). L_con is not implemented yet, so lambda_con is zero in every cell. All four cells use lambda_mse 0.5 and L_ce on the original branch only, v9.0's R-gen setting.",
+    "L_MSE": "Eq. (S4): the mean over samples of the summed squared difference between the two branches' softmax probabilities. The class axis carries no 1/C in the printed formula, so the six squared differences are summed; F.mse_loss's default reduction would be six times smaller and is exactly lambda_MSE/6 of this.",
+    "lambda_mse": 0.5
+  },
+  "escalation": {
+    "target_mean_sd_threshold": 0.02,
+    "rung_difference_standard_errors": 2.0
+  },
+  "confounds": {
+    "inherited_target_informed_choices": "Every cell carries R-aug-t2, whose direction and displacement were chosen against target data, and the Ethanol direction for the sign was chosen the same way. v10.0 therefore reports an upper bound in the same sense v8.1 and v9.0 did; the source-only settled number remains R-fig-logps at 0.5556.",
+    "style_axis_choice": "The per-position reading was chosen by measuring how much of the real target drift each reading spans, which used target data. The choice is target-informed and the run reports it as such.",
+    "gradient_steps": "The generation cells run two forward passes through Rf and the head per minibatch but take the same number of optimizer steps as R-aug-t2, so step count is matched and wall-clock is not.",
+    "direction_refresh": "One extra no-grad forward of 445 rows through the stem per epoch in the two signed cells. Optimizer steps and per-sample exposure are matched across all four cells."
+  },
+  "compare_against": {
+    "run": "20260923T071856507630Z_baseline_ladder_full",
+    "R-gen@lr0.0003": 0.5774,
+    "R-aug-t2@lr0.0003": 0.577,
+    "R-fig-logps@lr0.0003 (v7.5, source-only settled)": 0.5556
+  },
+  "paper_reference": {
+    "model": "ResNet (the backbone of CDCNN), Table 3",
+    "printed_average": 0.6344,
+    "CDWC": 0.6705,
+    "CDCNN": 0.723,
+    "note": "CDWC is CDCNN without contrastive learning, so it is the closest published counterpart to a cell with augmentation and feature generation but no L_con. The paper's step from ResNet to CDWC is +0.036."
+  },
+  "prediction": {
+    "recorded_before_the_run": true,
+    "basis": "docs/v9-feature-generation.md: the block's paired displacement along a drift axis is 3 % of the drift (median over 51 gas-by-batch cells), its signed component is -7.5 % of its magnitude, and along the drift axis the artificial cloud is Batch 1's own cloud (width ratio 1.01). v8.1 showed the same displacement is -0.0216 undirected and +0.0214 directed at T=2.",
+    "expectation": "R-gen-sign: under the separability threshold against R-gen, because folding a displacement of 3 % of the drift still leaves it at 3 % of the drift. R-gen-shift: the one cell that can move. If the style axis carries the drift, it should reproduce v8.1's pattern in feature space: Acetone and Toluene up, Ethylene down, Acetaldehyde unchanged, target mean within +0.00 to +0.02 of R-gen. A gain above the threshold on R-gen-shift with R-gen-sign flat would confirm that magnitude along the axis, not sign alone, was the missing ingredient.",
+    "falsifier": "If R-gen-shift is not separable from R-gen, then a signed, drift-sized displacement in style space at block 3 buys nothing, and the per-position style axis (30.1 % of the real drift) is not a channel through which the block can move the decision boundary. That would close the feature generation block as a mechanism under this protocol regardless of its sign.",
+    "known_risk": "configs/feature_generation.json's batch_meaning note recorded, from a target-informed pre-run measurement, that splitting Batch 1 by its two acquisition blocks gives a style-space direction anti-correlated with the real drift (cosine -0.692). If that holds for the Ethanol block offset used here, both signed cells point away from the target. The protocol does not allow flipping the sign on that evidence, so the sign is taken as Batch 1 gives it. Reading: R-gen-shift separably below R-gen would mean the direction matters and Batch 1's block offset in style space points the wrong way; that is a finding about the estimator, not about the block, and any flipped re-run would be target-informed."
+  },
+  "signed_generation": {
+    "direction": "Batch 1's Ethanol first-to-second acquisition block offset (src.augment.SOURCE_BLOCKS, rows 0-84 and 248-254), measured in style space: the difference of the two sessions' mean per-position style mean and style std of the block-3 residual. Computed from Batch 1 alone, refreshed at the start of every epoch because the stem it is measured through is training.",
+    "direction_choice": "Ethanol, as R-aug-t2 uses. Its alignment with the real drift (cos 0.850 to Acetaldehyde's) was established against target data, so the choice is target-informed in the same sense as R-aug-t2; the sign vector itself never sees a target file.",
+    "fold": "mu' = mu_hat + delta_hat * |epsilon| * sign(d_mu), likewise for delta'. The paper's magnitude, a half-normal draw per style coordinate, pointed along the offset. Tests exactly the sign diagnosis of docs/v9-feature-generation.md.",
+    "shift": "mu' = mu_hat + T d_mu + delta_hat * epsilon, likewise for delta', T = 2.0 block offsets, v8.1's displacement. The paper's symmetric noise kept, a directed displacement added.",
+    "why_two": "Along any single drift axis the block's own paired displacement was 3 % of the drift, so fixing the sign of a displacement that small may change nothing; shift is the cell that can move by a drift-sized amount."
+  },
+  "gpu_smoke_run": "runs/20260929T031825784660Z_baseline_gpu_smoke",
+  "smoke_direction_scale": {
+    "what": "block-offset norm over the paper's minibatch style-spread norm, final epoch of the 3-epoch smoke, seed 1042",
+    "mean": 0.462,
+    "std": 0.488,
+    "reading": "shift at T=2 adds a directed displacement of 0.92x the paper's noise scale; fold changes no magnitude."
+  }
+}

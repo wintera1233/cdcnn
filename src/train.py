@@ -76,6 +76,10 @@ def train_one(variant: str, seed: int, config: dict, source_x: np.ndarray,
     # Fig. 2 places augmentation after the `Normal` block and concatenates the
     # augmented copies with the originals, keeping their labels (Table 1, step 1).
     # It is training-only: `src.evaluate` never calls this path.
+    # Kept before augmentation: the signed generation block (v10.0) measures its
+    # direction on Batch 1's own acquisition blocks, which are row slices of the
+    # original 445 rows in file order.
+    source_input = to_input(normalised)
     spec = VARIANTS[variant].get("augment")
     if spec is not None:
         generator = np.random.default_rng(seed)
@@ -114,9 +118,26 @@ def train_one(variant: str, seed: int, config: dict, source_x: np.ndarray,
     lambda_mse = float(VARIANTS[variant].get("lambda_mse", LAMBDA_MSE))
     ce_on_generated = bool(VARIANTS[variant].get("ce_on_generated", False))
 
+    signed = generates and model.generation.sign is not None
+    if signed:
+        label = {"ethanol": 1}[model.generation.direction]
+        (first_a, first_b), (second_a, second_b) = augmentation.SOURCE_BLOCKS[label]
+        if not (source_y[first_a:first_b] == label).all() or not (
+                source_y[second_a:second_b] == label).all():
+            raise ProtocolError("block layout does not match the source rows")
+        source_input = source_input.to(device)
+
+    def refresh_direction() -> None:
+        """Batch 1's two acquisition blocks through the current stem, no grad."""
+        with torch.no_grad():
+            mid = model.stem(source_input)
+        model.generation.set_direction(mid[first_a:first_b], mid[second_a:second_b])
+
     history: list[dict] = []
     for epoch in range(1, training["epochs"] + 1):
         model.train()
+        if signed:
+            refresh_direction()
         accumulator = EpochLoss()
         for batch_x, batch_y in loader:
             batch_x = batch_x.to(device)
@@ -166,6 +187,12 @@ def train_one(variant: str, seed: int, config: dict, source_x: np.ndarray,
                "ce_on_generated": ce_on_generated if generates else None,
                "negative_scale_fraction": (
                    model.generation.negative_scale_fraction if generates else None),
+               "signed_generation": (
+                   {"sign": model.generation.sign,
+                    "direction": model.generation.direction,
+                    "displacement": model.generation.displacement,
+                    "final_epoch": model.generation.direction_report}
+                   if signed else None),
                "batches_per_epoch": int(history[-1]["batches"]),
                "final_train_accuracy": history[-1]["accuracy"],
                "final_train_loss_s2": history[-1]["loss_s2"],

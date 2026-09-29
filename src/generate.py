@@ -41,6 +41,7 @@ from torch.nn import functional as F
 from src.protocol import ProtocolError
 
 STYLE_AXES = ("scalar", "channel", "position")
+SIGN_MODES = ("fold", "shift")
 EPSILON = 1e-5
 
 
@@ -63,13 +64,61 @@ class FeatureGeneration(nn.Module):
     prediction process".
     """
 
-    def __init__(self, style: str = "position", pool: int = 2):
+    def __init__(self, style: str = "position", pool: int = 2,
+                 sign: str | None = None, direction: str = "ethanol",
+                 displacement: float = 2.0):
         super().__init__()
         if style not in STYLE_AXES:
             raise ProtocolError(f"unknown style axis {style!r}")
+        if sign is not None and sign not in SIGN_MODES:
+            raise ProtocolError(f"unknown sign mode {sign!r}")
         self.style = style
         self.pool = pool
+        # v10.0: a signed Eq. (14). `sign` is None for the paper's symmetric
+        # draw. "fold" keeps the paper's magnitude and fixes only the sign;
+        # "shift" adds `displacement` block offsets along the direction on top
+        # of the paper's noise. The direction itself is set by the training loop
+        # through `set_direction`, from Batch 1's two acquisition blocks pushed
+        # through the current stem; see `docs/v10-signed-generation.md`.
+        self.sign = sign
+        self.direction = direction
+        self.displacement = float(displacement)
+        self._direction_mean: torch.Tensor | None = None
+        self._direction_std: torch.Tensor | None = None
+        self._direction_report: dict[str, float] | None = None
         self._negative_scale = 0.0
+
+    def style_moments(self, z: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        """Eqs. (10)-(11): each sample's style mean and std of the residual."""
+        _, residual = self.decompose(z)
+        dims = reduce_dims(self.style)
+        mean = residual.mean(dim=dims, keepdim=True)
+        std = residual.std(dim=dims, keepdim=True, unbiased=False) + EPSILON
+        return mean, std
+
+    @torch.no_grad()
+    def set_direction(self, z_first: torch.Tensor, z_second: torch.Tensor) -> None:
+        """The first-to-second acquisition block offset, in style space.
+
+        `z_first` and `z_second` are the block-3 features of the two acquisition
+        sessions of one Batch 1 class (`src.augment.SOURCE_BLOCKS`). The offset
+        of their style moments is the direction Eq. (14) is signed by. Computed
+        from Batch 1 alone; the training loop refreshes it every epoch because
+        the stem it is measured through is itself training.
+        """
+        if self.sign is None:
+            return
+        mean_a, std_a = self.style_moments(z_first)
+        mean_b, std_b = self.style_moments(z_second)
+        self._direction_mean = (mean_b.mean(dim=0, keepdim=True)
+                                - mean_a.mean(dim=0, keepdim=True))
+        self._direction_std = (std_b.mean(dim=0, keepdim=True)
+                               - std_a.mean(dim=0, keepdim=True))
+
+    @property
+    def direction_report(self) -> dict[str, float] | None:
+        """The last minibatch's direction scale against the paper's noise scale."""
+        return self._direction_report
 
     def decompose(self, z: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """Eqs. (8)-(9): MaxPool then nearest-neighbour upsample, and the rest."""
@@ -85,10 +134,7 @@ class FeatureGeneration(nn.Module):
             # Eqs. (12)-(13) need a batch to estimate the style distribution.
             return z
         pooled, residual = self.decompose(z)
-        dims = reduce_dims(self.style)
-
-        mean = residual.mean(dim=dims, keepdim=True)
-        std = residual.std(dim=dims, keepdim=True, unbiased=False) + EPSILON
+        mean, std = self.style_moments(z)
 
         # Eqs. (12)-(13). Under the source-only protocol a "batch" is a minibatch
         # of Batch 1, so this is the minibatch-to-minibatch spread of the style.
@@ -97,15 +143,35 @@ class FeatureGeneration(nn.Module):
         std_centre = std.mean(dim=0, keepdim=True)
         std_spread = std.std(dim=0, keepdim=True, unbiased=False)
 
-        def sample(centre: torch.Tensor, spread: torch.Tensor) -> torch.Tensor:
+        if self.sign is not None and self._direction_mean is None:
+            raise ProtocolError(
+                f"sign mode {self.sign!r} needs a direction; call set_direction first")
+
+        def sample(centre: torch.Tensor, spread: torch.Tensor,
+                   direction: torch.Tensor | None) -> torch.Tensor:
             noise = torch.empty(mean.shape, device=z.device, dtype=z.dtype)
             noise.normal_(generator=generator)
-            return centre + spread * noise
+            if self.sign is None:
+                return centre + spread * noise
+            direction = direction.to(device=z.device, dtype=z.dtype)
+            if self.sign == "fold":
+                # The paper's magnitude, the block offset's sign: a half-normal
+                # draw per style coordinate, pointed along the offset.
+                return centre + spread * noise.abs() * torch.sign(direction)
+            # "shift": the paper's symmetric noise plus `displacement` block
+            # offsets along the direction, the v8.1 construction at block 3.
+            return centre + self.displacement * direction + spread * noise
 
         # Eq. (14) is an ordinary Gaussian and can return a negative scale. The
         # paper says so; this follows it and records how often it happens.
-        new_mean = sample(mean_centre, mean_spread)
-        new_std = sample(std_centre, std_spread)
+        new_mean = sample(mean_centre, mean_spread, self._direction_mean)
+        new_std = sample(std_centre, std_spread, self._direction_std)
+        if self.sign is not None:
+            self._direction_report = {
+                "mean_offset_over_noise": float(
+                    self._direction_mean.norm() / (mean_spread.norm() + EPSILON)),
+                "std_offset_over_noise": float(
+                    self._direction_std.norm() / (std_spread.norm() + EPSILON))}
         self._negative_scale = float((new_std < 0).float().mean())
 
         restyled = new_std * (residual - mean) / std + new_mean     # Eq. (16)

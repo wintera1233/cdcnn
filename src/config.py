@@ -24,6 +24,7 @@ AUGMENT_VERSION = "CDCNN_v8.0_directed_augmentation"
 DISPLACEMENT_VERSION = "CDCNN_v8.1_displacement_sweep"
 SUBSPACE_VERSION = "CDCNN_v8.2_drift_subspace"
 GENERATION_VERSION = "CDCNN_v9.0_feature_generation"
+SIGNED_GENERATION_VERSION = "CDCNN_v10.0_signed_generation"
 
 # Frozen literals: the declared contents of the ladder. Adding a variant later
 # must not silently change what this version means.
@@ -84,6 +85,11 @@ SUBSPACE_VARIANTS = ("R-fig-logps", "R-aug-sub2", "R-aug-sub4", "R-aug-sph2")
 # it never states, lambda_MSE.
 GENERATION_VARIANTS = ("R-aug-t2", "R-gen", "R-gen-ce2", "R-gen-m10")
 
+# v10.0: Eq. (14) with a sign. R-aug-t2 and R-gen are re-run as the two
+# reference rows so the comparison is within one run; R-gen-sign fixes only the
+# sign, R-gen-shift adds a directed displacement of two block offsets.
+SIGNED_GENERATION_VARIANTS = ("R-aug-t2", "R-gen", "R-gen-sign", "R-gen-shift")
+
 REQUIRED = ("implementation_version", "variants", "seeds", "training", "optimizer",
             "scheduler")
 
@@ -107,6 +113,18 @@ def validate(config: dict) -> dict:
         raise ProtocolError("a variant is listed twice")
     if len(set(config["seeds"])) != len(config["seeds"]):
         raise ProtocolError("a seed is listed twice")
+
+    if config["implementation_version"] == SIGNED_GENERATION_VERSION:
+        for name, expected, actual in (
+                ("variants", list(SIGNED_GENERATION_VARIANTS), list(config["variants"])),
+                ("learning_rates", list(NORMALISER_LEARNING_RATES),
+                 [float(v) for v in config.get("learning_rates", [])]),
+                ("seeds", list(ALL_SEEDS), list(config["seeds"])),
+                ("training", LADDER_TRAINING, config["training"]),
+                ("scheduler", LADDER_SCHEDULER, config["scheduler"])):
+            if expected != actual:
+                raise ProtocolError(
+                    f"{SIGNED_GENERATION_VERSION} fixes {name} as {expected}, got {actual}")
 
     if config["implementation_version"] == GENERATION_VERSION:
         for name, expected, actual in (

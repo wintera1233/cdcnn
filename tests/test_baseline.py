@@ -395,6 +395,68 @@ class FeatureGenerationTests(unittest.TestCase):
         with self.assertRaisesRegex(ProtocolError, "unknown style axis"):
             self.FeatureGeneration(style="sensor")
 
+    def _two_sessions(self):
+        g = torch.Generator().manual_seed(7)
+        first = torch.randn(40, 128, 128, generator=g)
+        # The second session is the first with a fixed per-position style shift,
+        # so the block offset in style space is known and non-zero.
+        shift = torch.linspace(-1.0, 1.0, 128).view(1, 1, 128)
+        second = torch.randn(8, 128, 128, generator=g) + shift
+        return first, second
+
+    def test_a_signed_block_refuses_to_run_without_a_direction(self):
+        block = self.FeatureGeneration(sign="fold")
+        with self.assertRaisesRegex(ProtocolError, "needs a direction"):
+            block(self.z, torch.Generator().manual_seed(1))
+
+    def test_an_unknown_sign_mode_is_refused(self):
+        with self.assertRaisesRegex(ProtocolError, "unknown sign mode"):
+            self.FeatureGeneration(sign="up")
+
+    def test_fold_moves_the_style_mean_along_the_offset_sign(self):
+        """The paper's draw is symmetric; the folded one must lean the way the
+        block offset points, coordinate by coordinate."""
+        first, second = self._two_sessions()
+        block = self.FeatureGeneration(sign="fold")
+        block.set_direction(first, second)
+        out = block(self.z, torch.Generator().manual_seed(1))
+        mean_before, _ = block.style_moments(self.z)
+        mean_after, _ = block.style_moments(out)
+        moved = (mean_after - mean_before).mean(dim=0).flatten()
+        sign = torch.sign(block._direction_mean).flatten()
+        agree = float((torch.sign(moved) == sign).float().mean())
+        self.assertGreater(agree, 0.9)
+
+    def test_shift_displaces_the_style_mean_by_the_declared_offsets(self):
+        first, second = self._two_sessions()
+        block = self.FeatureGeneration(sign="shift", displacement=2.0)
+        block.set_direction(first, second)
+        out = block(self.z, torch.Generator().manual_seed(1))
+        mean_before, _ = block.style_moments(self.z)
+        mean_after, _ = block.style_moments(out)
+        moved = (mean_after - mean_before).mean(dim=0, keepdim=True)
+        # The batch-level restyle recentres every sample on the drawn mean, so
+        # the batch's average move equals the directed part, 2 x the offset,
+        # up to the paper's noise term.
+        torch.testing.assert_close(moved, 2.0 * block._direction_mean,
+                                   atol=0.05, rtol=0.2)
+
+    def test_the_unsigned_block_is_unchanged_by_a_direction(self):
+        first, second = self._two_sessions()
+        plain = self.FeatureGeneration()
+        told = self.FeatureGeneration()
+        told.set_direction(first, second)
+        torch.testing.assert_close(plain(self.z, torch.Generator().manual_seed(1)),
+                                   told(self.z, torch.Generator().manual_seed(1)))
+
+    def test_the_v10_variants_declare_a_sign_and_keep_r_gen_otherwise(self):
+        from src.model import VARIANTS
+        for name, sign in (("R-gen-sign", "fold"), ("R-gen-shift", "shift")):
+            spec = VARIANTS[name]
+            self.assertEqual(spec["generate"]["sign"], sign)
+            self.assertEqual(spec["augment"], VARIANTS["R-gen"]["augment"])
+            self.assertEqual(spec["lambda_mse"], VARIANTS["R-gen"]["lambda_mse"])
+
     def test_evaluation_never_generates_features(self):
         """Fig. 2: 'during forecasting, the program separates the data
         manipulation block from the prediction process'."""
