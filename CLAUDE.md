@@ -1,9 +1,9 @@
 # Project Instructions for AI Agents
 
 This branch (`exp/v7-redesign`) restarts the study from the baseline. It has
-reached v9.0: the baseline is settled (`baseline.md`), directed augmentation and
-feature generation are both measured (section 4), and the contrastive loss
-`L_con` is the one remaining CDCNN component. The rules below are protocol, not
+reached v10.0: the baseline is settled (`baseline.md`), directed augmentation,
+feature generation and a signed feature generation are all measured (section 4),
+and the contrastive loss `L_con` is the one remaining CDCNN component. The rules below are protocol, not
 method: they say nothing about which architecture, optimizer, or training
 schedule to use, because those are what the redesign is for. Section 4 records
 what has already been measured - do not spend GPU time re-deriving any of it.
@@ -74,7 +74,7 @@ Reference values from the paper's Table 3:
 `baseline.md` holds the settled baseline design. Do not spend GPU time
 re-deriving any of the following.
 
-### From this branch (v7.0 to v9.0, `docs/`)
+### From this branch (v7.0 to v10.0, `docs/`)
 
 #### The baseline (v7.0 to v7.3)
 
@@ -252,6 +252,58 @@ factor under test and `R-aug-t2` is the control row.
   is inactive at inference (Fig. 2), and `src/evaluate.py` scores every frozen
   checkpoint through the plain five-block path.
 
+#### v9.0 post-hoc: the generated cloud never leaves Batch 1 (`docs/v9-feature-generation.md`)
+
+Measured 2026-09-29 on the frozen `R-gen` seed 1042 checkpoint at block 3, with
+the artificial cloud generated **from Batch 1** the way training generates it.
+
+- **Along each (gas, batch) drift axis** (source centroid 0, target centroid 1),
+  over 51 cells: histogram overlap between artificial and target has median
+  **0.00**, the artificial cloud's width is **1.01x** Batch 1's own, and the
+  block's paired displacement along the axis has median **0.03** of the drift.
+  The six cells with overlap above 0.10 are ones where the target itself spreads
+  back over the source. `scripts/make_generation_drift_projection_figure.py`.
+- **The "magnitude only 2x short" reading was the full-space norm.** Along any
+  single drift axis the shortfall is a median 30x (7x to 140x).
+- **The paper's Fig. 5 is circular**: it applies the block to batch 2 and compares
+  with batch 2. Our reproduction of that figure matches its shape
+  (`reports/figures/feature_generation.png`); the non-circular version
+  (`generation_drift_aligned_2d.png`, x = drift direction, y = leading orthogonal
+  direction) shows the orange cloud on the grey one and the blue cloud apart.
+
+#### v10.0 a signed Eq. (14) (`docs/v10-signed-generation.md`)
+
+Run `runs/20260929T031927475103Z_baseline_ladder_full`, four cells x five seeds,
+pooled SD 0.0069 to 0.0115, threshold 0.0087 to 0.0120. The direction is Batch
+1's Ethanol acquisition-block offset measured in the block's style space
+(per-position mean and std of the block-3 residual), refreshed every epoch,
+never from a target file. All cells carry `R-aug-t2`, lambda_MSE 0.5.
+
+| variant | Eq. (14) | target mean | SD | vs `R-gen` | separable |
+|---|---|---:|---:|---:|---|
+| `R-gen-shift` | paper's noise + 2 block offsets along the direction | 0.5796 | 0.0077 | +0.0023 | no |
+| `R-gen` | paper's symmetric draw | 0.5773 | 0.0069 | - | - |
+| `R-aug-t2` | no block | 0.5770 | 0.0078 | -0.0003 | no |
+| `R-gen-sign` | half-normal along the direction's sign | 0.5767 | 0.0115 | -0.0006 | no |
+
+- **The sign was right and the magnitude was right, and it still did nothing.**
+  Post-hoc, in style space: the direction's cosine with the real drift is **+0.593**
+  over 51 cells (null 0.088), positive for all six classes (+0.31 to +0.77), and
+  the shift reaches **0.73x to 1.41x** the real drift's magnitude. The recorded
+  risk that the direction might be anti-correlated did not materialise.
+- **The pre-registered falsifier triggered**: `R-gen-shift` is not separable
+  from `R-gen`. Every per-batch and per-class difference is within 0.012, where
+  the same directed displacement at the input (v8.1) moved Acetone and Ethylene
+  by 0.25 or more.
+- **This closes the feature generation block as a mechanism under this protocol,
+  regardless of the sign of Eq. (14).** The per-position style space spans 30.1%
+  of the real drift and the decision boundary does not respond to displacements
+  inside it.
+- `R-aug-t2` and `R-gen` re-ran within 0.0003 of their v9.0 values.
+- **Confound**: all cells already carry the input-space directed augmentation, so
+  the shift is measured on top of a same-direction displacement; the cleaner
+  `R-gen-shift` without augmentation against `R-fig-logps` was not run.
+
 #### Standing methodological facts
 
 - **A fixed epoch budget confounds augmentation**, because doubling the rows at a
@@ -260,8 +312,16 @@ factor under test and `R-aug-t2` is the control row.
   it matches; it cannot match both.
 - **Two of the paper's three components now measure at about zero under this
   protocol**: augmentation as the paper specifies it (isotropic) at -0.0216, and
-  feature generation at +0.0004. The contrastive loss `L_con` (Eq. S5) is not yet
-  implemented; `forward_pair` already returns the `(z_f, z_bar_f)` pair it needs.
+  feature generation at +0.0004 as written and +0.0023 with a correctly signed,
+  drift-sized displacement (v10.0). The contrastive loss `L_con` (Eq. S5) is not
+  yet implemented; `forward_pair` already returns the `(z_f, z_bar_f)` pair it
+  needs, and after v10.0 `z_bar_f` can be the paper's, the signed, or the shifted
+  version.
+- **Coverage in a high-dimensional feature space has to be measured along the
+  drift axis.** A 2D-PCA hull is blind to the other axes, a full-dimensional
+  radius test saturates, and a centroid comparison ignores extent; the three
+  disagreed on the same data. `scripts/summarise_run.py` prints a finished run's
+  table, per-batch and per-class recall with the separability threshold.
 
 ### From the previous branch
 

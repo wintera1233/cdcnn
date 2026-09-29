@@ -46,3 +46,22 @@ $DOCKER python scripts/run_baseline.py launch \
 this version, so the gate now invalidates on a change to either. `augment.py`
 had been outside it since v8.0, which means the v8 gates did not cover the one
 module those runs were testing.
+
+## v10.0, the signed Eq. (14)
+
+```bash
+$DOCKER python scripts/run_baseline.py gpu-smoke \
+  --config configs/signed_generation.json --epochs 3
+
+$DOCKER python scripts/run_baseline.py launch \
+  --config configs/signed_generation.json --max-workers 1 \
+  --gpu-smoke-run runs/<passing_gpu_smoke>
+
+# after the run
+.venv/bin/python scripts/summarise_run.py runs/<run> --reference R-gen
+CUDA_VISIBLE_DEVICES= .venv/bin/python scripts/measure_signed_direction.py
+```
+
+A full four-cell, five-seed run takes about twelve minutes on this GPU. Post-hoc
+scripts run in `.venv` on the CPU only: its torch 2.8.0+cu126 must not touch CUDA
+on this driver (section 6 of CLAUDE.md).
