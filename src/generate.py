@@ -169,9 +169,11 @@ class FeatureGeneration(nn.Module):
         if self.sign is not None:
             self._direction_report = {
                 "mean_offset_over_noise": float(
-                    self._direction_mean.norm() / (mean_spread.norm() + EPSILON)),
+                    self._direction_mean.norm()
+                    / (mean_spread.detach().norm() + EPSILON)),
                 "std_offset_over_noise": float(
-                    self._direction_std.norm() / (std_spread.norm() + EPSILON))}
+                    self._direction_std.norm()
+                    / (std_spread.detach().norm() + EPSILON))}
         self._negative_scale = float((new_std < 0).float().mean())
 
         restyled = new_std * (residual - mean) / std + new_mean     # Eq. (16)

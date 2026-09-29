@@ -1,0 +1,89 @@
+{
+  "implementation_version": "CDCNN_v11.0_contrastive",
+  "description": "The contrastive loss L_con (Eq. S5) over the (z_f, z_bar_f) pair, the last of the paper's three components. R-gen is the reference row (v9.0/v10.0 setting: R-aug-t2 augmentation, the paper's generation block, lambda_MSE 0.5, L_ce on the original branch). R-con adds L_con with lambda_con 0.5 and tau 0.07, the paper's CDCNN as written; R-con-shift pairs z_f with v10.0's shifted z_bar_f; R-con-t5 raises tau to 0.5.",
+  "variants": [
+    "R-gen",
+    "R-con",
+    "R-con-shift",
+    "R-con-t5"
+  ],
+  "learning_rates": [
+    0.0003
+  ],
+  "seeds": [
+    1042,
+    2024,
+    3407,
+    42,
+    123
+  ],
+  "training": {
+    "epochs": 100,
+    "batch_size": 64
+  },
+  "optimizer": {
+    "lr": 0.0003,
+    "momentum": 0.9,
+    "weight_decay": 0.0001
+  },
+  "scheduler": {
+    "step_size": 25,
+    "gamma": 0.5
+  },
+  "per_epoch_checkpoint_seed": 1042,
+  "feature_generation": {
+    "position": "between the third and fourth ResNet block, Section 2.4: 'Rs(.) means the first three convolutional layers; the remaining part is recorded as Rf(.)'",
+    "decomposition": "MaxPool(kernel 2, stride 2) then nearest-neighbour upsample gives z^H; z^L = z - z^H. Eqs. (8)-(9).",
+    "restyled_part": "the residual z^L, per Eq. (15) z~ = z^H + z~^L. The paper calls the residual the low-frequency component, which reads correctly if the frequency meant is temporal: the residual carries the environment and the slow drift.",
+    "style_axis": "position",
+    "style_axis_note": "Eqs. (10)-(11) sum over both the channel and the length axis, giving one scalar per sample; the sentence after says the result lives in R^{BxCH}, which is the shape of z^L itself and would make the restyle an identity. Neither is AdaIN's per-channel convention. Measured against the real target drift at this depth the three readings explain 1.2%, 15.3% and 30.1% of it, so per-position was taken. It corresponds approximately to per-sensor: position 8(s-1)+k came from sensor s's statistic k, smeared by a receptive field of plus or minus six.",
+    "batch_meaning": "the training minibatch. The paper says only 'Bs is the number of batches of z_s', and z_s is the current minibatch's feature tensor, so Bs is its batch dimension. Measured, the style spread across a minibatch's samples is 1.40x the real target drift in the same space; the alternative of splitting Batch 1 by its two acquisition blocks gives 1.27x with a direction anti-correlated to the real drift (cosine -0.692), so it offers nothing and was dropped.",
+    "negative_scale": "Eq. (14) draws delta' from an ordinary Gaussian, which can return a negative scale. This follows the paper rather than truncating, and records the fraction of negative draws in each run's history.",
+    "inference": "never applied. Fig. 2: 'during forecasting, the program separates the data manipulation block from the prediction process', so src.evaluate runs the plain five-block backbone and every frozen checkpoint is scored without the block."
+  },
+  "loss": {
+    "equation": "Eq. (4): min(L_ce + lambda_MSE L_MSE + lambda_con L_con), all three terms present in the three R-con cells. lambda_MSE 0.5 and L_ce on the original branch in all four cells.",
+    "L_MSE": "Eq. (S4): the mean over samples of the summed squared difference between the two branches' softmax probabilities. The class axis carries no 1/C in the printed formula, so the six squared differences are summed; F.mse_loss's default reduction would be six times smaller and is exactly lambda_MSE/6 of this.",
+    "lambda_mse": 0.5
+  },
+  "escalation": {
+    "target_mean_sd_threshold": 0.02,
+    "rung_difference_standard_errors": 2.0
+  },
+  "confounds": {
+    "inherited_target_informed_choices": "Every cell carries R-aug-t2 and the per-position style axis, both target-informed choices, and R-con-shift also the Ethanol direction. v11.0 reports an upper bound in the same sense v8.1 to v10.0 did; the source-only settled number remains R-fig-logps at 0.5556.",
+    "style_axis_choice": "The per-position reading was chosen by measuring how much of the real target drift each reading spans, which used target data. The choice is target-informed and the run reports it as such.",
+    "gradient_steps": "The generation cells run two forward passes through Rf and the head per minibatch but take the same number of optimizer steps as R-aug-t2, so step count is matched and wall-clock is not.",
+    "direction_refresh": "R-con-shift refreshes the style-space direction every epoch as R-gen-shift did: one extra no-grad forward of 445 rows through the stem. Optimizer steps and per-sample exposure are matched across all four cells.",
+    "loss_scale": "L_con at tau 0.07 on 128 anchors is of order log(127) ~ 4.8 at initialisation, an order of magnitude above L_ce; with lambda_con 0.5 it will dominate the early gradient. That is the paper's Eq. (4) with the constants the previous branch used, and Fig. S1(b)'s CDCNN loss plateau at 1.5 against 0.5 for the others is consistent with a contrastive term of this size. It is recorded, not corrected."
+  },
+  "compare_against": {
+    "run": "20260929T031927475103Z_baseline_ladder_full",
+    "R-gen@lr0.0003": 0.5773,
+    "R-gen-shift@lr0.0003": 0.5796,
+    "R-aug-t2@lr0.0003": 0.577,
+    "R-fig-logps@lr0.0003 (v7.5, source-only settled)": 0.5556
+  },
+  "paper_reference": {
+    "model": "CDCNN, Table 3",
+    "printed_average": 0.6344,
+    "CDWC": 0.6705,
+    "CDCNN": 0.723,
+    "note": "The paper's step from CDWC (augmentation and generation, no L_con) to CDCNN is +0.053, the largest of its three component claims."
+  },
+  "prediction": {
+    "recorded_before_the_run": true,
+    "basis": "docs/drift-geometry.md: L_con is the only term whose loss asks for invariance, so it is the one component that could in principle compress the real drift. But v9.0 and v10.0 measured what it would be made invariant to: z_bar_f generated from Batch 1 never leaves Batch 1 along the drift axis (overlap 0.00, width ratio 1.01, paired displacement 3 % of the drift), and even the shifted z_bar_f, correctly signed and drift-sized in style space, moved the boundary by +0.0023. The previous branch measured L_con five times at -0.005 to +0.003 on a different backbone.",
+    "expectation": "R-con and R-con-t5 under the separability threshold against R-gen: pulling z_f toward a z_bar_f that sits on Batch 1 asks for invariance to a displacement that is not the drift. R-con-shift is the one cell with a target-facing z_bar_f; if it moves it should be in v8.1's per-class pattern (Acetone and Toluene up, Ethylene down). The realistic case is that it lands where R-gen-shift did, within +0.00 to +0.01 of R-gen, not separable.",
+    "falsifier": "If R-con is separable from R-gen, the previous branch's five null measurements were a property of its backbone or placement and the paper's +0.053 claim has a source-only foothold here. If R-con is not separable, all three of the paper's components measure at about zero under this protocol and the reproduction is complete.",
+    "invariance_check": "After the run, measure drift compression at z_f (docs/drift-geometry.md's drift-over-radius statistic) on the R-con cells. The prediction is that compression stays near v9.0's 6.3-6.5 %, because the invariance L_con enforces is to z_bar_f, not to the real drift."
+  },
+  "contrastive": {
+    "equation": "Eq. (S5): L_con = - sum_i (1/|P(i)|) sum_{p in P(i)} log [ exp(f(Z_i).f(Z_p)/tau) / sum_{a in A(i)} exp(f(Z_i).f(Z_a)/tau) ], with Z^f the union of z_f and z_bar_f, so a minibatch of n rows gives 2n anchors and every generated feature carries its original's label.",
+    "projection_f": "'a project function that maps the original feature to the unit sphere': an L2 normalisation of the flattened 16,384-d z_f, no learnable parameters. The previous branch's v6.10 tested a learned Linear(128,128) head at the post-FC128 feature against this placement and found neither better (+0.0025 vs +0.0002).",
+    "reduction": "mean over the 2n anchors (SupCon's Eq. 2). The print has no 1/|I| and would grow with the minibatch; the two differ by the constant 2n, which lambda_con absorbs.",
+    "tau": "not given by the paper or the supplement. 0.07 is SupCon's published default and the previous branch's choice; R-con-t5 runs 0.5 to measure the sensitivity.",
+    "lambda_con": "not given by the paper or the supplement beyond 'a weight used to adjust the value'. 0.5 mirrors lambda_MSE. Both constants are project-controlled and were not tuned on anything.",
+    "where_in_the_loss": "Eq. (4): L_ce + lambda_MSE L_MSE + lambda_con L_con. Every earlier cell has lambda_con 0 and trains unchanged."
+  }
+}

@@ -449,6 +449,57 @@ class FeatureGenerationTests(unittest.TestCase):
         torch.testing.assert_close(plain(self.z, torch.Generator().manual_seed(1)),
                                    told(self.z, torch.Generator().manual_seed(1)))
 
+    def test_supervised_contrastive_matches_the_formula_on_a_small_case(self):
+        """Eq. (S5) by hand on four anchors, two per label, against the code."""
+        from src.loss import supervised_contrastive
+        z = torch.tensor([[1.0, 0.0], [0.8, 0.6], [0.0, 1.0], [-0.6, 0.8]])
+        y = torch.tensor([0, 0, 1, 1])
+        tau = 0.5
+        unit = torch.nn.functional.normalize(z, dim=1)
+        sim = unit @ unit.T / tau
+        expected = []
+        for i in range(4):
+            others = [a for a in range(4) if a != i]
+            denominator = torch.logsumexp(sim[i, others], dim=0)
+            positives = [p for p in others if y[p] == y[i]]
+            expected.append(-sum(sim[i, p] - denominator for p in positives) / len(positives))
+        torch.testing.assert_close(supervised_contrastive(z, y, tau),
+                                   torch.stack(expected).mean())
+
+    def test_supervised_contrastive_rises_when_a_collapsed_class_is_perturbed(self):
+        """SupCon is minimised when every same-label sample sits on one point.
+        Starting there, a perturbed generated branch must score higher than an
+        identical one. (An identical twin alone does not minimise the loss for
+        arbitrary features: the twin's exp(1/tau) also inflates the denominator
+        of every other positive, so the test starts from collapsed classes.)"""
+        from src.loss import supervised_contrastive
+        g = torch.Generator().manual_seed(3)
+        prototypes = torch.eye(6, 16)
+        y = torch.arange(32) % 6
+        z = prototypes[y]
+        same = supervised_contrastive(torch.cat([z, z]), torch.cat([y, y]), 0.07)
+        moved = supervised_contrastive(
+            torch.cat([z, z + 0.3 * torch.randn(32, 16, generator=g)]),
+            torch.cat([y, y]), 0.07)
+        self.assertLess(float(same), float(moved))
+
+    def test_supervised_contrastive_refuses_an_anchor_without_a_positive(self):
+        from src.loss import supervised_contrastive
+        z = torch.randn(3, 4)
+        with self.assertRaisesRegex(ProtocolError, "at least one positive"):
+            supervised_contrastive(z, torch.tensor([0, 1, 2]), 0.07)
+
+    def test_the_v11_variants_carry_a_block_and_a_positive_lambda_con(self):
+        from src.model import VARIANTS
+        for name in ("R-con", "R-con-shift", "R-con-t5"):
+            spec = VARIANTS[name]
+            self.assertGreater(spec["lambda_con"], 0.0)
+            self.assertIn("generate", spec)
+            self.assertEqual(spec["augment"], VARIANTS["R-gen"]["augment"])
+        self.assertEqual(VARIANTS["R-con-shift"]["generate"]["sign"], "shift")
+        self.assertEqual(VARIANTS["R-con-t5"]["temperature"], 0.5)
+        self.assertNotIn("lambda_con", VARIANTS["R-gen"])
+
     def test_the_v10_variants_declare_a_sign_and_keep_r_gen_otherwise(self):
         from src.model import VARIANTS
         for name, sign in (("R-gen-sign", "fold"), ("R-gen-shift", "shift")):

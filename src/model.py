@@ -84,6 +84,13 @@ GENERATION_SPLIT = 3
 # declared default; `R-gen-m10` measures the sensitivity to it.
 LAMBDA_MSE = 0.5
 
+# Eq. (4)'s third weight. The supplement says only that it "is a weight used to
+# adjust the value of" L_con; 0.5 mirrors lambda_MSE and the previous branch.
+# tau is likewise unstated; 0.07 is SupCon's published default and the previous
+# branch's choice, and `R-con-t5` measures the sensitivity to it.
+LAMBDA_CON = 0.5
+CONTRASTIVE_TEMPERATURE = 0.07
+
 VARIANTS: dict[str, dict] = {
     "R-txt": {"channels": TEXT_CAPPED_128, "head": "flatten",
               "normalizer": "standard_scaler"},
@@ -178,6 +185,21 @@ VARIANTS.update({
     "R-gen-shift": {**_GEN, "lambda_mse": LAMBDA_MSE, "ce_on_generated": False,
                     "generate": {"style": "position", "pool": 2, "sign": "shift",
                                  "direction": "ethanol", "displacement": 2.0}},
+})
+
+# v11.0: the contrastive loss L_con (Eq. S5) over the (z_f, z_bar_f) pair, the
+# last of the paper's three components and the only one whose loss asks for
+# invariance. `R-con` is the paper's CDCNN as written on top of R-gen; `R-con-
+# shift` pairs z_f with v10.0's shifted z_bar_f, the one generated feature that
+# has a target-facing displacement; `R-con-t5` varies the one constant the paper
+# never gives. f is an L2 normalisation of the flattened z_f, no learned head.
+_CON = {**VARIANTS["R-gen"], "lambda_con": LAMBDA_CON,
+        "temperature": CONTRASTIVE_TEMPERATURE}
+
+VARIANTS.update({
+    "R-con": {**_CON},
+    "R-con-shift": {**_CON, "generate": VARIANTS["R-gen-shift"]["generate"]},
+    "R-con-t5": {**_CON, "temperature": 0.5},
 })
 
 

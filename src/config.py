@@ -25,6 +25,7 @@ DISPLACEMENT_VERSION = "CDCNN_v8.1_displacement_sweep"
 SUBSPACE_VERSION = "CDCNN_v8.2_drift_subspace"
 GENERATION_VERSION = "CDCNN_v9.0_feature_generation"
 SIGNED_GENERATION_VERSION = "CDCNN_v10.0_signed_generation"
+CONTRASTIVE_VERSION = "CDCNN_v11.0_contrastive"
 
 # Frozen literals: the declared contents of the ladder. Adding a variant later
 # must not silently change what this version means.
@@ -90,6 +91,11 @@ GENERATION_VARIANTS = ("R-aug-t2", "R-gen", "R-gen-ce2", "R-gen-m10")
 # sign, R-gen-shift adds a directed displacement of two block offsets.
 SIGNED_GENERATION_VARIANTS = ("R-aug-t2", "R-gen", "R-gen-sign", "R-gen-shift")
 
+# v11.0: the contrastive loss. R-gen is the reference row; R-con is the paper's
+# CDCNN as written; R-con-shift pairs z_f with the shifted z_bar_f; R-con-t5
+# varies the temperature the paper never gives.
+CONTRASTIVE_VARIANTS = ("R-gen", "R-con", "R-con-shift", "R-con-t5")
+
 REQUIRED = ("implementation_version", "variants", "seeds", "training", "optimizer",
             "scheduler")
 
@@ -113,6 +119,18 @@ def validate(config: dict) -> dict:
         raise ProtocolError("a variant is listed twice")
     if len(set(config["seeds"])) != len(config["seeds"]):
         raise ProtocolError("a seed is listed twice")
+
+    if config["implementation_version"] == CONTRASTIVE_VERSION:
+        for name, expected, actual in (
+                ("variants", list(CONTRASTIVE_VARIANTS), list(config["variants"])),
+                ("learning_rates", list(NORMALISER_LEARNING_RATES),
+                 [float(v) for v in config.get("learning_rates", [])]),
+                ("seeds", list(ALL_SEEDS), list(config["seeds"])),
+                ("training", LADDER_TRAINING, config["training"]),
+                ("scheduler", LADDER_SCHEDULER, config["scheduler"])):
+            if expected != actual:
+                raise ProtocolError(
+                    f"{CONTRASTIVE_VERSION} fixes {name} as {expected}, got {actual}")
 
     if config["implementation_version"] == SIGNED_GENERATION_VERSION:
         for name, expected, actual in (

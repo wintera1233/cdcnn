@@ -16,8 +16,8 @@ more than a sample in a full batch. `EpochLoss` reproduces S2 and records the
 sample-weighted figure alongside it so the difference stays visible.
 
 The baseline trains on this term alone. `L_MSE` (S4) arrives with the feature
-generation block in v9.0; `L_con` (S5) still needs the `(z_f, z_bar_f)` pair to
-be fed to a contrastive term, which no cell does yet.
+generation block in v9.0, and `L_con` (S5) with v11.0, over the `(z_f, z_bar_f)`
+pair `forward_pair` returns.
 """
 
 from __future__ import annotations
@@ -70,6 +70,52 @@ def mse_consistency(logits: torch.Tensor,
         raise ProtocolError(f"expected logits [N, C], got {tuple(logits.shape)}")
     difference = logits.softmax(dim=1) - logits_generated.softmax(dim=1)
     return difference.pow(2).sum(dim=1).mean()
+
+
+def supervised_contrastive(features: torch.Tensor, labels: torch.Tensor,
+                           temperature: float) -> torch.Tensor:
+    """Eq. (S5), the supervised contrastive loss, for one minibatch.
+
+        L_con = - sum_{i in I} (1/|P(i)|) sum_{p in P(i)}
+                    log [ exp(f(Z_i).f(Z_p)/tau) / sum_{a in A(i)} exp(f(Z_i).f(Z_a)/tau) ]
+
+    Read off the supplement's equation image. `I` indexes the union of the
+    original and generated features, `Z^f = z_f U z_bar_f`, so a minibatch of n
+    rows gives 2n anchors and each generated feature carries its original's
+    label. `A(i)` is every index but `i`; `P(i)` is the same-label subset of
+    `A(i)`, which always holds at least the anchor's own twin. `f` "maps the
+    original feature to the unit sphere": an L2 normalisation with no learnable
+    parameters, which is also where the previous branch's v6.10 placed it.
+
+    Two things the print leaves open:
+
+    * **Reduction.** As printed the outer sum has no 1/|I|, so the term would
+      grow with the minibatch. This takes the mean over anchors, the original
+      SupCon reduction (Khosla et al. 2020, Eq. 2), so `lambda_con` keeps one
+      meaning across batch sizes; the printed form is exactly 2n times this.
+    * **tau.** Not given anywhere in the paper or supplement. The variants
+      declare it.
+
+    `features` is `[2n, D]` and is normalised here; callers pass the flattened
+    `z_f` and `z_bar_f` concatenated, labels repeated.
+    """
+    if features.ndim != 2 or labels.ndim != 1 or len(features) != len(labels):
+        raise ProtocolError("contrastive features and labels disagree on shape")
+    if temperature <= 0:
+        raise ProtocolError("the contrastive temperature must be positive")
+    unit = F.normalize(features, p=2, dim=1)
+    logits = unit @ unit.T / temperature
+    n = len(labels)
+    self_mask = torch.eye(n, dtype=torch.bool, device=labels.device)
+    positive = labels[:, None].eq(labels[None, :]) & ~self_mask
+    positives = positive.sum(dim=1)
+    if bool((positives == 0).any()):
+        raise ProtocolError("every contrastive anchor needs at least one positive")
+    # The denominator runs over A(i), everything but the anchor itself.
+    log_prob = logits - torch.logsumexp(
+        logits.masked_fill(self_mask, float("-inf")), dim=1, keepdim=True)
+    per_anchor = -(log_prob.masked_fill(~positive, 0.0).sum(dim=1) / positives)
+    return per_anchor.mean()
 
 
 class EpochLoss:

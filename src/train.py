@@ -19,7 +19,8 @@ from torch.utils.data import DataLoader, TensorDataset
 
 from src import augment as augmentation, normalize
 from src.data import N_CLASSES
-from src.loss import EpochLoss, cross_entropy, mse_consistency
+from src.loss import (EpochLoss, cross_entropy, mse_consistency,
+                      supervised_contrastive)
 from src.model import (AUGMENT_DISPLACEMENT, AUGMENT_LAMBDA, LAMBDA_MSE,
                        VARIANTS, build, parameter_breakdown, to_input)
 from src.protocol import ProtocolError, utc_now
@@ -117,6 +118,12 @@ def train_one(variant: str, seed: int, config: dict, source_x: np.ndarray,
     generates = model.generation is not None
     lambda_mse = float(VARIANTS[variant].get("lambda_mse", LAMBDA_MSE))
     ce_on_generated = bool(VARIANTS[variant].get("ce_on_generated", False))
+    # v11.0: lambda_con is zero unless the variant declares it, so every earlier
+    # cell trains exactly as before.
+    lambda_con = float(VARIANTS[variant].get("lambda_con", 0.0))
+    temperature = VARIANTS[variant].get("temperature")
+    if lambda_con > 0 and not generates:
+        raise ProtocolError("L_con needs the generated branch; declare a block")
 
     signed = generates and model.generation.sign is not None
     if signed:
@@ -162,6 +169,16 @@ def train_one(variant: str, seed: int, config: dict, source_x: np.ndarray,
                 mse = mse_consistency(logits, branches.logits_generated)
                 loss = entropy + lambda_mse * mse
                 components = {"ce": entropy, "mse": mse}
+                if lambda_con > 0:
+                    # Eq. (S5) over Z^f = z_f U z_bar_f, the generated feature
+                    # carrying its original's label; f is the L2 normalisation
+                    # inside `supervised_contrastive`.
+                    con = supervised_contrastive(
+                        torch.cat([branches.features.flatten(1),
+                                   branches.features_generated.flatten(1)]),
+                        torch.cat([batch_y, batch_y]), float(temperature))
+                    loss = loss + lambda_con * con
+                    components["con"] = con
             loss.backward()
             optimizer.step()
             accumulator.update(loss, logits, batch_y, components)
@@ -184,6 +201,9 @@ def train_one(variant: str, seed: int, config: dict, source_x: np.ndarray,
                "augment": VARIANTS[variant].get("augment"),
                "generate": VARIANTS[variant].get("generate"),
                "lambda_mse": lambda_mse if generates else None,
+               "lambda_con": lambda_con if lambda_con > 0 else None,
+               "contrastive_temperature": (
+                   float(temperature) if lambda_con > 0 else None),
                "ce_on_generated": ce_on_generated if generates else None,
                "negative_scale_fraction": (
                    model.generation.negative_scale_fraction if generates else None),
