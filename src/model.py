@@ -202,6 +202,18 @@ VARIANTS.update({
     "R-con-t5": {**_CON, "temperature": 0.5},
 })
 
+# v12.0: the drift subspace of Batch 1 projected out of the input, no
+# augmentation, no generation block, so the reference is the settled baseline
+# R-fig-logps and the numbers are source-only (R-proj-eth excepted, because
+# choosing Ethanol's offset was a target-informed choice). proposal-v12.md and
+# docs/v12-step0-separability.md: offset_axis is the headline on Batch 1
+# evidence alone.
+VARIANTS.update({
+    "R-proj-axis": {**_LOGPS, "normalizer": "logps_proj_offset_axis"},
+    "R-proj-sub3": {**_LOGPS, "normalizer": "logps_proj_sub3"},
+    "R-proj-eth": {**_LOGPS, "normalizer": "logps_proj_eth"},
+})
+
 
 # Retired 2026-09-23. Global average pooling cost -0.078 target mean, separable
 # on both levels of the other factor; see baseline.md section 4.1. The paper's

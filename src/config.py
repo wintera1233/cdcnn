@@ -26,6 +26,8 @@ SUBSPACE_VERSION = "CDCNN_v8.2_drift_subspace"
 GENERATION_VERSION = "CDCNN_v9.0_feature_generation"
 SIGNED_GENERATION_VERSION = "CDCNN_v10.0_signed_generation"
 CONTRASTIVE_VERSION = "CDCNN_v11.0_contrastive"
+PROJECTION_VERSION = "CDCNN_v12.0_drift_projection"
+PROJECTION_CV_VERSION = "CDCNN_v12.0_drift_projection_cv"
 
 # Frozen literals: the declared contents of the ladder. Adding a variant later
 # must not silently change what this version means.
@@ -96,6 +98,10 @@ SIGNED_GENERATION_VARIANTS = ("R-aug-t2", "R-gen", "R-gen-sign", "R-gen-shift")
 # varies the temperature the paper never gives.
 CONTRASTIVE_VARIANTS = ("R-gen", "R-con", "R-con-shift", "R-con-t5")
 
+# v12.0: the drift subspace projected out of the input. R-fig-logps is the
+# settled baseline and the reference row; R-proj-axis is the headline.
+PROJECTION_VARIANTS = ("R-fig-logps", "R-proj-axis", "R-proj-sub3", "R-proj-eth")
+
 REQUIRED = ("implementation_version", "variants", "seeds", "training", "optimizer",
             "scheduler")
 
@@ -119,6 +125,32 @@ def validate(config: dict) -> dict:
         raise ProtocolError("a variant is listed twice")
     if len(set(config["seeds"])) != len(config["seeds"]):
         raise ProtocolError("a seed is listed twice")
+
+    if config["implementation_version"] == PROJECTION_VERSION:
+        for name, expected, actual in (
+                ("variants", list(PROJECTION_VARIANTS), list(config["variants"])),
+                ("learning_rates", list(NORMALISER_LEARNING_RATES),
+                 [float(v) for v in config.get("learning_rates", [])]),
+                ("seeds", list(ALL_SEEDS), list(config["seeds"])),
+                ("training", LADDER_TRAINING, config["training"]),
+                ("scheduler", LADDER_SCHEDULER, config["scheduler"])):
+            if expected != actual:
+                raise ProtocolError(
+                    f"{PROJECTION_VERSION} fixes {name} as {expected}, got {actual}")
+
+    if config["implementation_version"] == PROJECTION_CV_VERSION:
+        # The step 1 gate: Batch 1 cross-validation of the same four cells, three
+        # seeds as the v7.3 CV runs used. Never opens a target batch.
+        for name, expected, actual in (
+                ("variants", list(PROJECTION_VARIANTS), list(config["variants"])),
+                ("learning_rates", list(NORMALISER_LEARNING_RATES),
+                 [float(v) for v in config.get("learning_rates", [])]),
+                ("seeds", list(LADDER_SEEDS), list(config["seeds"])),
+                ("training", LADDER_TRAINING, config["training"]),
+                ("scheduler", LADDER_SCHEDULER, config["scheduler"])):
+            if expected != actual:
+                raise ProtocolError(
+                    f"{PROJECTION_CV_VERSION} fixes {name} as {expected}, got {actual}")
 
     if config["implementation_version"] == CONTRASTIVE_VERSION:
         for name, expected, actual in (

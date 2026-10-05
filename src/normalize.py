@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import numpy as np
 
+from src import project as projection
 from src.protocol import ProtocolError
 
 EPSILON = 1e-8
@@ -31,7 +32,16 @@ N_SENSORS = 16
 N_STATISTICS = 8
 
 NORMALIZERS = ("standard_scaler", "per_sample", "standard_then_per_sample",
-               "signed_log_then_per_sample", "per_statistic_group")
+               "signed_log_then_per_sample", "per_statistic_group",
+               "logps_proj_offset_axis", "logps_proj_sub3", "logps_proj_eth")
+
+# v12: signed-log -> per-sample, then the drift subspace of Batch 1 projected
+# out. The basis is fitted on the rows handed to `fit` and travels with the
+# checkpoint, so `src.evaluate` applies the same projection to every target
+# sample. See `src/project.py`.
+PROJECTED = {"logps_proj_offset_axis": "offset_axis",
+             "logps_proj_sub3": "sub3",
+             "logps_proj_eth": "eth"}
 
 
 def _per_sample(x: np.ndarray) -> np.ndarray:
@@ -58,7 +68,19 @@ def _per_statistic_group(x: np.ndarray) -> np.ndarray:
     return ((grouped - mean) / np.maximum(std, EPSILON)).reshape(x.shape)
 
 
-def fit(kind: str, x: np.ndarray) -> dict:
+def fit(kind: str, x: np.ndarray, rows: np.ndarray | None = None) -> dict:
+    """Fit the Normal block on `x`, which must be Batch 1 rows and nothing else.
+
+    `rows` gives each sample's position in `batch1.dat`; the projected kinds
+    need it to find the acquisition sessions. It defaults to `arange(len(x))`,
+    which is right when `x` is the whole source in file order.
+    """
+    if kind in PROJECTED:
+        if rows is None:
+            rows = np.arange(len(x))
+        z = _per_sample(_signed_log(x))
+        basis = projection.drift_basis(z, rows, PROJECTED[kind])
+        return {"kind": kind, "basis": basis.tolist()}
     """Fit on the source batch. Only the `standard_scaler` stage has parameters."""
     if kind not in NORMALIZERS:
         raise ProtocolError(f"unknown normalizer {kind!r}")
@@ -83,6 +105,8 @@ def apply(params: dict, x: np.ndarray) -> np.ndarray:
         return _per_sample(x)
     if kind == "signed_log_then_per_sample":
         return _per_sample(_signed_log(x))
+    if kind in PROJECTED:
+        return projection.project(_per_sample(_signed_log(x)), params["basis"])
     if kind == "per_statistic_group":
         return _per_statistic_group(x)
     if kind == "standard_then_per_sample":

@@ -1,0 +1,37 @@
+{
+  "implementation_version": "CDCNN_v12.0_drift_projection_cv",
+  "description": "v12 step 1 gate: five-fold stratified cross-validation on Batch 1 of the four v12 cells with the real network. Folds fixed by the constant src/cv.py uses; each fold fits its projection basis from its own training rows only (normalize.fit receives the rows' Batch 1 positions). No target file is opened. Rule, declared in proposal-v12.md: a projected cell's CV accuracy may not fall more than 0.02 below R-fig-logps.",
+  "variants": [
+    "R-fig-logps",
+    "R-proj-axis",
+    "R-proj-sub3",
+    "R-proj-eth"
+  ],
+  "learning_rates": [
+    0.0003
+  ],
+  "seeds": [
+    1042,
+    2024,
+    3407
+  ],
+  "training": {
+    "epochs": 100,
+    "batch_size": 64
+  },
+  "optimizer": {
+    "lr": 0.0003,
+    "momentum": 0.9,
+    "weight_decay": 0.0001
+  },
+  "scheduler": {
+    "step_size": 25,
+    "gamma": 0.5
+  },
+  "folds": 5,
+  "fold_seed": 20260923,
+  "gate": {
+    "statistic": "final_accuracy at epoch 100 averaged over folds and seeds, and peak accuracy alongside",
+    "ceiling_drop": 0.02
+  }
+}

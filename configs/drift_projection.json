@@ -1,0 +1,91 @@
+{
+  "implementation_version": "CDCNN_v12.0_drift_projection",
+  "description": "The drift subspace of Batch 1 projected out of the normalised input, x' = x - U U^T x, with U fitted from Batch 1's own two acquisition sessions and stored in the checkpoint so evaluation applies the same map. No augmentation, no generation block, no auxiliary loss: the reference row is the settled baseline R-fig-logps and the numbers are source-only, except R-proj-eth, whose choice of Ethanol's offset was target-informed.",
+  "variants": [
+    "R-fig-logps",
+    "R-proj-axis",
+    "R-proj-sub3",
+    "R-proj-eth"
+  ],
+  "learning_rates": [
+    0.0003
+  ],
+  "seeds": [
+    1042,
+    2024,
+    3407,
+    42,
+    123
+  ],
+  "training": {
+    "epochs": 100,
+    "batch_size": 64
+  },
+  "optimizer": {
+    "lr": 0.0003,
+    "momentum": 0.9,
+    "weight_decay": 0.0001
+  },
+  "scheduler": {
+    "step_size": 25,
+    "gamma": 0.5
+  },
+  "per_epoch_checkpoint_seed": 1042,
+  "escalation": {
+    "target_mean_sd_threshold": 0.02,
+    "rung_difference_standard_errors": 2.0
+  },
+  "projection": {
+    "where": "after Normal (signed-log -> per-sample), before the reshape to [N,1,128]. The input stays a flat 128-vector; this is a linear map, not an image reshape (CLAUDE.md section 5).",
+    "basis": "src/project.py. Each of Ethanol, Ammonia and Ethylene has two acquisition sessions in Batch 1 (src/augment.py:SOURCE_BLOCKS); the second-session centroid minus the first-session centroid is one offset vector. offset_axis: first right singular vector of the three unit offsets (uncentred SVD), k=1. sub3: the span of the three, k=3. eth: Ethanol's offset, k=1.",
+    "renormalisation": "none after the projection. Re-doing per-sample would redistribute the removed component's scale onto the other coordinates, a sample-dependent rescaling. Declared, not swept.",
+    "inference": "applied. The basis travels in the checkpoint's normalizer field and src/evaluate.py applies normalize.apply to every target sample, so unlike augmentation and feature generation this block is active at inference.",
+    "headline": "R-proj-axis. proposal-v12.md first named R-proj-sub3 the headline for involving no choice; step 0 (docs/v12-step0-separability.md, Batch 1 only) showed offset_axis removes 24 % of Batch 1's total variance but 3 % of its between-class variance and widens all fifteen class-pair separations, while sub3 removes 76 % of the between-class variance and narrows six pairs. The headline was moved to R-proj-axis on that Batch 1 evidence, before any target file was opened. R-proj-sub3 stays as the no-choice cell."
+  },
+  "step0_gate": {
+    "document": "docs/v12-step0-separability.md",
+    "rule": "logistic-regression five-fold CV on Batch 1 may not fall more than 0.02 below the unprojected cell",
+    "logistic_cv": {
+      "none": 0.9618,
+      "eth": 0.953,
+      "offset_axis": 0.9552,
+      "sub3": 0.9505
+    },
+    "nearest_centroid_cv": {
+      "none": 0.8498,
+      "eth": 0.8586,
+      "offset_axis": 0.9281,
+      "sub3": 0.901
+    },
+    "between_class_variance_removed": {
+      "eth": 0.213,
+      "offset_axis": 0.028,
+      "sub3": 0.764
+    },
+    "result": "all three pass. The network's own CV (configs/drift_projection_cv.json) is the formal gate."
+  },
+  "compare_against": {
+    "run": "20260923T024922889421Z_input_norm_5seed",
+    "R-fig-logps@lr0.0003": 0.5556,
+    "paper ResNet": 0.6346
+  },
+  "confounds": {
+    "estimator_validity": "That Batch 1's session offsets track the three-year drift was established against target data (docs/batch1-internal-drift.md, docs/drift-geometry.md). The estimator is source-only; knowing that it works is not. Reported as such.",
+    "eth_direction": "choosing Ethanol's offset over the others was made after seeing which aligned with the real drift; R-proj-eth is target-informed.",
+    "what_the_axis_carries": "within each gas the Batch 1 points streak along the same axis as the session offset, most likely concentration. The projection removes both; it does not tell time from concentration.",
+    "matched_training": "all four cells train on the same 445 rows for the same steps; nothing is added to the data."
+  },
+  "paper_reference": {
+    "model": "ResNet, Table 3",
+    "printed_average": 0.6344,
+    "note": "a source-only cell above this would be the first in either branch"
+  },
+  "prediction": {
+    "recorded_before_the_run": true,
+    "basis": "Removing offset_axis removes most of the direction along which Acetaldehyde drifts onto Batch 1's Ethanol (that direction is 0.850 aligned with Ethanol's block offset and 81 % of Acetaldehyde's drift lies in the block-offset subspace). Nearest-centroid CV on Batch 1 rose from 0.850 to 0.928 under this projection. The drift is about four-dimensional and one axis carries 70.6 % of its energy, so residual drift remains.",
+    "expectation": "R-proj-axis above R-fig-logps by more than the separability threshold, with Acetaldehyde's target recall leaving 0.00. Acetone and Toluene up, Ethylene flat or down (only 24.9 % of its drift lies in the block-offset subspace). R-proj-sub3 at or below R-proj-axis, because it removes 76 % of Batch 1's between-class variance. R-proj-eth between the two.",
+    "mechanism_check": "drift over within-class radius at the input, measured after the projection on the frozen checkpoints (scripts/measure_drift_compression.py or its equivalent). The baseline's 1.80 should fall clearly; if it does not fall and accuracy rises, the gain has another cause.",
+    "falsifier_1": "If R-proj-axis is not separable from R-fig-logps, removing the Batch 1-estimable drift axis does not help under this protocol. With the mechanism check: an unchanged drift ratio means the estimator is wrong; a reduced ratio with unchanged accuracy means the errors come from the remaining drift components or from class-specific displacement.",
+    "falsifier_2": "If Acetaldehyde's recall stays at 0.00, its confusion with Ethanol is not a displacement along the shared axis, and docs/why-acetaldehyde.md needs revising."
+  }
+}

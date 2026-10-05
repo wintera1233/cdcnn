@@ -953,3 +953,88 @@ class TrainingTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class DriftProjectionTests(unittest.TestCase):
+    def setUp(self):
+        from src import normalize, project
+        from src.data import load_source
+        self.normalize, self.project = normalize, project
+        self.x, self.y = load_source()
+        self.z = normalize.apply(normalize.fit("signed_log_then_per_sample", self.x),
+                                 self.x)
+
+    def test_each_subspace_is_orthonormal_and_projection_is_idempotent(self):
+        rows = np.arange(len(self.z))
+        for name, k in (("offset_axis", 1), ("sub3", 3), ("eth", 1)):
+            basis = self.project.drift_basis(self.z, rows, name)
+            self.assertEqual(basis.shape, (128, k), name)
+            np.testing.assert_allclose(basis.T @ basis, np.eye(k), atol=1e-10)
+            once = self.project.project(self.z, basis)
+            twice = self.project.project(once, basis)
+            np.testing.assert_allclose(once, twice, atol=1e-10)
+            np.testing.assert_allclose(once @ basis, 0.0, atol=1e-9)
+
+    def test_the_session_offsets_match_the_augmentation_module(self):
+        """Same rows, same offsets: project.py must agree with augment.py."""
+        from src.augment import block_offsets
+        theirs = block_offsets(self.z, self.y)
+        mine = self.project.session_offsets(self.z, np.arange(len(self.z)))
+        for label in theirs:
+            np.testing.assert_allclose(mine[label], theirs[label])
+
+    def test_the_basis_depends_only_on_the_session_rows(self):
+        """Rows outside the six acquisition blocks may change freely."""
+        from src.augment import SOURCE_BLOCKS
+        inside = np.zeros(len(self.z), dtype=bool)
+        for (a, b), (c, d) in SOURCE_BLOCKS.values():
+            inside[a:b] = True
+            inside[c:d] = True
+        altered = self.z.copy()
+        altered[~inside] += 10.0
+        rows = np.arange(len(self.z))
+        for name in ("offset_axis", "sub3", "eth"):
+            np.testing.assert_allclose(
+                self.project.drift_basis(self.z, rows, name),
+                self.project.drift_basis(altered, rows, name))
+
+    def test_a_fold_fits_its_basis_from_its_own_rows_only(self):
+        from src.cv import stratified_folds
+        folds = stratified_folds(self.y)
+        held = folds[0]
+        train = np.setdiff1d(np.arange(len(self.y)), held)
+        params = self.normalize.fit("logps_proj_offset_axis", self.x[train], rows=train)
+        basis = np.asarray(params["basis"])
+        self.assertEqual(basis.shape, (128, 1))
+        # Perturbing the held-out rows cannot change a basis fitted without them.
+        altered = self.x.copy()
+        altered[held] *= 3.0
+        again = self.normalize.fit("logps_proj_offset_axis", altered[train], rows=train)
+        np.testing.assert_allclose(basis, np.asarray(again["basis"]))
+
+    def test_too_few_session_rows_is_refused(self):
+        with self.assertRaisesRegex(ProtocolError, "too few rows"):
+            self.project.session_offsets(self.z[:100], np.arange(100))
+
+    def test_the_projected_normaliser_removes_the_axis_and_evaluation_applies_it(self):
+        """What evaluate.predict sees is normalize.apply with the stored params,
+        so the projection reaches every target sample through that path."""
+        params = self.normalize.fit("logps_proj_offset_axis", self.x)
+        basis = np.asarray(params["basis"])
+        out = self.normalize.apply(params, self.x)
+        np.testing.assert_allclose(out @ basis, 0.0, atol=1e-9)
+        plain = self.normalize.apply({"kind": "signed_log_then_per_sample"}, self.x)
+        self.assertGreater(float(np.abs(plain @ basis).mean()), 0.1)
+
+    def test_the_v12_variants_carry_no_augmentation_or_block(self):
+        from src.model import VARIANTS, build
+        for name, kind in (("R-proj-axis", "logps_proj_offset_axis"),
+                           ("R-proj-sub3", "logps_proj_sub3"),
+                           ("R-proj-eth", "logps_proj_eth")):
+            spec = VARIANTS[name]
+            self.assertEqual(spec["normalizer"], kind)
+            self.assertNotIn("augment", spec)
+            self.assertNotIn("generate", spec)
+            self.assertEqual(spec["channels"], VARIANTS["R-fig-logps"]["channels"])
+            self.assertIsNone(build(name).generation)
+

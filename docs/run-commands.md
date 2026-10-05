@@ -78,3 +78,20 @@ $DOCKER python scripts/run_baseline.py launch \
 
 .venv/bin/python scripts/summarise_run.py runs/<run> --reference R-gen
 ```
+
+## v12.0, the drift projection
+
+```bash
+# step 1 gate: Batch 1 cross-validation with the real network, no target file
+$DOCKER python scripts/run_baseline.py cv \
+  --config configs/drift_projection_cv.json --name drift_projection_cv --require-cuda
+
+$DOCKER python scripts/run_baseline.py gpu-smoke \
+  --config configs/drift_projection.json --epochs 3
+
+$DOCKER python scripts/run_baseline.py launch \
+  --config configs/drift_projection.json --max-workers 1 \
+  --gpu-smoke-run runs/<passing_gpu_smoke>
+
+.venv/bin/python scripts/summarise_run.py runs/<run> --reference R-fig-logps
+```

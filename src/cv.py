@@ -66,7 +66,8 @@ def fold_curve(variant: str, seed: int, learning_rate: float, config: dict,
     scheduler_config = config["scheduler"]
 
     seed_everything(seed)
-    params = normalize.fit(VARIANTS[variant]["normalizer"], x[train_index])
+    params = normalize.fit(VARIANTS[variant]["normalizer"], x[train_index],
+                           rows=train_index)
     train_x = to_input(normalize.apply(params, x[train_index])).to(device)
     train_y = (torch.as_tensor(y[train_index], dtype=torch.int64) - 1).to(device)
     held_x = to_input(normalize.apply(params, x[held_out_index])).to(device)
