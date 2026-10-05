@@ -257,14 +257,14 @@ def build() -> Path:
         ["不擴充（基線）", "0.5556", "—"],
         ["論文的擴充：各方向隨機的噪聲（Eq. 5–7）", "0.5340", "−0.0216"],
         ["沿感測器老化方向推一段距離，不加噪聲", "0.5770", "+0.0214"],
-    ], X, Y, W, col_fracs=(0.6, 0.2, 0.2), size=13, row_h=Inches(0.42),
+    ], X, Y, Inches(5.3), col_fracs=(0.6, 0.2, 0.2), size=12, row_h=Inches(0.42),
        bold_rows=(3,), aligns=["left", "right", "right"])
-    picture(s, FIG / "augmentation_pca.png", X, Y + Inches(1.8), W, Inches(1.5))
-    caption(s, X, Y + Inches(3.3), W, "Batch 1 擴充前後：隨機噪聲只把雲撐大，離目標的距離不變；有方向的位移才靠過去")
-    textbox(s, X, Y + Inches(3.7), W, Inches(1.6), [
-        "• 「有方向」的版本是本研究唯一超過門檻的增益，但它的方向是看過測試資料才選的，只能當上界",
+    textbox(s, X + Inches(5.5), Y, Inches(3.5), Inches(1.8), [
+        "• 「有方向」是本研究唯一超過門檻的增益，但方向是看過測試資料才選的，只能當上界",
         "• 增益全來自 Acetone 變好 0.26，代價是 Ethylene 變差 0.27；整批判錯的 Acetaldehyde 一樣沒救回來",
-    ], size=14)
+    ], size=12)
+    picture(s, FIG / "augmentation_pca_3panel.png", X, Y + Inches(1.85), W, Inches(3.4))
+    caption(s, X, Y + Inches(5.15), W, "Batch 1 在三維主成分空間：隨機噪聲（中）只把雲撐大，到測試批次 Acetaldehyde 重心（紅叉）的距離不變；有方向的位移（右）才靠過去")
 
     # 18. Fig. 5 ---------------------------------------------------------------------------
     s, _ = deck.slide("元件二：特徵生成，Fig. 5 怎麼讀", keep_body=False)

@@ -51,6 +51,11 @@ def main() -> int:
     parser.add_argument("--seed", type=int, default=1042)
     parser.add_argument("--no-target-marker", action="store_true")
     parser.add_argument("--out", default="reports/figures/augmentation_pca.png")
+    parser.add_argument("--panels", nargs="+", default=None,
+                        help="variant names to draw, in order; default all four")
+    parser.add_argument("--font-scale", type=float, default=1.0)
+    parser.add_argument("--marker-scale", type=float, default=1.0)
+    parser.add_argument("--no-suptitle", action="store_true")
     args = parser.parse_args()
 
     x, y = load_source()
@@ -97,16 +102,19 @@ def main() -> int:
     pad = [(b - a) * 0.08 for a, b in lim]
     lim = [(a - p, b + p) for (a, b), p in zip(lim, pad)]
 
-    figure = plt.figure(figsize=(17.0, 5.6), facecolor=SURFACE)
+    panels = PANELS if args.panels is None else [
+        next(p for p in PANELS if p[0] == name) for name in args.panels]
+    fs = args.font_scale
+    figure = plt.figure(figsize=(4.25 * len(panels), 5.6), facecolor=SURFACE)
     radius0 = None
-    for index, (variant, title) in enumerate(PANELS, start=1):
-        axis = figure.add_subplot(1, 4, index, projection="3d")
+    for index, (variant, title) in enumerate(panels, start=1):
+        axis = figure.add_subplot(1, len(panels), index, projection="3d")
         axis.set_facecolor(SURFACE)
         z, labels = clouds[variant]
         points = project(z)
         for c in range(1, 7):
             m = labels == c
-            axis.scatter(points[m, 0], points[m, 1], points[m, 2], s=3.5,
+            axis.scatter(points[m, 0], points[m, 1], points[m, 2], s=3.5 * args.marker_scale,
                          color=COLOURS[c - 1], alpha=0.35, linewidths=0,
                          label=GAS_LABELS[c], depthshade=False)
         if target_point is not None:
@@ -127,12 +135,12 @@ def main() -> int:
             reach = (f"\n到 target 的最近距離 {nearest:.2f}"
                      f"（半徑 {acet_radius:.2f}，{'涵蓋' if nearest < acet_radius else '未涵蓋'}）")
         axis.set_title(f"{title}\n類內半徑 {radius:.2f}（{radius / radius0:.2f}×）{reach}",
-                       fontsize=10, color=INK, pad=2)
+                       fontsize=10 * fs, color=INK, pad=2)
         axis.set_xlim(*lim[0]); axis.set_ylim(*lim[1]); axis.set_zlim(*lim[2])
-        axis.set_xlabel(f"PC1 ({explained[0]:.1%})", fontsize=8.5, color=INK_MUTED)
-        axis.set_ylabel(f"PC2 ({explained[1]:.1%})", fontsize=8.5, color=INK_MUTED)
-        axis.set_zlabel(f"PC3 ({explained[2]:.1%})", fontsize=8.5, color=INK_MUTED)
-        axis.tick_params(labelsize=7.5, colors=INK_MUTED)
+        axis.set_xlabel(f"PC1 ({explained[0]:.1%})", fontsize=8.5 * fs, color=INK_MUTED)
+        axis.set_ylabel(f"PC2 ({explained[1]:.1%})", fontsize=8.5 * fs, color=INK_MUTED)
+        axis.set_zlabel(f"PC3 ({explained[2]:.1%})", fontsize=8.5 * fs, color=INK_MUTED)
+        axis.tick_params(labelsize=7.5 * fs, colors=INK_MUTED)
         axis.view_init(elev=18, azim=-58)
         axis.set_box_aspect((1.0, 1.0, 0.72), zoom=1.22)
         for pane in (axis.xaxis, axis.yaxis, axis.zaxis):
@@ -140,13 +148,16 @@ def main() -> int:
             pane.pane.set_edgecolor("#d9d8d4")
 
     handles, names = figure.axes[0].get_legend_handles_labels()
-    figure.legend(handles, names, loc="lower center", ncol=7, frameon=False,
-                  fontsize=10, markerscale=2.6, bbox_to_anchor=(0.5, -0.01))
-    figure.suptitle("Batch 1 擴充前後的三維主成分空間（對照論文 Fig. 4）\n"
-                    "所有面板共用同一組投影與座標範圍；範圍取全體的 1–99 百分位",
-                    fontsize=13, color=INK, y=0.99)
-    figure.subplots_adjust(left=0.01, right=0.99, top=0.80, bottom=0.10,
-                           wspace=0.02)
+    figure.legend(handles, names, loc="lower center", ncol=7 if len(panels) == 4 else 4,
+                  frameon=False, fontsize=10 * fs, markerscale=2.6,
+                  bbox_to_anchor=(0.5, -0.01))
+    if not args.no_suptitle:
+        figure.suptitle("Batch 1 擴充前後的三維主成分空間（對照論文 Fig. 4）\n"
+                        "所有面板共用同一組投影與座標範圍；範圍取全體的 1–99 百分位",
+                        fontsize=13 * fs, color=INK, y=0.99)
+    figure.subplots_adjust(left=0.01, right=0.99,
+                           top=0.80 if not args.no_suptitle else 0.88,
+                           bottom=0.10 if len(panels) == 4 else 0.14, wspace=0.02)
     out = ROOT / args.out
     out.parent.mkdir(parents=True, exist_ok=True)
     figure.savefig(out, dpi=155, facecolor=SURFACE)
