@@ -102,7 +102,7 @@ def main() -> int:
     # left: the plane, the session offsets, the common axis
     ax = axes[0]
     scatter_plane(ax, plane, y, second,
-                  title=f"Batch 1 自己的 PCA 平面（PC1 {share[0]:.0%}，PC2 {share[1]:.0%}）")
+                  title=f"Batch 1 in its own PCA plane (PC1 {share[0]:.0%}, PC2 {share[1]:.0%})")
     for label, off in offsets.items():
         a = (z[y == label][second[y == label] == 0].mean(axis=0) - centre) @ basis
         b = (z[y == label][second[y == label] == 1].mean(axis=0) - centre) @ basis
@@ -115,10 +115,10 @@ def main() -> int:
     ax.plot([-reach * direction[0], reach * direction[0]],
             [-reach * direction[1], reach * direction[1]],
             color=INK, lw=1.4, ls="--", zorder=2)
-    ax.text(reach * direction[0], reach * direction[1], "  漂移軸 u", fontsize=9.5,
+    ax.text(reach * direction[0], reach * direction[1], "  drift axis u", fontsize=9.5,
             color=INK, va="center")
-    ax.set_xlabel("PC1（裝 91% 的類間變異）", fontsize=9.5, color=MUTED)
-    ax.set_ylabel("PC2（與 u 的 |cos| 0.91）", fontsize=9.5, color=MUTED)
+    ax.set_xlabel("PC1 (carries 91% of the between-class variance)", fontsize=9.5, color=MUTED)
+    ax.set_ylabel("PC2 (|cos| with u = 0.91)", fontsize=9.5, color=MUTED)
     ax.set_xlim(-span[0], span[0]); ax.set_ylim(-span[1], span[1])
 
     # middle: coordinate along u, per class, by session
@@ -140,13 +140,13 @@ def main() -> int:
     ax.axvline(0, color=GRID, lw=1, zorder=1)
     ax.set_yticks(range(len(ORDER)))
     ax.set_yticklabels([GAS_LABELS[l] for l in reversed(ORDER)], fontsize=9.5, color=INK)
-    ax.set_xlabel("沿漂移軸 u 的座標", fontsize=9.5, color=MUTED)
-    ax.set_title("每種氣體沿 u 的分布\n實心 = 第一次採集，空心 = 第二次", fontsize=11, color=INK)
+    ax.set_xlabel("coordinate along the drift axis u", fontsize=9.5, color=MUTED)
+    ax.set_title("Each gas along u\nfilled = first session, hollow = second", fontsize=11, color=INK)
 
     # right: after projection, same basis
     ax = axes[2]
     scatter_plane(ax, plane_after, y, second,
-                  title="拿掉 u 之後（x − u uᵀ x），同一組 PCA 軸")
+                  title="After removing u (x − u uᵀ x), same PCA axes")
     ax.set_xlabel("PC1", fontsize=9.5, color=MUTED)
     ax.set_ylabel("PC2", fontsize=9.5, color=MUTED)
     ax.set_xlim(-span[0], span[0]); ax.set_ylim(-span[1], span[1])
@@ -158,10 +158,10 @@ def main() -> int:
                        markeredgecolor=INK),
                 Line2D([], [], ls="none", marker="o", markersize=8, markerfacecolor="none",
                        markeredgecolor=INK, markeredgewidth=1.3)]
-    names = [GAS_LABELS[l] for l in ORDER] + ["第一次採集", "第二次採集（只有三類有）"]
+    names = [GAS_LABELS[l] for l in ORDER] + ["first acquisition session", "second session (three gases only)"]
     figure.legend(handles, names, loc="upper center", ncol=8, frameon=False,
                   fontsize=9.5, bbox_to_anchor=(0.5, 0.985))
-    figure.suptitle("漂移軸在 Batch 1 裡的位置：氣體沿 PC1 分開，採集時間沿 PC2 分開，兩者幾乎正交",
+    figure.suptitle("Where the drift axis sits in Batch 1: gases separate along PC1, acquisition sessions along PC2, nearly orthogonal",
                     fontsize=12.5, color=INK, y=1.04)
     figure.tight_layout(rect=(0, 0, 1, 0.93))
     out = ROOT / "reports" / "figures" / "batch1_drift_axis.png"

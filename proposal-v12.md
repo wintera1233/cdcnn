@@ -128,6 +128,7 @@ x → signed-log → per-sample → x − U Uᵀ x → reshape [N,1,128] → Res
 ## 第 0 步的結果（2026-10-05，只用 Batch 1）
 
 `scripts/measure_projection_separability.py`，數值在 `reports/projection_separability.json`。
+英文版的完整記錄（含圖）在 `docs/v12-step0-separability.md`。
 網路版的交叉驗證要等 normalizer 實作完，這裡用兩個便宜的分類器當代理。
 
 **關卡：三個候選都過。** 邏輯斯迴歸的 5-fold CV 最多掉 0.011，門檻是 0.02。
