@@ -1,9 +1,11 @@
 # Project Instructions for AI Agents
 
-This branch (`exp/v7-redesign`) restarts the study from the baseline. It has
-reached v11.0: the baseline is settled (`baseline.md`), directed augmentation,
+This branch (`exp/v12-drift-projection`, from `exp/v7-redesign`) carries the
+whole ladder: the baseline is settled (`baseline.md`), directed augmentation,
 feature generation and a signed feature generation are all measured (section 4),
-and the contrastive loss `L_con` is implemented but, by decision, not run. The rules below are protocol, not
+the contrastive loss `L_con` is implemented but, by decision, not run, and
+v12.0 - projecting Batch 1's own drift axis out of the input - is measured
+(`proposal-v12.md`, `docs/v12-drift-projection.md`). The rules below are protocol, not
 method: they say nothing about which architecture, optimizer, or training
 schedule to use, because those are what the redesign is for. Section 4 records
 what has already been measured - do not spend GPU time re-deriving any of it.
@@ -74,7 +76,7 @@ Reference values from the paper's Table 3:
 `baseline.md` holds the settled baseline design. Do not spend GPU time
 re-deriving any of the following.
 
-### From this branch (v7.0 to v10.0, `docs/`)
+### From this branch (v7.0 to v12.0, `docs/`)
 
 #### The baseline (v7.0 to v7.3)
 
@@ -304,6 +306,42 @@ never from a target file. All cells carry `R-aug-t2`, lambda_MSE 0.5.
   the shift is measured on top of a same-direction displacement; the cleaner
   `R-gen-shift` without augmentation against `R-fig-logps` was not run.
 
+#### v12.0 projecting the drift axis out of the input (`docs/v12-drift-projection.md`)
+
+Run `runs/20261005T145146298993Z_baseline_ladder_full`, four cells x five seeds,
+pooled SD 0.0088 to 0.0164, threshold 0.0145 to 0.0191. `x' = x - U U^T x` after
+the Normal block, `U` from Batch 1's two acquisition sessions, stored in the
+checkpoint and applied at inference. No augmentation, no block: the reference is
+the settled baseline and the numbers are source-only except `R-proj-eth`.
+
+| variant | removed | k | target mean | SD | vs baseline | separable |
+|---|---|---:|---:|---:|---:|---|
+| `R-proj-eth` | Ethanol's session offset | 1 | 0.5747 | 0.0119 | +0.0191 | yes, target-informed |
+| `R-proj-axis` | the line the three offsets share | 1 | 0.5684 | 0.0088 | +0.0128 | no (threshold 0.0145) |
+| `R-proj-sub3` | the span of the three offsets | 3 | 0.5610 | 0.0164 | +0.0055 | no |
+| `R-fig-logps` | nothing | 0 | 0.5556 | 0.0137 | - | - |
+
+- **Batch 1's session offset is a usable direction estimate but is not the
+  drift.** Its common axis carries 29% of the three-year drift's energy and 42%
+  of Batch 1's within-class radius (the within-class streaks run along it); the
+  3-dimensional span carries 73% of the drift energy and 76% of the
+  between-class variance. In this input space drift and class information share
+  two or three effective dimensions and a projection cannot separate them.
+- **Both pre-registered falsifiers triggered.** The headline is 0.0017 under its
+  threshold, and Acetaldehyde stays at 0.000: its target centroid still lands on
+  Batch 1's Ethanol in 7 to 9 batches of 9 under every projection, even `sub3`,
+  because after the projection the two are 1.01 radii apart in Batch 1. The dead
+  class is not only a shared-axis translation; `docs/why-acetaldehyde.md` is
+  incomplete on this point.
+- **Removing the axis trades exactly as augmenting along it did**: Acetone +0.24
+  to +0.27, Ethylene -0.28 to -0.29, the v8.1 pattern. The proposal's claim that
+  projection would not reallocate the prediction quota was wrong. Two unrelated
+  mechanisms giving the same ceiling (+0.019 to +0.021, target-informed) and the
+  same per-class shape says the ceiling belongs to the data's geometry.
+- Source separability is untouched: the step 1 gate (Batch 1 CV with the network,
+  `runs/20261005T140110659659Z_drift_projection_cv`) gave 0.9709 against 0.9680.
+- **The source-only settled number remains 0.5556.**
+
 #### Standing methodological facts
 
 - **A fixed epoch budget confounds augmentation**, because doubling the rows at a
@@ -322,6 +360,9 @@ never from a target file. All cells carry `R-aug-t2`, lambda_MSE 0.5.
   premise is already gone. The previous branch measured it five times at -0.005
   to +0.003. The run is one `gpu-smoke` plus one `launch`, about fifteen
   minutes, if it is ever wanted.
+- **A drift-over-radius ratio can rise when drift is removed**, if the removal
+  shrinks the within-class radius more than the drift (v12.0: 1.80 to 2.46 under
+  `R-proj-axis`). Report the numerator and denominator separately.
 - **Coverage in a high-dimensional feature space has to be measured along the
   drift axis.** A 2D-PCA hull is blind to the other axes, a full-dimensional
   radius test saturates, and a centroid comparison ignores extent; the three

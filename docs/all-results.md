@@ -24,6 +24,19 @@ contrastive loss. Seeds 1042, 2024, 3407, and for the v7.5 grid also 42 and 123.
 | `R-txt` | v7.0 | capped 128 | flatten | StandardScaler | BatchNorm | 0.001 | 3 | 1.0000 | **0.3777** | 0.0365 |
 | `R-lite` | v7.0 | capped 128 | GAP | StandardScaler | BatchNorm | 0.001 | 3 | 0.9551 | **0.2958** | 0.0524 |
 
+## v12.0: the drift axis projected out of the input
+
+`R-fig-logps` plus a fixed projection `x - U U^T x` after the Normal block, `U`
+from Batch 1's two acquisition sessions. No augmentation, no block, five seeds;
+see `docs/v12-drift-projection.md`. Run `20261005T145146298993Z_baseline_ladder_full`.
+
+| Cell | removed | k | Batch 1 | Target mean | SD | vs `R-fig-logps` | separable |
+|---|---|---:|---:|---:|---:|---:|---|
+| `R-proj-eth` | Ethanol's session offset (target-informed choice) | 1 | 0.9910 | **0.5747** | 0.0119 | +0.0191 | yes |
+| `R-proj-axis` | the common axis of the three offsets | 1 | 0.9897 | **0.5684** | 0.0088 | +0.0128 | no |
+| `R-proj-sub3` | the span of the three offsets | 3 | 0.9910 | **0.5610** | 0.0164 | +0.0055 | no |
+| `R-fig-logps` (re-run) | — | 0 | 0.9906 | **0.5556** | 0.0137 | — | — |
+
 ## Cells with CDCNN components
 
 Every cell below is `R-fig-logps` plus the named component, at lr 0.0003 on five
