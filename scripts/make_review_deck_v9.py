@@ -215,7 +215,7 @@ def build() -> Path:
         color=RGBColor(0xCF, 0xD3, 0xDE))
     p = tf.add_paragraph(); p.space_before = Pt(30)
     run(p, "UCI Gas Sensor Array Drift，Batch 1 訓練、Batch 2–10 評估  ·  五個 seed  ·  "
-           "runs 2026-09-22 至 09-23  ·  分支 exp/v7-redesign", size=12.5,
+           "runs 2026-09-22 至 09-29  ·  分支 exp/v7-redesign", size=12.5,
         color=RGBColor(0xA8, 0xAD, 0xBD))
     rect(s, M, Inches(5.6), Inches(0.62), Inches(0.62), ORANGE, shape=MSO_SHAPE.OVAL)
     tf = textbox(s, M + Inches(0.85), Inches(5.62), Inches(8), Inches(0.6),
@@ -230,15 +230,16 @@ def build() -> Path:
         ["純 ResNet 基線（Fig. 2）", "架構照圖重建，source-only 訓練", "0.5556 ± 0.0137", "0.6346"],
         ["資料擴充（Eq. 7，等向噪聲）", "照做", "−0.0216", "含在 +0.036 內"],
         ["特徵生成（Eqs. 8–16）+ L_MSE（S4）", "照做，Fig. 5 畫得出同樣的圖", "+0.0004", "含在 +0.036 內"],
-        ["對比損失 L_con（S5）", "尚未", "—", "+0.053"],
+        ["特徵生成，Eq. (14) 補上正負號與幅度（v10）", "照 v9 的診斷修了，仍不動", "+0.0023", "—"],
+        ["對比損失 L_con（S5）", "已實作，決定不跑", "—", "+0.053"],
         ["Acetaldehyde 完全誤判（Fig. S3）", "重現了，和論文一樣", "0.000", "0.00"],
-    ], M, Inches(1.75), W - 2 * M, col_fracs=(0.34, 0.34, 0.16, 0.16), size=13,
-       row_h=Inches(0.46), bold_rows=(5,), aligns=["left", "left", "right", "right"])
+    ], M, Inches(1.75), W - 2 * M, col_fracs=(0.36, 0.32, 0.16, 0.16), size=12.5,
+       row_h=Inches(0.42), bold_rows=(6,), aligns=["left", "left", "right", "right"])
     bullets(s, [
         "協定：只用 Batch 1（445 筆）訓練與選擇；Batch 2–10 在所有 checkpoint 凍結、雜湊之後才開，每次執行都有稽核",
         "統計量：target mean = 九個 batch 準確率的未加權平均，與論文相同；五個 seed、附 SD，可分辨門檻 0.009–0.022",
-        "接下來每頁一個實作時撞到的問題，重點在第 6、7 頁",
-    ], M, Inches(4.85), W - 2 * M, Inches(2.2), size=14)
+        "接下來每頁一個實作時撞到的問題，重點在問題 6、7、8",
+    ], M, Inches(4.95), W - 2 * M, Inches(2.2), size=14)
 
     # 2. Problem 1: text vs figure --------------------------------------------
     s = content_slide(prs, "論文的文字與圖互相矛盾，資料支持圖", number=1,
@@ -319,7 +320,7 @@ def build() -> Path:
         "方向是看過 target 才選的，T 與去噪聲也是：target-informed，只能算上界",
         "增益全是 Acetone +0.255 換 Ethylene −0.272；Ethylene 是漂移方向與共用方向最不對齊的類別（cos 0.451）",
         ("死類別仍是 0.003：Acetaldehyde 與 Ethanol 幾乎一起漂（cos 0.761），共用方向平移解不開兩者", "key"),
-        "Source-only 的替代：Batch 1 自己兩個採集區塊的偏移能估到方向（cos 0.850），尚未拿來訓練",
+        "Source-only 的替代：Batch 1 自己兩個採集區塊的偏移能估到方向（cos 0.850）；v10 在 block 3 用過，輸入端還沒有",
     ], M, Inches(3.55), Inches(6.4), Inches(3.6), size=12.5, gap=6)
     picture(s, FIG / "drift_dimension.png", Inches(7.3), Inches(1.75), Inches(5.45), Inches(2.1))
     caption(s, "漂移的譜：PC1 佔 70.6%，90% 要 4 個成分；Ethylene 是例外", Inches(7.3), Inches(3.85), Inches(5.45))
