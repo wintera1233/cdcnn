@@ -264,7 +264,7 @@ def build() -> Path:
         "• 增益全來自 Acetone 變好 0.26，代價是 Ethylene 變差 0.27；整批判錯的 Acetaldehyde 一樣沒救回來",
     ], size=12)
     picture(s, FIG / "augmentation_pca_3panel.png", X, Y + Inches(1.85), W, Inches(3.4))
-    caption(s, X, Y + Inches(5.15), W, "Batch 1 在三維主成分空間：隨機噪聲（中）只把雲撐大，到測試批次 Acetaldehyde 重心（紅叉）的距離不變；有方向的位移（右）才靠過去")
+    caption(s, X, Y + Inches(5.15), W, "Batch 1 在前兩個主成分上：隨機噪聲（中）只把雲撐大，到測試批次 Acetaldehyde 重心（紅叉）的距離不變；有方向的位移（右）才靠過去")
 
     # 18. Fig. 5 ---------------------------------------------------------------------------
     s, _ = deck.slide("元件二：特徵生成，Fig. 5 怎麼讀", keep_body=False)
