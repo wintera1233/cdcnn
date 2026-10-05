@@ -178,256 +178,243 @@ def caption(slide, x, y, w, text):
 
 
 # ------------------------------------------------------------------ slides
+def kicker(slide, text):
+    """One plain sentence under the title: the slide's message for a reader
+    who has not read the paper."""
+    textbox(slide, Inches(1.45), Inches(1.22), Inches(8.05), Inches(0.35), text,
+            size=12, color=NAVY, bold=True)
+
+
+TOP = Inches(1.62)   # content starts below the kicker
+
+
 def build() -> Path:
     prs = Presentation(SRC)
     drop_slides_after(prs, KEEP)
     deck = Deck(prs)
-    X, Y, W, H = BODY
+    X, _, W, _ = BODY
+    Y = TOP
 
-    # 12. executive summary ----------------------------------------------------
-    s, body = deck.slide("CDCNN 重現與探討", keep_body=True)
-    bullets(body, [
-        "Executive Summary：",
-        ("只用 Batch 1 訓練與選擇；Batch 2–10 在所有 checkpoint 凍結、雜湊之後才開，每次執行有稽核。五個 seed、100 epochs，比較統計量是九個 batch 準確率的未加權平均（target mean），與論文相同。", 1),
-        ("架構照 Fig. 2 重建，source-only 基線 0.5556（論文 ResNet 0.6346）。", 1),
-        ("論文三個元件逐一加上去量：等向擴充 −0.0216、特徵生成 +0.0004、補上正負號 +0.0023；對比損失已實作，前提已被量掉，決定不跑。", 1),
-        ("另做一個不在論文裡的延伸：把 Batch 1 估到的漂移軸投影掉，+0.0128，不可分辨。", 1),
-        "接下來每頁一個實作時撞到的問題，重點在 Fig. 5 的畫法、生成特徵有沒有覆蓋 target、以及為什麼。",
-    ], size=18, sub_size=16)
+    # 12. what we built --------------------------------------------------------------
+    s, _ = deck.slide("實驗設計：照 Fig. 2 重建架構", keep_body=False)
+    kicker(s, "先把論文的網路照圖做出來，只用第一批資料訓練，再看它在後面九批的表現。")
+    picture(s, PAPER / "fig2_cdcnn.png", X, Y, Inches(4.6), Inches(2.7), align="left")
+    caption(s, X, Y + Inches(2.7), Inches(4.6), "論文 Fig. 2：五個一維 ResNet 區塊，攤平後接全連接層；資料擴充與特徵生成只在訓練時作用")
+    textbox(s, X + Inches(4.8), Y, Inches(4.2), Inches(4.0), [
+        "架構：五個 ResNet 區塊（通道 32/64/128/256/128）、不做 pooling、攤平後 FC128 → BatchNorm → FC6，完全照圖",
+        "資料：UCI 漂移資料集，128 維特徵、六種氣體、十批，橫跨三年",
+        "規則（source-only）：訓練、調參、選模型只用 Batch 1 的 445 筆；Batch 2–10 要等所有模型存檔、雜湊之後才打開，每次執行都有稽核",
+        "指標：九批各自的準確率再取平均（target mean），與論文 Table 3 相同；五個隨機種子，附標準差",
+    ], size=13)
+    textbox(s, X, Y + Inches(3.15), Inches(4.6), Inches(1.6), [
+        "三個元件一個一個加上去量：",
+        "① 資料擴充　② 特徵生成 + L_MSE　③ 對比損失 L_con",
+        "每加一個，問兩件事：準確率動了多少？機制有沒有真的發生？",
+    ], size=13)
 
-    # 13. what was reproduced ----------------------------------------------------
-    s, _ = deck.slide("重現了什麼、沒重現什麼", keep_body=False)
-    table(s, ["論文的東西", "重現狀態", "我們的數字", "論文"], [
-        ["純 ResNet 基線（Fig. 2）", "架構照圖重建，source-only 訓練", "0.5556 ± 0.0137", "0.6346"],
-        ["資料擴充（Eq. 7，等向噪聲）", "照做", "−0.0216", "含在 +0.036 內"],
-        ["特徵生成（Eqs. 8–16）+ L_MSE（S4）", "照做，Fig. 5 畫得出同樣的圖", "+0.0004", "含在 +0.036 內"],
-        ["特徵生成，Eq. (14) 補上正負號與幅度", "照診斷修了，仍不動", "+0.0023", "—"],
-        ["對比損失 L_con（S5）", "已實作，決定不跑", "—", "+0.053"],
-        ["Acetaldehyde 完全誤判（Fig. S3）", "重現了，和論文一樣", "0.000", "0.00"],
-    ], X, Y, W, col_fracs=(0.36, 0.32, 0.16, 0.16), size=13, row_h=Inches(0.58),
-       bold_rows=(6,), aligns=["left", "left", "right", "right"])
-    textbox(s, X, Y + Inches(4.25), W, Inches(1.2), [
-        "機制都重現得出來，準確率的增益重現不出來。",
-        "可分辨門檻 0.009–0.022（五個 seed、2 × 標準誤）；低於 0.005 的差不算效應。",
-    ], size=15)
+    # 13. the baseline ---------------------------------------------------------------
+    s, _ = deck.slide("基線結果：0.5556，論文的 ResNet 0.6346", keep_body=False)
+    kicker(s, "差 0.08。先看錯在哪：有一種氣體整批判錯，而論文自己的模型也一樣。")
+    picture(s, FIG / "baseline-confusion_best.png", X, Y, Inches(4.5), Inches(2.9), align="left")
+    caption(s, X, Y + Inches(2.9), Inches(4.5), "我們的混淆矩陣（Batch 2–10 合併）：Acetaldehyde 那一列全部判成 Ethanol")
+    picture(s, PAPER / "figS3_confusion.png", X + Inches(4.7), Y, Inches(4.3), Inches(2.1), align="left")
+    caption(s, X + Inches(4.7), Y + Inches(2.1), Inches(4.3), "論文 Fig. S3：CDCNN 也把 100% 的 Acetaldehyde 判成 Ethanol")
+    textbox(s, X + Inches(4.7), Y + Inches(2.5), Inches(4.3), Inches(2.5), [
+        "• Acetaldehyde 在 Batch 1 上分得很好（recall 1.000），到了後面的批次整個雲團移到 Ethanol 原本的位置",
+        "• 這不是模型做錯，是感測器老化造成的位移；論文的模型也救不回它",
+        "• 所以和論文的差距在其他五種氣體，尤其 Toluene（論文 0.92，我們 0.39）與 Acetone（0.94 對 0.51）",
+    ], size=13)
+    textbox(s, X, Y + Inches(3.3), Inches(4.5), Inches(1.5), [
+        "訓練集 Batch 1 上的準確率是 1.000，所以問題不在學不會，在學到的東西搬不到後面的批次。",
+    ], size=13)
 
-    # 14. text vs figure -----------------------------------------------------------
-    s, _ = deck.slide("問題一：文字與圖互相矛盾，資料支持圖", keep_body=False)
-    table(s, ["論文的地方", "文字說", "圖說／實作", "實測"], [
-        ["Channel 數", "§5.2「1 到 128 逐步增加」", "Fig. 2 印 32/64/128/256/128", "圖版高 +0.03 到 +0.05"],
-        ["Pooling", "「doesn't apply the pooling layer」", "—", "加 GAP 掉 −0.078"],
-        ["Eq. (S2)", "對 minibatch 取未加權平均", "最後一批只有 61 筆", "照 S2，記錄差異"],
-        ["Eq. (S4)", "沒有 1/C", "F.mse_loss 預設除以 6", "照 S4，六項相加"],
-        ["Eqs. (10)–(11)", "統計量維度自相矛盾", "逐純量／channel／位置三種讀法", "三種都做，都約零"],
-        ["Eq. (14)", "高斯可抽到負的尺度", "照論文不截斷", "負值比例 0.000"],
-    ], X, Y, W, col_fracs=(0.16, 0.32, 0.30, 0.22), size=12, row_h=Inches(0.56),
+    # 14. text vs figure ----------------------------------------------------------------
+    s, _ = deck.slide("問題一：論文文字和圖對不上", keep_body=False)
+    kicker(s, "論文有幾處文字與圖互相矛盾，我們每一處都做了兩種版本，資料支持圖。")
+    table(s, ["哪裡", "文字說", "圖或公式說", "我們實測"], [
+        ["網路寬度", "通道數從 1 逐步增加到 128", "Fig. 2 印的是 32/64/128/256/128", "圖版高 0.03 到 0.05"],
+        ["Pooling", "「這個網路不用 pooling layer」", "—", "加了就掉 0.078，是全研究最大的單一效應"],
+        ["四條公式的細節", "平均怎麼取、要不要除以類別數、統計量的維度、高斯能不能抽到負值", "各有兩種讀法", "都做了，差異都約零"],
+    ], X, Y, W, col_fracs=(0.14, 0.32, 0.30, 0.24), size=12, row_h=Inches(0.7),
        aligns=["left", "left", "left", "left"])
-    textbox(s, X, Y + Inches(4.1), W, Inches(1.2), [
-        "Pooling 那句是關鍵句：加了全域平均池化就掉 0.078，比任何 CDCNN 元件的效應都大。",
-        "能照做的都照做了；沒有一個歧義能解釋後面的差距。",
-    ], size=15)
+    textbox(s, X, Y + Inches(3.1), W, Inches(1.5), [
+        "結論：能照做的都照做了，沒有一個歧義能解釋 0.08 的差距。",
+        "唯一真正重要的是「不用 pooling」那句話：它比論文的三個元件加起來都重要。",
+    ], size=14)
 
-    # 15. label mapping --------------------------------------------------------------
+    # 15. labels ----------------------------------------------------------------------
     s, _ = deck.slide("問題二：標籤對不上論文的 Table 2", keep_body=False)
+    kicker(s, "資料集的氣體編號和論文表格對不上，我們用 Batch 1 的形狀對回去。不影響任何準確率。")
     picture(s, PAPER / "fig4a.png", X, Y, Inches(4.4), Inches(2.1), align="left")
     picture(s, FIG / "batch1_pca.png", X + Inches(4.6), Y, Inches(4.4), Inches(2.1), align="left")
-    caption(s, X, Y + Inches(2.1), Inches(4.4), "論文的 PCA 總圖（batch1 面板），依氣體名稱上色")
-    caption(s, X + Inches(4.6), Y + Inches(2.1), Inches(4.4), "我們的 Batch 1 PCA，只標整數標籤")
-    textbox(s, X, Y + Inches(2.5), W, Inches(2.8), [
-        "• 資料集文件：1=Ethanol, 2=Ethylene, 3=Ammonia, 4=Acetaldehyde, 5=Acetone, 6=Toluene",
-        "• 論文 Table 2 的 Batch 1 筆數（83/30/70/98/90/74）照欄位讀，要求標籤 1 有 83 筆；實際是 90，六欄只有一欄對得上",
-        "• 用 Batch 1 的 PCA 形狀對論文的圖，判定標籤 2 與 3 互換：採用 1=Ethanol, 2=Ammonia, 3=Ethylene, 4=Acetaldehyde, 5=Acetone, 6=Toluene",
-        "• 不影響任何準確率（模型只看整數），只影響「某氣體怎樣」的敘述；衝突只記錄、不宣稱解決",
+    caption(s, X, Y + Inches(2.1), Inches(4.4), "論文的 PCA 圖（Batch 1 面板），依氣體名稱上色")
+    caption(s, X + Inches(4.6), Y + Inches(2.1), Inches(4.4), "我們的 Batch 1 PCA，只標整數編號")
+    textbox(s, X, Y + Inches(2.55), W, Inches(2.5), [
+        "• 資料集文件說 2 是 Ethylene、3 是 Ammonia；論文 Table 2 的筆數照欄位讀卻只有一欄對得上",
+        "• 把 Batch 1 的 PCA 形狀拿去對論文的圖，判定 2 與 3 互換；之後所有氣體名字都用這個對應",
+        "• 模型只看整數編號，所以準確率完全不受影響；影響的只是「哪一種氣體怎麼樣」的敘述",
     ], size=14)
 
-    # 16. Fig. S1 ------------------------------------------------------------------------
-    s, _ = deck.slide("問題三：Fig. S1 的曲線畫的是什麼", keep_body=False)
+    # 16. Fig. S1 -----------------------------------------------------------------------
+    s, _ = deck.slide("問題三：論文的訓練曲線對不上", keep_body=False)
+    kicker(s, "論文 Fig. S1 的曲線既不像訓練曲線也不像測試曲線；而且在這個規則下沒有辦法選停止的時間點。")
     picture(s, PAPER / "figs1.png", X, Y, Inches(4.4), Inches(1.8), align="left")
     picture(s, FIG / "figS1_overlay.png", X + Inches(4.6), Y, Inches(4.4), Inches(1.8), align="left")
-    caption(s, X, Y + Inches(1.8), Inches(4.4), "論文 Fig. S1：準確率在 0.58／0.65／0.70 進入平台；CDCNN 的 loss 停在 1.5")
-    caption(s, X + Inches(4.6), Y + Inches(1.8), Inches(4.4), "我們：Batch 1 訓練準確率到 1.000，target mean 0.35–0.55")
-    textbox(s, X, Y + Inches(2.25), W, Inches(3.1), [
-        "• 若 S1 是訓練曲線，0.58 太低；若是 target 曲線，它暗示訓練時一直在看 target",
-        "• S1(b)：CDCNN 的 loss 比另外兩個高 1.0。我們量到的 L_MSE 最終只佔 loss 的 3%，那 1.0 幾乎全是對比損失",
-        "• source-only 下沒有停止規則：5-fold CV、120 個 fold，held-out 準確率與 loss 的峰值都在 epoch 60–100，target 的峰值在 7／40／70，反相關",
-        "• epoch 只能固定為 100，這是唯一不看 target 的做法",
+    caption(s, X, Y + Inches(1.8), Inches(4.4), "論文：準確率在 0.58／0.65／0.70 進入平台")
+    caption(s, X + Inches(4.6), Y + Inches(1.8), Inches(4.4), "我們：訓練集到 1.000，測試批次 0.35–0.55")
+    textbox(s, X, Y + Inches(2.25), W, Inches(3.0), [
+        "• 如果 S1 畫的是訓練集，0.58 太低；如果畫的是測試批次，那代表訓練時一直在看測試資料",
+        "• 只看 Batch 1 選不出該在第幾個 epoch 停：交叉驗證的最佳點落在 epoch 60–100，測試批次的最佳點在 7、40、70，兩者反向",
+        "• 所以我們固定訓練 100 個 epoch，這是唯一不偷看測試資料的做法",
     ], size=14)
 
-    # 17. Acetaldehyde ---------------------------------------------------------------------
-    s, _ = deck.slide("問題四：論文也死在 Acetaldehyde", keep_body=False)
-    picture(s, PAPER / "figS3_confusion.png", X, Y, Inches(4.4), Inches(2.1), align="left")
-    picture(s, FIG / "baseline-confusion_best.png", X + Inches(4.6), Y, Inches(4.4), Inches(2.1), align="left")
-    caption(s, X, Y + Inches(2.1), Inches(4.4), "論文 Fig. S3：CDCNN 把 100% 的 Acetaldehyde 判成 Ethanol")
-    caption(s, X + Inches(4.6), Y + Inches(2.1), Inches(4.4), "我們的基線混淆矩陣：Acetaldehyde 一樣是 0.00")
-    table(s, ["類別", "論文 CDCNN", "論文 CDWC", "我們的基線"], [
-        ["Ethanol", "0.97", "0.88", "0.67"], ["Ethylene", "0.95", "0.87", "0.62"],
-        ["Ammonia", "0.91", "0.87", "0.86"], ["Acetaldehyde", "0.00", "0.00", "0.00"],
-        ["Acetone", "0.94", "0.85", "0.51"], ["Toluene", "0.92", "0.27", "0.39"],
-    ], X, Y + Inches(2.5), Inches(4.4), col_fracs=(0.37, 0.21, 0.21, 0.21), size=11,
-       row_h=Inches(0.31), bold_rows=(4,))
-    textbox(s, X + Inches(4.6), Y + Inches(2.5), Inches(4.4), Inches(2.8), [
-        "• 原因是漂移，不是化學相似：Acetaldehyde 在 Batch 1 上 recall 1.000，到 target 每個 batch 的質心都落到 Batch 1 的 Ethanol 位置",
-        "• 它佔 target 14%，論文的 pooled 準確率因此只有約 0.80；0.7230 是在它為零的情況下達成的",
-        "• 與論文的差距在其他五類，尤其 Toluene（0.92 對 0.39）與 Acetone（0.94 對 0.51）",
-    ], size=13)
-
-    # 18. augmentation --------------------------------------------------------------------
-    s, _ = deck.slide("問題五：等向擴充是負的，有方向才是正的", keep_body=False)
-    table(s, ["變體", "擴充", "target mean", "vs 基準", "可分辨"], [
-        ["R-aug-t2", "沿漂移方向，T=2，無噪聲", "0.5770", "+0.0214", "是"],
-        ["R-fig-logps", "無（基準）", "0.5556", "—", "—"],
-        ["R-aug-paper", "論文 Eq. (7) 等向噪聲", "0.5340", "−0.0216", "否"],
-    ], X, Y, W, col_fracs=(0.2, 0.38, 0.16, 0.14, 0.12), size=12, row_h=Inches(0.38),
-       bold_rows=(1,), aligns=["left", "left", "right", "right", "center"])
-    picture(s, FIG / "augmentation_pca.png", X, Y + Inches(1.65), W, Inches(1.55))
-    caption(s, X, Y + Inches(3.2), W, "Batch 1 擴充前後的三維 PCA：等向噪聲只把雲撐大，到 target Acetaldehyde 重心的最近距離不變（2.36）；有方向的位移才縮到 1.46")
-    textbox(s, X, Y + Inches(3.6), W, Inches(1.8), [
-        "• 方向是看過 target 才選的，T 與去噪聲也是：target-informed，只能算上界",
-        "• 增益全是 Acetone +0.255 換 Ethylene −0.272；Ethylene 是漂移方向與共用方向最不對齊的類別（cos 0.451）",
-        "• 死類別仍是 0.003：Acetaldehyde 與 Ethanol 幾乎一起漂（cos 0.761），共用方向的平移解不開兩者",
+    # 17. augmentation ------------------------------------------------------------------
+    s, _ = deck.slide("元件一：資料擴充，照論文做反而變差", keep_body=False)
+    kicker(s, "論文的擴充是加隨機噪聲，加了反而變差；噪聲要有方向才會變好，但方向得看測試資料才知道。")
+    table(s, ["做法", "target mean", "與基線差", "可分辨"], [
+        ["不擴充（基線）", "0.5556", "—", "—"],
+        ["論文的擴充：各方向隨機的噪聲", "0.5340", "−0.0216", "否"],
+        ["沿感測器老化方向推一段距離，不加噪聲", "0.5770", "+0.0214", "是"],
+    ], X, Y, W, col_fracs=(0.5, 0.18, 0.16, 0.16), size=13, row_h=Inches(0.42),
+       bold_rows=(3,), aligns=["left", "right", "right", "center"])
+    picture(s, FIG / "augmentation_pca.png", X, Y + Inches(1.8), W, Inches(1.5))
+    caption(s, X, Y + Inches(3.3), W, "Batch 1 擴充前後：隨機噪聲只把雲撐大，離目標的距離不變；有方向的位移才靠過去")
+    textbox(s, X, Y + Inches(3.7), W, Inches(1.6), [
+        "• 「有方向」的版本是本研究唯一可分辨的增益，但它的方向是看過測試資料才選的，只能當上界",
+        "• 增益全來自 Acetone 變好 0.26，代價是 Ethylene 變差 0.27；整批判錯的 Acetaldehyde 一樣沒救回來",
     ], size=14)
 
-    # 19. Fig. 5 is circular ----------------------------------------------------------------
-    s, _ = deck.slide("問題六：Fig. 5 的畫法違規", keep_body=False)
+    # 18. Fig. 5 ---------------------------------------------------------------------------
+    s, _ = deck.slide("元件二：特徵生成，Fig. 5 的畫法有問題", keep_body=False)
+    kicker(s, "這張圖用了測試批次的資料，而且是循環論證：從 batch 2 生成的特徵當然靠近 batch 2。")
     picture(s, PAPER / "fig5-feature-generation.png", X, Y, Inches(4.4), Inches(2.55), align="left")
-    picture(s, FIG / "feature_generation.png", X + Inches(4.6), Y, Inches(4.4), Inches(2.55), align="left")
-    caption(s, X, Y + Inches(2.55), Inches(4.4), "論文 Fig. 5：區塊套在 batch 2 上（橘），與 batch 2 的原始特徵（藍）比")
-    caption(s, X + Inches(4.6), Y + Inches(2.55), Inches(4.4), "我們照同樣畫法畫：形狀對得上")
-    textbox(s, X, Y + Inches(3.0), W, Inches(2.4), [
-        "• 這張圖用了 target 資料：橘點是把區塊套在 batch 2 上才有的，每個 batch 各自這樣畫，就是每個 batch 都獨立進了模型。訓練時區塊只看得到 Batch 1，推論時區塊根本不作用（Fig. 2）",
-        "• 這是循環論證：從 batch 2 生成的特徵當然靠近 batch 2，不管區塊做什麼；它證明不了區塊「涵蓋到未見過的域」",
-        "• 正確的問法：區塊只作用在 Batch 1，生成出來的雲有沒有到後面的 batch？→ 下一頁",
+    picture(s, FIG / "feature_generation.png", X + Inches(4.6), Y, Inches(2.55 * 1.81), Inches(2.55), align="left")
+    caption(s, X, Y + Inches(2.55), Inches(4.4), "論文 Fig. 5：把生成區塊套在 batch 2 上（橘），和 batch 2 自己（藍）比")
+    caption(s, X + Inches(4.6), Y + Inches(2.55), Inches(4.4), "我們照同樣畫法畫，形狀對得上")
+    textbox(s, X, Y + Inches(3.0), W, Inches(2.3), [
+        "• 圖的 caption 寫「in one of the test domains (batch2)」：橘點是把區塊套在測試批次上才有的。訓練時區塊只看得到 Batch 1，預測時區塊根本不作用",
+        "• 從 batch 2 生成的特徵當然落在 batch 2 旁邊，不管區塊做什麼。這張圖證明不了區塊能「涵蓋沒見過的批次」",
+        "• 正確的問法：區塊只作用在 Batch 1，生成出來的特徵有沒有走到後面的批次？下一頁",
     ], size=14)
 
-    # 20. the drift-aligned figure --------------------------------------------------------
-    s, _ = deck.slide("問題七：生成特徵沒有覆蓋任何後續 batch", keep_body=False)
-    picture(s, FIG / "generation_drift_aligned_2d_b2-7-10.png", X, Y, W, Inches(3.5))
-    textbox(s, X, Y + Inches(3.55), W, Inches(1.9), [
-        "• X 軸為該氣體從 Batch 1 到 target batch 的漂移方向（質心差），Y 軸為扣除漂移方向後的第一主成分；漂移軸是建構出來的，雲沒有沿它走就藏不起來",
-        "• 灰 = Batch 1 原始特徵，橘 = 從 Batch 1 生成的人工特徵，藍 = target 原始特徵。若特徵生成有效，橘色應覆蓋藍色；實際上橘色只疊在灰色上，藍色在另一邊，中間一段空隙",
-        "• 在這樣的情況下，對比損失拉近 z_f 與 z̄_f 沒有意義：生成特徵本來就和 source 特徵幾乎相同",
+    # 19. coverage ------------------------------------------------------------------------
+    s, _ = deck.slide("生成的特徵沒有走到任何後續批次", keep_body=False)
+    kicker(s, "橘色（生成的）疊在灰色（Batch 1）上，藍色（後面的批次）在另一邊，中間一段空隙。")
+    picture(s, FIG / "generation_drift_aligned_2d_b2-7-10.png", X, Y, W, Inches(3.05))
+    textbox(s, X, Y + Inches(3.1), W, Inches(2.0), [
+        "• 每一格是一種氣體乘一個批次。橫軸是這種氣體從 Batch 1 搬到那個批次的方向，所以「有沒有走到」一眼就看得出來",
+        "• 灰 = Batch 1 原始特徵；橘 = 區塊從 Batch 1 生成的特徵，也就是訓練時網路看到的東西；藍 = 那個批次的真實特徵",
+        "• 量成數字：橘和藍的重疊中位數 0.00；橘的寬度是灰的 1.01 倍；區塊沿這個方向只推了距離的 3%",
+        "• 結果：加了特徵生成，準確率 +0.0004，等於零",
+    ], size=13)
+
+    # 20. why ---------------------------------------------------------------------------------
+    s, body = deck.slide("為什麼特徵生成沒有用", keep_body=True)
+    kicker(s, "區塊推的方向是對的，但往前推和往後推的機率一樣，而且推的距離太短。")
+    bullets(body, [
+        "方向對：區塊的擾動確實偏向感測器老化的方向，偏好程度是隨機方向的 3 到 4.6 倍",
+        "正負號沒有：論文公式用對稱的高斯取樣，往老化方向推和往反方向推一樣多，平均起來是零",
+        ("教分類器「對一個對稱的小鄰域不變」，只會把決策區域均勻撐大，不會把邊界搬到資料真正搬去的地方", 1),
+        "距離太短：投影到老化方向上，區塊推的距離只有真實位移的 3%",
+        "網路確實學到了區塊要求的東西（L_MSE 下降 2–5 倍），但真實的位移有 94% 原封不動穿過網路",
+        "和元件一是同一件事：沒有方向的位移是負的或零，給了方向才是正的，而論文的公式把方向丟掉了",
+    ], size=16, sub_size=14)
+
+    # 21. v10 ----------------------------------------------------------------------------------
+    s, _ = deck.slide("補上方向和距離，特徵生成還是沒用", keep_body=False)
+    kicker(s, "把公式缺的方向和距離補上，方向用 Batch 1 自己就能量到的。準確率 +0.0023，不可分辨。")
+    table(s, ["版本", "做了什麼", "target mean", "與原版差"], [
+        ["論文原版", "對稱高斯", "0.5773", "—"],
+        ["只補正負號", "往老化方向的一側取樣，距離照論文", "0.5767", "−0.0006"],
+        ["補正負號加距離", "往老化方向推兩個「Batch 1 內部的位移」", "0.5796", "+0.0023"],
+    ], X, Y, W, col_fracs=(0.22, 0.46, 0.16, 0.16), size=13, row_h=Inches(0.42),
+       bold_rows=(3,), aligns=["left", "left", "right", "right"])
+    textbox(s, X, Y + Inches(1.9), W, Inches(3.4), [
+        "• 方向從哪裡來：Batch 1 裡有三種氣體量了兩次，中間隔了一段時間；兩次的差就是老化的方向，不需要看測試資料",
+        "• 事後檢查：這個方向和真實老化方向的餘弦是 +0.59（六種氣體全為正），推的距離是真實位移的 0.7 到 1.4 倍。方向對、距離也對",
+        "• 即使這樣，每一批、每一種氣體的差都在 0.012 以內。同樣的位移在輸入端（元件一）能把 Acetone 和 Ethylene 各搬 0.25",
+        "• 結論：特徵生成這個區塊作用的空間，不是分類器決策邊界會回應的那個空間。這個元件關掉了",
+    ], size=14)
+
+    # 22. L_con --------------------------------------------------------------------------------
+    s, body = deck.slide("元件三：對比損失，已實作、決定不跑", keep_body=True)
+    kicker(s, "它要把原始特徵和生成特徵拉近；但生成特徵本來就在原始特徵旁邊，拉近它換不到對老化的抵抗力。")
+    bullets(body, [
+        "論文的對比損失（S5）是標準的 Supervised Contrastive Loss：同一種氣體的原始特徵和生成特徵在單位球上互相拉近",
+        "程式寫好了：損失函數、三個版本的設定、事前預測與否證條件、單元測試都通過。補跑只要 15 分鐘",
+        "不跑的理由：它要求「原始特徵對生成特徵不變」，而第 19 頁已經量到生成特徵沒有離開 Batch 1（重疊 0.00、寬度比 1.01）。對一個沒走開的東西做不變性，不會變成對真正搬走的資料的不變性",
+        ("前一個分支在另一個網路上量了五次：−0.005 到 +0.003", 1),
+        "附帶一個觀察：對比損失的起始值約 4.8，是交叉熵的兩倍多；論文 Fig. S1 裡 CDCNN 的 loss 停在 1.5、其他兩個停在 0.5，和這個一致",
+    ], size=16, sub_size=14)
+
+    # 23. v12 ------------------------------------------------------------------------------------
+    s, _ = deck.slide("延伸：把老化方向從輸入裡扣掉", keep_body=False)
+    kicker(s, "老化主要沿一條方向，Batch 1 自己量得到，就不讓模型看那條方向。結果 +0.0128，不可分辨。")
+    textbox(s, X, Y, Inches(4.4), Inches(0.35), "用兩個數字的例子說明。假設只有 x 會隨感測器老化變大：", size=13)
+    table(s, ["", "Batch 1", "幾個月後", "只留 y"], [
+        ["Ethanol", "(5, 2)", "(9, 2)", "2 → 2"],
+        ["Acetaldehyde", "(1, 3)", "(5, 3)", "3 → 3"],
+    ], X, Y + Inches(0.4), Inches(4.4), col_fracs=(0.34, 0.22, 0.22, 0.22), size=12, row_h=Inches(0.34),
+       aligns=["left", "center", "center", "center"])
+    textbox(s, X, Y + Inches(1.5), Inches(4.4), Inches(2.0), [
+        "幾個月後的 Acetaldehyde 落在 (5, 3)，離 Batch 1 的 Ethanol (5, 2) 最近，被判成 Ethanol。這就是整批判錯的來源。",
+        "把 x 扔掉只看 y，兩種氣體不管過多久都在原地。真實資料有 128 個數字，老化方向是一條斜線，做法一樣：把每筆資料在那條線上的分量減掉。",
+    ], size=12)
+    table(s, ["扣掉什麼", "target mean", "與基線差", "可分辨"], [
+        ["不扣（基線）", "0.5556", "—", "—"],
+        ["Batch 1 三種氣體兩次量測的共同方向（頭條）", "0.5684", "+0.0128", "否"],
+        ["三個方向張成的空間", "0.5610", "+0.0055", "否"],
+        ["只用 Ethanol 的方向（看過測試資料才知道選它）", "0.5747", "+0.0191", "是，上界"],
+    ], X + Inches(4.6), Y, Inches(4.4), col_fracs=(0.5, 0.18, 0.16, 0.16), size=11, row_h=Inches(0.42),
+       bold_rows=(2,), aligns=["left", "right", "right", "center"])
+    textbox(s, X + Inches(4.6), Y + Inches(2.25), Inches(4.4), Inches(2.9), [
+        "• 為什麼不夠：Batch 1 兩次量測之間的方向只裝了三年老化的 29%，裝的主要是 Batch 1 自己的濃度差異。它是方向的估計，不是老化本身",
+        "• 要扣掉夠多老化就得扣三個方向，但那三個方向也裝了 76% 的氣體差異。老化和氣體資訊擠在同一個小空間裡，扣不乾淨",
+        "• Acetaldehyde 在每個版本下仍落在 Ethanol 上。這個延伸也關掉了",
     ], size=12)
 
-    # 21. the one-dimensional numbers -----------------------------------------------------
-    s, _ = deck.slide("同一件事，沿漂移軸量成數字", keep_body=False)
-    picture(s, FIG / "generation_drift_projection.png", X, Y, W, Inches(2.5))
-    table(s, ["一維量（沿 u；source 質心 0，target 質心 1）", "中位", "範圍"], [
-        ["橘雲與藍雲的直方圖重疊", "0.00", "0.00–0.42"],
-        ["橘雲寬度 ÷ 灰雲寬度", "1.01", "0.80–1.16"],
-        ["區塊沿 u 的配對位移（漂移距離為單位）", "0.03", "0.007–0.166"],
-    ], X, Y + Inches(2.65), Inches(5.6), col_fracs=(0.62, 0.16, 0.22), size=11, row_h=Inches(0.32))
-    textbox(s, X + Inches(5.8), Y + Inches(2.65), Inches(3.2), Inches(2.6), [
-        "• 51 個（氣體, batch）格；沿漂移軸，人工雲與 Batch 1 原始雲是同一片雲",
-        "• 重疊 ≥ 0.10 的六格全是 target 自己散回 source 附近",
-        "• 換另一個 checkpoint 重跑，每格差在小數第三位",
-    ], size=13)
-
-    # 22. why ------------------------------------------------------------------------------
-    s, body = deck.slide("為什麼：Eq. (14) 沒有正負號", keep_body=True)
-    bullets(body, [
-        "軸是對的：擾動對真實漂移的 |cos| 是隨機虛無值的 3.1–4.6 倍；7.6% 的擾動能量落在 51 維漂移張成空間（虛無值 0.3%）",
-        "正負號沒有：有號分量 ÷ 典型幅度，逐類平均 −7.5%。Eq. (14) 的高斯是對稱的，順著與逆著漂移機率相同",
-        ("教分類器對 ±ε 鄰域不變，只會均勻撐大決策區域，不會把邊界搬向漂移後的資料", 1),
-        "沿軸幅度太小：全空間模長「只差 2 倍」是誤導，投影到任一條漂移軸差 30 倍",
-        "網路確實學到區塊要求的不變性：L_MSE 降 2–5 倍，λ 拉到上限 1.0 也只差 0.0002；但真實漂移有 94% 原封不動穿過 backbone",
-        "與問題五是同一件事的兩面：無方向的位移是負的或零，方向就是全部效應，而 Eq. (14) 把它丟掉了。準確率效應 +0.0004",
-    ], size=18, sub_size=16)
-
-    # 23. v10 ------------------------------------------------------------------------------
-    s, _ = deck.slide("問題八：補上正負號也沒用（v10）", keep_body=False)
-    table(s, ["變體", "Eq. (14)", "target mean", "SD", "vs R-gen", "可分辨"], [
-        ["R-gen-shift", "論文噪聲 + 2 個區塊偏移的定向位移", "0.5796", "0.0077", "+0.0023", "否"],
-        ["R-gen", "論文原版，對稱高斯", "0.5773", "0.0069", "—", "—"],
-        ["R-aug-t2", "無區塊", "0.5770", "0.0078", "−0.0003", "否"],
-        ["R-gen-sign", "只修正負號，幅度照論文", "0.5767", "0.0115", "−0.0006", "否"],
-    ], X, Y, W, col_fracs=(0.16, 0.36, 0.14, 0.1, 0.13, 0.11), size=11, row_h=Inches(0.36),
-       bold_rows=(1,), aligns=["left", "left", "right", "right", "right", "center"])
-    table(s, ["類別", "cos 與真實漂移", "位移 / 漂移"], [
-        ["Ethanol", "+0.769", "1.05"], ["Ammonia", "+0.558", "1.16"], ["Ethylene", "+0.305", "1.41"],
-        ["Acetaldehyde", "+0.596", "0.83"], ["Acetone", "+0.693", "0.96"], ["Toluene", "+0.662", "0.73"],
-        ["51 格平均", "+0.593", "—"],
-    ], X, Y + Inches(2.0), Inches(3.8), col_fracs=(0.42, 0.33, 0.25), size=11, row_h=Inches(0.3), bold_rows=(7,))
-    textbox(s, X + Inches(4.0), Y + Inches(2.0), Inches(5.0), Inches(3.3), [
-        "• 方向用 Batch 1 自己兩個採集區塊的偏移，在 block 3 的 style 空間估，每個 epoch 重估，不碰 target",
-        "• 方向是對的、幅度也對：六類 cos 全為正（虛無值 0.088），位移是真實漂移的 0.73 到 1.41 倍",
-        "• 每個 batch、每個類別的差都在 0.012 內；同樣的定向位移在輸入端（v8.1）能把 Acetone、Ethylene 各搬 0.25 以上",
-        "• 事前否證條件觸發。特徵生成區塊作為機制關掉了，與 Eq. (14) 有沒有正負號無關：它能碰到的子空間不是決策邊界會回應的那一個",
-    ], size=13)
-
-    # 24. L_con ------------------------------------------------------------------------------
-    s, body = deck.slide("L_con（Eq. S5）：已實作，決定不跑", keep_body=True)
-    bullets(body, [
-        "S5 是標準的 Supervised Contrastive Loss，作用在 z_f ∪ z̄_f，生成特徵沿用原標籤，f 投影到單位球；τ 與 λ_con 論文都沒給",
-        "做好的東西：損失函數、Eq. (4) 第三項、四格 config（R-con、R-con-shift、R-con-t5 對 R-gen）含事前預測；單元測試與單一 minibatch 前向通過",
-        "為什麼不跑：它要求 z_f 對 z̄_f 不變，而 z̄_f 沒有離開 Batch 1（沿漂移軸重疊 0.00、寬度比 1.01），連方向對、幅度對的 z̄_f 都只值 +0.0023。對一個沒離開 source 的擾動做不變性，不會變成對真實漂移的不變性",
-        ("前一分支在另一個 backbone 上量了五次：−0.005 到 +0.003", 1),
-        "L_con 起始值 ≈ log(127) ≈ 4.8，是 L_ce 的兩倍多，乘 0.5 後主導前期梯度；論文 Fig. S1(b) 的 CDCNN loss 平台 1.5 與此一致",
-        "config 與預測留檔，補跑是 15 分鐘。否證條件：R-con 若與 R-gen 可分辨，代表前一分支的五次零是 backbone 的問題",
-    ], size=17, sub_size=15)
-
-    # 25. v12 ------------------------------------------------------------------------------
-    s, _ = deck.slide("延伸：投影掉漂移軸（v12）", keep_body=False)
-    table(s, ["變體", "拿掉", "k", "target mean", "vs 基準", "可分辨"], [
-        ["R-proj-eth", "Ethanol 的採集偏移（看過 target）", "1", "0.5747", "+0.0191", "是（上界）"],
-        ["R-proj-axis", "三個偏移的共同軸（頭條）", "1", "0.5684", "+0.0128", "否，門檻 0.0145"],
-        ["R-proj-sub3", "三個偏移張成的空間", "3", "0.5610", "+0.0055", "否"],
-        ["R-fig-logps", "不拿", "0", "0.5556", "—", "—"],
-    ], X, Y, W, col_fracs=(0.16, 0.36, 0.06, 0.14, 0.12, 0.16), size=11, row_h=Inches(0.36),
-       bold_rows=(2,), aligns=["left", "left", "center", "right", "right", "left"])
-    picture(s, FIG / "batch1_drift_axis.png", X, Y + Inches(1.95), W, Inches(1.65))
-    caption(s, X, Y + Inches(3.6), W, "Batch 1 自己的 PCA 平面：氣體沿 PC1 分開，兩次採集沿 PC2 錯開；拿掉那條軸後 Batch 1 還分得開（CV 0.9709 對 0.9680）")
-    textbox(s, X, Y + Inches(3.95), W, Inches(1.5), [
-        "• x′ = x − U Uᵀ x，U 來自 Batch 1 兩次採集的偏移，不帶擴充、不帶生成區塊，對照是定案基準",
-        "• 那條軸只裝 29% 的三年漂移能量，卻裝 42% 的類內散佈：它是方向估計，不是漂移本身。拿三維就拿掉 76% 類間變異，漂移與類別資訊糾在同一個低維子空間裡",
-        "• 逐類別形狀與擴充一模一樣（Acetone +0.24、Ethylene −0.28）；Acetaldehyde 仍落在 Ethanol。兩個否證條件都觸發，source-only 定案仍是 0.5556",
-    ], size=13)
-
-    # 26. results table --------------------------------------------------------------------
-    s, _ = deck.slide("實驗結果", keep_body=False)
-    table(s, ["元件", "本分支（五 seed）", "前一分支（另一 backbone）", "論文宣稱"], [
-        ["資料擴充（論文等向）", "−0.0216", "−0.013 到 −0.009", "ResNet→CDWC +0.036"],
-        ["資料擴充（有方向，target-informed）", "+0.0214", "—", "—"],
-        ["特徵生成 + L_MSE（論文原版）", "+0.0004", "+0.001 到 +0.014", "（含在上列）"],
-        ["特徵生成，Eq. (14) 加正負號與幅度（v10）", "+0.0023", "—", "—"],
-        ["對比損失 L_con", "已實作，未跑", "−0.005 到 +0.003", "CDWC→CDCNN +0.053"],
-        ["（非論文）投影掉 Batch 1 估的漂移軸（v12）", "+0.0128，不可分辨", "—", "—"],
-    ], X, Y, W, col_fracs=(0.35, 0.21, 0.24, 0.2), size=13, row_h=Inches(0.52),
+    # 24. results table --------------------------------------------------------------------------
+    s, _ = deck.slide("實驗結果總表", keep_body=False)
+    kicker(s, "論文三個元件在只用 Batch 1 的規則下沒有一個重現得出增益；我們自己的延伸也一樣。")
+    table(s, ["元件", "我們量到的", "前一個分支", "論文宣稱"], [
+        ["資料擴充，照論文", "−0.0216", "−0.013 到 −0.009", "+0.036（含特徵生成）"],
+        ["資料擴充，有方向（看過測試資料）", "+0.0214", "—", "—"],
+        ["特徵生成 + L_MSE，照論文", "+0.0004", "+0.001 到 +0.014", "（含在上列）"],
+        ["特徵生成，補上方向與距離", "+0.0023", "—", "—"],
+        ["對比損失 L_con", "已實作，未跑", "−0.005 到 +0.003", "+0.053"],
+        ["延伸：扣掉老化方向", "+0.0128，不可分辨", "—", "—"],
+    ], X, Y, W, col_fracs=(0.37, 0.21, 0.22, 0.2), size=13, row_h=Inches(0.5),
        bold_rows=(3, 4), aligns=["left", "right", "right", "right"])
-    textbox(s, X, Y + Inches(3.8), W, Inches(1.5), [
-        "重現了的：架構、Eq. (7) 擴充、Eqs. (8)–(16) 生成、Fig. 5 的畫法、Acetaldehyde 的死亡",
-        "重現不了的：論文的準確率增益。source-only 定案 0.5556，所有 0.577 系列都是看過 target 的上界",
-        "• 與論文的差距在 Acetaldehyde 之外的五類，來源不在這三個元件裡",
+    textbox(s, X, Y + Inches(3.7), W, Inches(1.5), [
+        "基線 0.5556 是只用 Batch 1 的定案數字；所有 0.57 系列都是看過測試資料才選得出來的上界。",
+        "可分辨的門檻是五個種子的兩倍標準誤，約 0.01 到 0.02；低於 0.005 的差不算效應。",
     ], size=14)
 
-    # 27. literature -----------------------------------------------------------------------
-    s, _ = deck.slide("文獻對照：Batch 1 訓練，Batch 2–10 測試", keep_body=False)
-    table(s, ["用到的 target 資訊", "方法", "來源", "平均 B2–10 (%)"], [
-        ["不碰 target", "SVM-rbf，資料集原論文的基線", "Vergara 2012", "38.9"],
-        ["不碰 target", "OSC 正交訊號校正", "Yi 2019 表", "56.5"],
-        ["不碰 target", "我們的 ResNet，R-fig-logps", "本專案", "55.6"],
-        ["不碰 target", "我們的投影，R-proj-axis（不可分辨）", "本專案 v12", "56.8"],
-        ["不碰 target（宣稱）", "CDCNN 論文的 ResNet / CDWC / CDCNN", "論文 Table 3", "63.5 / 67.1 / 72.3"],
-        ["看過 target 選方向", "我們的 R-aug-t2 / R-proj-eth（上界）", "本專案", "57.7 / 57.5"],
-        ["無標籤 target 樣本", "SVM-comgfk / ML-comgfk", "Vergara 2012", "64.0 / 67.3"],
-        ["無標籤 target 樣本", "DRCA / D-DRCA 子空間對齊", "Zhang 2017 / Yi 2019", "62.2 / 73.8"],
-        ["無標籤 target，半批調參", "KD-DM 知識蒸餾（FCNN 無補償 38.7）", "2025", "47.9"],
-        ["兩個 source + 無標籤", "AMDS-PFFA 多源域適應（加權平均）", "2024", "83.2"],
-        ["每批 20 / 50 筆有標籤", "DAELM-S(20) / DAELM-T(50)", "Zhang 2015", "80.8 / 91.9"],
-    ], X, Y, W, col_fracs=(0.24, 0.42, 0.18, 0.16), size=11, row_h=Inches(0.35),
-       bold_rows=(3, 4), aligns=["left", "left", "left", "right"])
-    textbox(s, X, Y + Inches(4.3), W, Inches(1.1), [
-        "• 不碰 target 的方法沒有一個超過 60%；我們的 55.6 比原論文的 SVM 高 17 個百分點，CDCNN 論文的 63.5 是唯一例外",
-        "• 跨過 60% 的做法清一色是看 target 的無標籤樣本做子空間對齊（DRCA 那一家）；80% 以上要有標籤的校正樣本或多個 source batch",
-    ], size=12)
+    # 25. literature ------------------------------------------------------------------------------
+    s, _ = deck.slide("文獻對照：這份資料集別人怎麼做", keep_body=False)
+    kicker(s, "同一個設定下，不看測試資料的方法沒有一個超過 60%；超過的全都用了測試批次的無標籤資料。")
+    table(s, ["用到多少測試批次的資訊", "代表方法", "平均準確率 (%)"], [
+        ["完全不看", "原論文的 SVM 38.9；正交訊號校正 56.5；我們的 ResNet 55.6", "39–57"],
+        ["完全不看（宣稱）", "CDCNN 論文的 ResNet / CDWC / CDCNN", "63.5 / 67.1 / 72.3"],
+        ["看測試批次的無標籤資料做對齊", "DRCA 62.2、D-DRCA 73.8、流形方法 64–67", "62–74"],
+        ["兩個訓練批次 + 無標籤資料", "AMDS-PFFA（2024）", "83.2"],
+        ["每個測試批次給 20 到 50 筆有標籤的校正樣本", "DAELM（2015）", "81–92"],
+    ], X, Y, W, col_fracs=(0.32, 0.5, 0.18), size=12, row_h=Inches(0.5),
+       bold_rows=(1,), aligns=["left", "left", "right"])
+    textbox(s, X, Y + Inches(3.3), W, Inches(2.0), [
+        "• 我們的 55.6 比原論文的 SVM 高 17 個百分點；CDCNN 論文的 63.5 是「不看測試資料」這一列唯一的例外，而它的 Fig. 5 已被抓到用了測試資料",
+        "• 跨過 60% 的做法都是看測試批次的無標籤樣本做對齊。那和我們的延伸幾乎一樣，差別只在方向是從測試批次量的，不是從 Batch 1 猜的",
+        "• 來源：Zhang 2015（DAELM）、Zhang 2017（DRCA）、Yi 2019（D-DRCA）、AMDS-PFFA 2024",
+    ], size=13)
 
-    # 28. conclusion -------------------------------------------------------------------------
+    # 26. conclusion ------------------------------------------------------------------------------
     s, body = deck.slide("結論", keep_body=True)
     bullets(body, [
-        "消融實驗的結果：在嚴格 source-only 下，資料擴充與特徵生成都不能有效提高準確率；對比損失要求的不變性對象（生成特徵）沒有離開 source，前提已被量掉，故未執行。論文三個元件沒有一個重現得出增益",
-        "與論文的 0.11 差距在 Acetaldehyde 之外的五類，不在這三個元件；Fig. 5 用 target 資料畫圖、標籤對不上 Table 2、Fig. S1 的曲線來源不明，三件事只記錄、不推測動機",
-        "不依靠 target domain leakage 的模型是現實中比較需要的種類，但文獻在同一設定下不碰 target 沒有人過 60%；這份資料集該用的設定是「無標籤 target 樣本可用於對齊」，報告時明說是 unsupervised domain adaptation",
-        "UCI Gas drift dataset 中的 Acetaldehyde 在 target 上必然誤判成 Ethanol，論文也救不回；任何後續結果都應分「五類」與「六類」報告",
-    ], size=18, sub_size=16)
+        "照論文重建的網路在只用 Batch 1 的規則下得到 0.5556；論文的三個元件一個一個加上去，資料擴充變差、特徵生成等於零、對比損失的前提已被量掉。論文的增益重現不出來",
+        "和論文的差距不在這三個元件，在 Acetaldehyde 以外的五種氣體；而 Acetaldehyde 整批判錯這件事，論文的模型也一樣",
+        "論文的 Fig. 5 用了測試批次的資料、標籤對不上 Table 2、Fig. S1 的曲線來源不明。三件事只記錄，不推測動機",
+        "不看測試資料的模型是現實中比較需要的，但這份資料集上沒有人在這個規則下超過 60%。要再往前，文獻的主流是讓每個測試批次的無標籤資料參與對齊，報告時要明說那是另一個設定",
+    ], size=17, sub_size=15)
 
     prs.save(OUT)
     return OUT
