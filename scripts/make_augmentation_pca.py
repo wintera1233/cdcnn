@@ -56,6 +56,9 @@ def main() -> int:
     parser.add_argument("--font-scale", type=float, default=1.0)
     parser.add_argument("--marker-scale", type=float, default=1.0)
     parser.add_argument("--no-suptitle", action="store_true")
+    parser.add_argument("--lang", choices=("zh", "en"), default="zh")
+    parser.add_argument("--clip", type=float, nargs=2, default=(1.0, 99.0),
+                        help="percentiles of the drawn clouds that set the axis range")
     args = parser.parse_args()
 
     x, y = load_source()
@@ -80,8 +83,16 @@ def main() -> int:
     acet = base[y == 4]
     acet_radius = float(np.linalg.norm(acet - acet.mean(axis=0), axis=1).mean())
 
+    panels = PANELS if args.panels is None else [
+        next(p for p in PANELS if p[0] == name) for name in args.panels]
+    if args.lang == "en":
+        english = {"R-fig-logps": "No augmentation",
+                   "R-aug-paper": "Paper, Eq. (5)-(7): isotropic noise",
+                   "R-aug-ethd": "Directed (Ethanol offset), no noise",
+                   "R-aug-eth": "Directed + isotropic noise"}
+        panels = [(v, english[v]) for v, _ in panels]
     clouds = {}
-    for variant, _ in PANELS:
+    for variant, _ in panels:
         spec = VARIANTS[variant].get("augment")
         if spec is None:
             clouds[variant] = (base, y)
@@ -97,13 +108,11 @@ def main() -> int:
         every = np.concatenate([every, target_point[None, :]])
     # Percentile limits, not min/max: a handful of far outliers would otherwise
     # squeeze every cloud into the middle of the box.
-    lim = [(np.percentile(every[:, k], 1.0), np.percentile(every[:, k], 99.0))
+    lim = [(np.percentile(every[:, k], args.clip[0]), np.percentile(every[:, k], args.clip[1]))
            for k in range(3)]
     pad = [(b - a) * 0.08 for a, b in lim]
     lim = [(a - p, b + p) for (a, b), p in zip(lim, pad)]
 
-    panels = PANELS if args.panels is None else [
-        next(p for p in PANELS if p[0] == name) for name in args.panels]
     fs = args.font_scale
     figure = plt.figure(figsize=(4.25 * len(panels), 5.6), facecolor=SURFACE)
     radius0 = None
@@ -120,7 +129,8 @@ def main() -> int:
         if target_point is not None:
             axis.scatter(*target_point, marker="X", s=150, color=CRITICAL,
                          edgecolors="white", linewidths=1.4, depthshade=False,
-                         zorder=10, label="target Acetaldehyde 重心（診斷）")
+                         zorder=10, label=("target Acetaldehyde centroid" if args.lang == "en"
+                                           else "target Acetaldehyde 重心（診斷）"))
         radius = np.mean([np.linalg.norm(points[labels == c]
                                          - points[labels == c].mean(0), axis=1).mean()
                           for c in range(1, 7)])
@@ -132,10 +142,16 @@ def main() -> int:
         else:
             mine = z[labels == 4]
             nearest = float(np.linalg.norm(mine - target_full, axis=1).min())
-            reach = (f"\n到 target 的最近距離 {nearest:.2f}"
-                     f"（半徑 {acet_radius:.2f}，{'涵蓋' if nearest < acet_radius else '未涵蓋'}）")
-        axis.set_title(f"{title}\n類內半徑 {radius:.2f}（{radius / radius0:.2f}×）{reach}",
-                       fontsize=10 * fs, color=INK, pad=2)
+            if args.lang == "en":
+                reach = f"\nnearest to target {nearest:.2f} (radius {acet_radius:.2f})"
+            else:
+                reach = (f"\n到 target 的最近距離 {nearest:.2f}"
+                         f"（半徑 {acet_radius:.2f}，{'涵蓋' if nearest < acet_radius else '未涵蓋'}）")
+        if args.lang == "en":
+            subtitle = f"{title}\nwithin-class radius {radius:.2f} ({radius / radius0:.2f}x){reach}"
+        else:
+            subtitle = f"{title}\n類內半徑 {radius:.2f}（{radius / radius0:.2f}×）{reach}"
+        axis.set_title(subtitle, fontsize=10 * fs, color=INK, pad=2)
         axis.set_xlim(*lim[0]); axis.set_ylim(*lim[1]); axis.set_zlim(*lim[2])
         axis.set_xlabel(f"PC1 ({explained[0]:.1%})", fontsize=8.5 * fs, color=INK_MUTED)
         axis.set_ylabel(f"PC2 ({explained[1]:.1%})", fontsize=8.5 * fs, color=INK_MUTED)
