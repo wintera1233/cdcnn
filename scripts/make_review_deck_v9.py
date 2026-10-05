@@ -429,6 +429,31 @@ def build() -> Path:
         "否證條件也寫好了：R-con 若與 R-gen 可分辨，代表前一分支的五次零是 backbone 的問題，論文的 +0.053 在 source-only 下有立足點",
     ], Inches(7.0), Inches(3.7), Inches(5.75), Inches(3.6), size=12.5, gap=6)
 
+    # 9d. v12: projecting the drift axis out of the input ------------------------------
+    s = content_slide(prs, "我們自己的延伸：把 Batch 1 估到的漂移軸投影掉（v12）",
+                      kicker="離開 CDCNN，留在 source-only：x′ = x − U Uᵀ x，U 來自 Batch 1 兩次採集的偏移，不帶擴充、不帶生成區塊")
+    table(s, ["變體", "拿掉", "k", "target mean", "vs 基準", "可分辨"], [
+        ["R-proj-eth", "Ethanol 的採集偏移（選它是看過 target）", "1", "0.5747", "+0.0191", "是（上界）"],
+        ["R-proj-axis", "三個偏移的共同軸（頭條）", "1", "0.5684", "+0.0128", "否，門檻 0.0145"],
+        ["R-proj-sub3", "三個偏移張成的空間", "3", "0.5610", "+0.0055", "否"],
+        ["R-fig-logps", "不拿", "0", "0.5556", "—", "—"],
+    ], M, Inches(1.75), Inches(7.4), col_fracs=(0.15, 0.37, 0.05, 0.14, 0.13, 0.16), size=10.5,
+       row_h=Inches(0.38), bold_rows=(2,), aligns=["left", "left", "center", "right", "right", "left"])
+    table(s, ["機制指標", "axis", "sub3", "eth"], [
+        ["真實漂移幅度保留", "0.84", "0.52", "0.69"],
+        ["類內半徑保留", "0.58", "0.50", "0.74"],
+        ["Acetaldehyde 落在 Ethanol 上", "7/9", "8/9", "8/9"],
+    ], Inches(8.3), Inches(1.75), Inches(4.45), col_fracs=(0.49, 0.17, 0.17, 0.17), size=11,
+       row_h=Inches(0.38))
+    picture(s, FIG / "batch1_drift_axis.png", M, Inches(3.95), Inches(7.4), Inches(2.6))
+    caption(s, "Batch 1 自己的 PCA 平面：氣體沿 PC1 分開，兩次採集沿 PC2 錯開；拿掉那條軸後 Batch 1 還分得開（CV 0.9709 對 0.9680）", M, Inches(6.55), Inches(7.4))
+    bullets(s, [
+        ("Batch 1 估得到的軸只裝 29% 的三年漂移能量，卻裝 42% 的類內散佈：它是方向估計，不是漂移本身", "key"),
+        "要拿掉夠多漂移就得拿三維，而那三維裝 76% 的類間變異。漂移與類別資訊在同一個低維子空間裡糾在一起",
+        "逐類別形狀與擴充一模一樣：Acetone +0.24、Ethylene −0.28。加樣本與刪座標撞到同一個天花板，天花板是資料的",
+        ("兩個事前否證條件都觸發；source-only 定案仍是 0.5556", "key"),
+    ], Inches(8.3), Inches(3.4), Inches(4.45), Inches(3.9), size=11.5, gap=5)
+
     # 10. Summary ---------------------------------------------------------------------
     s = content_slide(prs, "總結：機制都重現了，增益沒有",
                       kicker="兩個分支、兩個 backbone，兩個元件在 source-only 下都約零")
@@ -438,14 +463,47 @@ def build() -> Path:
         ["特徵生成 + L_MSE（論文原版）", "+0.0004", "+0.001 到 +0.014", "（含在上列）"],
         ["特徵生成，Eq. (14) 加正負號與幅度（v10.0）", "+0.0023", "—", "—"],
         ["對比損失 L_con", "已實作，未跑", "−0.005 到 +0.003", "CDWC→CDCNN +0.053"],
-    ], M, Inches(1.75), W - 2 * M, col_fracs=(0.36, 0.16, 0.26, 0.22), size=13,
-       row_h=Inches(0.42), bold_rows=(3, 4), aligns=["left", "right", "right", "right"])
+        ["（非論文）投影掉 Batch 1 估的漂移軸（v12）", "+0.0128，不可分辨", "—", "—"],
+    ], M, Inches(1.75), W - 2 * M, col_fracs=(0.36, 0.18, 0.24, 0.22), size=12.5,
+       row_h=Inches(0.4), bold_rows=(3, 4), aligns=["left", "right", "right", "right"])
     bullets(s, [
         ("重現了的：架構、Eq. (7) 擴充、Eqs. (8)–(16) 生成、Fig. 5 的畫法、Acetaldehyde 的死亡", "head"),
         ("重現不了的：論文的準確率增益。source-only 定案 0.5556，所有 0.577 系列都是看過 target 的上界", "head"),
         "與論文的差距在 Acetaldehyde 之外的五類，來源不在這三個元件裡",
         "Fig. 5 用 target 資料畫圖、標籤對不上 Table 2、Fig. S1 的曲線來源不明，三件事都寫進了文件，只記錄、不推測動機",
-    ], M, Inches(4.6), W - 2 * M, Inches(2.6), size=13.5, gap=7)
+    ], M, Inches(4.75), W - 2 * M, Inches(2.5), size=13.5, gap=7)
+
+    # 10b. Literature comparison on the same setting -------------------------------------
+    s = content_slide(prs, "文獻對照：Batch 1 訓練、Batch 2–10 測試",
+                      kicker="平均準確率是九個 batch 的未加權平均，與我們的 target mean 相同；差別只在各方法看到多少 target 的資訊")
+    rows = [
+        ["不碰 target", "SVM-rbf，資料集原論文的基線", "Vergara 2012", "38.9"],
+        ["不碰 target", "FCNN，無補償（NC）", "KD 論文 2025", "38.7"],
+        ["不碰 target", "OSC 正交訊號校正", "Yi 2019 表", "56.5"],
+        ["不碰 target", "我們的 ResNet，R-fig-logps", "本專案", "55.6"],
+        ["不碰 target", "我們的投影，R-proj-axis（不可分辨）", "本專案 v12", "56.8"],
+        ["不碰 target（宣稱）", "CDCNN 論文的 ResNet / CDWC / CDCNN", "論文 Table 3", "63.5 / 67.1 / 72.3"],
+        ["看過 target 選方向", "我們的 R-aug-t2 / R-proj-eth（上界）", "本專案 v8.1 / v12", "57.7 / 57.5"],
+        ["無標籤 target 樣本", "SVM-gfk / SVM-comgfk 測地流核", "Vergara 2012", "63.8 / 64.0"],
+        ["無標籤 target 樣本", "ML-comgfk 流形正則化", "Vergara 2012", "67.3"],
+        ["無標籤 target 樣本", "DRCA 子空間對齊", "Zhang 2017", "62.2"],
+        ["無標籤 target 樣本", "D-DRCA 有判別力的子空間對齊", "Yi 2019", "73.8"],
+        ["無標籤 target，半批調參", "KD-DM 知識蒸餾", "KD 論文 2025", "47.9"],
+        ["兩個 source batch + 無標籤", "AMDS-PFFA 注意力多源域適應（加權平均）", "2024", "83.2"],
+        ["每批 20 筆有標籤", "DAELM-S(20)", "Zhang 2015", "80.8"],
+        ["每批 50 筆有標籤", "DAELM-T(50)", "Zhang 2015", "91.9"],
+    ]
+    table(s, ["用到的 target 資訊", "方法", "來源", "平均 B2–10 (%)"], rows,
+          M, Inches(1.7), Inches(8.4), col_fracs=(0.25, 0.41, 0.17, 0.17), size=10.5,
+          row_h=Inches(0.33), bold_rows=(4, 5), aligns=["left", "left", "left", "right"])
+    bullets(s, [
+        ("不碰 target 的方法沒有一個超過 60%", "key"),
+        "我們的 55.6 比原論文的 SVM 高 17 個百分點，與 OSC 持平；CDCNN 論文的 63.5 是這一列唯一的例外，而它的 Fig. 5 已被抓到用了 target 資料",
+        ("跨過 60% 的做法清一色是看 target 的無標籤樣本做子空間對齊，DRCA 那一家", "key"),
+        "DRCA 做的事和 v12 的投影幾乎一樣，差別是方向來自 source 與 target 的平均差，而不是 Batch 1 自己猜。這正好對上 v12 的失敗原因",
+        "80% 以上要每批幾十筆有標籤的校正樣本，或兩個以上的 source batch",
+        ("結論：這份資料集該用的設定是「無標籤 target 樣本可用於對齊」，那是文獻主流，也有明確對照組", "key"),
+    ], Inches(9.3), Inches(1.7), Inches(3.45), Inches(5.6), size=11, gap=5)
 
     # 11. Next steps (dark) -----------------------------------------------------------
     s = blank(prs, dark=True)
@@ -457,7 +515,7 @@ def build() -> Path:
         ("2", "留著的東西",
          "L_con 的實作、四格 config、事前預測與否證條件都在版控裡，補跑是 15 分鐘。另一個沒跑的乾淨對照：R-gen-shift 不帶輸入擴充對 R-fig-logps。"),
         ("3", "如果要往前走",
-         "唯一可分辨的槓桿是輸入端有方向的位移（+0.0214），而它的方向能從 Batch 1 自己估（cos 0.850）。任何後續結果都分五類與六類報告，Acetaldehyde 是共用方向方法的天花板。"),
+         "文獻在同一設定下不碰 target 沒有人過 60%；過 60% 的全是用 target 無標籤樣本做子空間對齊（DRCA 62、D-DRCA 74）。v12 的投影程式把方向來源換成 target 平均差就是最簡單的版本。報告時明說是 unsupervised domain adaptation。"),
     ]
     cw = (W - 2 * M - Inches(0.4) * 2) / 3
     for i, (n, head, body) in enumerate(cards):
@@ -479,9 +537,11 @@ def build() -> Path:
         ["5", "—", "drift_dimension.png、augmentation_pca.png"],
         ["6", "fig5-feature-generation.png", "feature_generation.png"],
         ["7", "—", "generation_drift_aligned_2d.png、generation_drift_projection.png"],
-        ["8", "—", "表格；runs/20260929T031927475103Z_baseline_ladder_full"],
+        ["8", "—", "表格；run 20260929T031927475103Z"],
         ["L_con", "—", "configs/contrastive.json、src/loss.py"],
-    ], M, Inches(1.6), Inches(7.6), col_fracs=(0.08, 0.4, 0.52), size=11, row_h=Inches(0.34),
+        ["v12", "—", "batch1_drift_axis.png；run 20261005T145146298993Z"],
+        ["文獻", "—", "arXiv 1505.06405、1901.02321、2409.13167、2507.17071"],
+    ], M, Inches(1.6), Inches(7.8), col_fracs=(0.09, 0.31, 0.60), size=10.5, row_h=Inches(0.34),
        aligns=["center", "left", "left"])
     bullets(s, [
         ("執行目錄", "head"),
@@ -490,6 +550,7 @@ def build() -> Path:
         ("v8.1  runs/20260923T045843638020Z_displacement_full", "sub"),
         ("v9.0  runs/20260923T071856507630Z_baseline_ladder_full", "sub"),
         ("v10.0  runs/20260929T031927475103Z_baseline_ladder_full", "sub"),
+        ("v12.0  runs/20261005T145146298993Z_baseline_ladder_full", "sub"),
         ("設定", "head"),
         ("seeds 1042 / 2024 / 3407 / 42 / 123；lr 0.0003、100 epochs、batch 64；BatchNorm、flatten head、signed-log → per-sample", "sub"),
         ("文件", "head"),

@@ -178,6 +178,30 @@
 
 ---
 
+## 第 9d 頁：我們自己的延伸 —— 把 Batch 1 估到的漂移軸投影掉（v12）
+
+- `x′ = x − U Uᵀ x`，U 來自 Batch 1 兩次採集的偏移，不帶擴充與生成區塊，對照是定案基準
+- `R-proj-axis`（頭條）+0.0128 不可分辨；`R-proj-eth` +0.0191 可分辨但 target-informed；`R-proj-sub3` +0.0055
+- 機制：那條軸只裝 29% 的三年漂移能量、42% 的類內散佈；三維版本拿掉 76% 類間變異；Acetaldehyde 仍落在 Ethanol
+- 圖：`batch1_drift_axis.png`；run `20261005T145146298993Z_baseline_ladder_full`
+
+---
+
+## 第 10b 頁：文獻對照 —— Batch 1 訓練、Batch 2–10 測試
+
+| 用到的 target 資訊 | 方法 | 平均 (%) |
+|---|---|---:|
+| 不碰 | SVM-rbf（Vergara 2012）/ OSC / 我們 / CDCNN 論文宣稱 | 38.9 / 56.5 / 55.6 / 63.5–72.3 |
+| 無標籤 target 樣本 | SVM-comgfk / ML-comgfk / DRCA / D-DRCA | 64.0 / 67.3 / 62.2 / 73.8 |
+| 兩個 source + 無標籤 | AMDS-PFFA（2024，加權） | 83.2 |
+| 每批 20 / 50 筆有標籤 | DAELM-S(20) / DAELM-T(50) | 80.8 / 91.9 |
+
+- 不碰 target 沒有人過 60%；過 60% 清一色是用無標籤 target 做子空間對齊
+- 結論：這份資料集該用「無標籤 target 樣本可用於對齊」的設定，報告時明說是 unsupervised domain adaptation
+- 來源：arXiv 1505.06405（DAELM）、1901.02321（D-DRCA）、2409.13167（AMDS）、2507.17071（KD）
+
+---
+
 ## 第 10 頁：總結與下一步
 
 **重現了的：** 架構、Eq. (7) 擴充、Eqs. (8)–(16) 生成、Fig. 5 的畫法、Acetaldehyde 的死亡。
