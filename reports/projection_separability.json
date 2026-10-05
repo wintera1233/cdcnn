@@ -1,0 +1,109 @@
+{
+  "none": {
+    "separations": {
+      "Ethanol-Ammonia": 2.253640419622297,
+      "Ethanol-Ethylene": 1.9937557085560857,
+      "Ethanol-Acetaldehyde": 1.1225706893126108,
+      "Ethanol-Acetone": 1.278515272585086,
+      "Ethanol-Toluene": 2.147824575507947,
+      "Ammonia-Ethylene": 1.0687560178740483,
+      "Ammonia-Acetaldehyde": 3.1919999405420993,
+      "Ammonia-Acetone": 3.3039452264990627,
+      "Ammonia-Toluene": 4.432620052527012,
+      "Ethylene-Acetaldehyde": 2.920981212855766,
+      "Ethylene-Acetone": 3.033640659800133,
+      "Ethylene-Toluene": 4.001152630247297,
+      "Acetaldehyde-Acetone": 0.397417941195204,
+      "Acetaldehyde-Toluene": 1.2865359656814894,
+      "Acetone-Toluene": 1.2135689419521343
+    },
+    "cv": {
+      "nearest_centroid": 0.8497892720306514,
+      "logistic": 0.9618408220132357
+    }
+  },
+  "eth": {
+    "k": 1,
+    "separations": {
+      "Ethanol-Ammonia": 2.916489671203236,
+      "Ethanol-Ethylene": 2.390184168561104,
+      "Ethanol-Acetaldehyde": 1.4165011472759335,
+      "Ethanol-Acetone": 1.6727414998377619,
+      "Ethanol-Toluene": 2.144751556086734,
+      "Ammonia-Ethylene": 1.3981471863308088,
+      "Ammonia-Acetaldehyde": 4.087568265894755,
+      "Ammonia-Acetone": 4.43671443693444,
+      "Ammonia-Toluene": 5.219964379950919,
+      "Ethylene-Acetaldehyde": 3.4452602937367973,
+      "Ethylene-Acetone": 3.7307111683582304,
+      "Ethylene-Toluene": 4.183485225257438,
+      "Acetaldehyde-Acetone": 0.5261257550642316,
+      "Acetaldehyde-Toluene": 1.150142035943474,
+      "Acetone-Toluene": 1.289589276870056
+    },
+    "variance": {
+      "total_variance_removed": 0.28460473574361533,
+      "between_class_variance_removed": 0.21311911833086175
+    },
+    "cv": {
+      "nearest_centroid": 0.8586259143155693,
+      "logistic": 0.9529519331243469
+    }
+  },
+  "pc1": {
+    "k": 1,
+    "separations": {
+      "Ethanol-Ammonia": 4.256720195970522,
+      "Ethanol-Ethylene": 3.5538990279690115,
+      "Ethanol-Acetaldehyde": 1.8506525909243376,
+      "Ethanol-Acetone": 2.3151770836258794,
+      "Ethanol-Toluene": 3.162788505546983,
+      "Ammonia-Ethylene": 1.970020342251295,
+      "Ammonia-Acetaldehyde": 5.4947198749745585,
+      "Ammonia-Acetone": 6.230311777981418,
+      "Ammonia-Toluene": 7.454829333701533,
+      "Ethylene-Acetaldehyde": 4.763916499228997,
+      "Ethylene-Acetone": 5.406781491230534,
+      "Ethylene-Toluene": 6.316226678156892,
+      "Acetaldehyde-Acetone": 0.6214341955119163,
+      "Acetaldehyde-Toluene": 1.2907573971213793,
+      "Acetone-Toluene": 1.4924088558864053
+    },
+    "variance": {
+      "total_variance_removed": 0.23557645163023896,
+      "between_class_variance_removed": 0.02794095207675226
+    },
+    "cv": {
+      "nearest_centroid": 0.9280738418669452,
+      "logistic": 0.9551741553465691
+    }
+  },
+  "sub3": {
+    "k": 3,
+    "separations": {
+      "Ethanol-Ammonia": 2.179380508514754,
+      "Ethanol-Ethylene": 2.148889103233095,
+      "Ethanol-Acetaldehyde": 1.0149928659852556,
+      "Ethanol-Acetone": 1.4878663577878737,
+      "Ethanol-Toluene": 2.302776005907169,
+      "Ammonia-Ethylene": 2.4829410476724463,
+      "Ammonia-Acetaldehyde": 2.585093554340136,
+      "Ammonia-Acetone": 3.061389030097285,
+      "Ammonia-Toluene": 4.215528356776371,
+      "Ethylene-Acetaldehyde": 2.429252949655021,
+      "Ethylene-Acetone": 2.9667948496506664,
+      "Ethylene-Toluene": 3.754106117436594,
+      "Acetaldehyde-Acetone": 0.6410566844636529,
+      "Acetaldehyde-Toluene": 1.2881263842840445,
+      "Acetone-Toluene": 1.5634044537756042
+    },
+    "variance": {
+      "total_variance_removed": 0.7389099599660405,
+      "between_class_variance_removed": 0.7635548891874051
+    },
+    "cv": {
+      "nearest_centroid": 0.9010257749912922,
+      "logistic": 0.9504998258446534
+    }
+  }
+}
