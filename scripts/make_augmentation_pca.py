@@ -89,9 +89,9 @@ def main() -> int:
         next(p for p in PANELS if p[0] == name) for name in args.panels]
     if args.lang == "en":
         english = {"R-fig-logps": "No augmentation",
-                   "R-aug-paper": "Paper, Eq. (5)-(7): isotropic noise",
-                   "R-aug-ethd": "Directed (Ethanol offset), no noise",
-                   "R-aug-eth": "Directed + isotropic noise"}
+                   "R-aug-paper": "Paper: isotropic noise",
+                   "R-aug-ethd": "Directed, no noise",
+                   "R-aug-eth": "Directed + noise"}
         panels = [(v, english[v]) for v, _ in panels]
     clouds = {}
     for variant, _ in panels:
@@ -138,6 +138,24 @@ def main() -> int:
                 axis.scatter(target_point[0], target_point[1], marker="X", s=180,
                              color=CRITICAL, edgecolors="white", linewidths=1.4,
                              zorder=10, label=marker_label)
+                # The Acetaldehyde centroid of this panel's cloud (source or
+                # augmented), its line to the target centroid, and the distance
+                # between the two measured in the full 128-dimensional space.
+                mine_full = z[labels == 4]
+                centroid_full = mine_full.mean(axis=0)
+                centroid_2d = project(centroid_full[None, :])[0][:2]
+                gap = float(np.linalg.norm(centroid_full - target_full))
+                axis.plot([centroid_2d[0], target_point[0]], [centroid_2d[1], target_point[1]],
+                          color=CRITICAL, linewidth=1.6, linestyle="--", zorder=9)
+                axis.scatter(centroid_2d[0], centroid_2d[1], marker="D", s=90,
+                             facecolor="white", edgecolors=CRITICAL, linewidths=1.8,
+                             zorder=10, label=("Acetaldehyde centroid of this cloud"
+                                               if index == 1 else None))
+                mid = 0.5 * (centroid_2d + target_point[:2])
+                axis.annotate(f"d = {gap:.2f}", xy=mid, xytext=(0, 13), textcoords="offset points",
+                              ha="center", fontsize=10 * fs, color=CRITICAL, fontweight="bold",
+                              bbox=dict(boxstyle="round,pad=0.2", facecolor=SURFACE,
+                                        edgecolor="none", alpha=0.9))
             axis.set_xlim(*lim[0]); axis.set_ylim(*lim[1])
             axis.set_aspect("equal")
             axis.set_xlabel(f"PC1 ({explained[0]:.1%})", fontsize=9 * fs, color=INK_MUTED)
@@ -169,15 +187,19 @@ def main() -> int:
             mine = z[labels == 4]
             nearest = float(np.linalg.norm(mine - target_full, axis=1).min())
             if args.lang == "en":
-                reach = f"\nnearest to target {nearest:.2f} (radius {acet_radius:.2f})"
+                gap = float(np.linalg.norm(z[labels == 4].mean(axis=0) - target_full))
+                reach = (f"\nAcetaldehyde centroid to target: {gap:.2f}"
+                         f"  (class radius {acet_radius:.2f})")
             else:
                 reach = (f"\n到 target 的最近距離 {nearest:.2f}"
                          f"（半徑 {acet_radius:.2f}，{'涵蓋' if nearest < acet_radius else '未涵蓋'}）")
-        if args.lang == "en":
+        if args.two_d:
+            subtitle = title
+        elif args.lang == "en":
             subtitle = f"{title}\nwithin-class radius {radius:.2f} ({radius / radius0:.2f}x){reach}"
         else:
             subtitle = f"{title}\n類內半徑 {radius:.2f}（{radius / radius0:.2f}×）{reach}"
-        axis.set_title(subtitle, fontsize=10 * fs, color=INK, pad=4)
+        axis.set_title(subtitle, fontsize=(12 if args.two_d else 10) * fs, color=INK, pad=6)
         if args.two_d:
             continue
         axis.set_xlim(*lim[0]); axis.set_ylim(*lim[1]); axis.set_zlim(*lim[2])
@@ -192,15 +214,20 @@ def main() -> int:
             pane.pane.set_edgecolor("#d9d8d4")
 
     handles, names = figure.axes[0].get_legend_handles_labels()
-    figure.legend(handles, names, loc="lower center", ncol=7 if len(panels) == 4 else 4,
-                  frameon=False, fontsize=10 * fs, markerscale=2.6,
-                  bbox_to_anchor=(0.5, -0.01))
+    if args.two_d:
+        figure.legend(handles, names, loc="lower center", ncol=len(names), frameon=False,
+                      fontsize=9 * fs, markerscale=1.3, bbox_to_anchor=(0.5, 0.0),
+                      handletextpad=0.3, columnspacing=1.2)
+    else:
+        figure.legend(handles, names, loc="lower center", ncol=7 if len(panels) == 4 else 4,
+                      frameon=False, fontsize=10 * fs, markerscale=2.6,
+                      bbox_to_anchor=(0.5, -0.01))
     if not args.no_suptitle:
         figure.suptitle("Batch 1 擴充前後的三維主成分空間（對照論文 Fig. 4）\n"
                         "所有面板共用同一組投影與座標範圍；範圍取全體的 1–99 百分位",
                         fontsize=13 * fs, color=INK, y=0.99)
     if args.two_d:
-        figure.subplots_adjust(left=0.05, right=0.99, top=0.84, bottom=0.24, wspace=0.12)
+        figure.subplots_adjust(left=0.05, right=0.99, top=0.91, bottom=0.2, wspace=0.12)
     else:
         figure.subplots_adjust(left=0.01, right=0.99,
                                top=0.80 if not args.no_suptitle else 0.88,
