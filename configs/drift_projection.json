@@ -87,5 +87,29 @@
     "mechanism_check": "drift over within-class radius at the input, measured after the projection on the frozen checkpoints (scripts/measure_drift_compression.py or its equivalent). The baseline's 1.80 should fall clearly; if it does not fall and accuracy rises, the gain has another cause.",
     "falsifier_1": "If R-proj-axis is not separable from R-fig-logps, removing the Batch 1-estimable drift axis does not help under this protocol. With the mechanism check: an unchanged drift ratio means the estimator is wrong; a reduced ratio with unchanged accuracy means the errors come from the remaining drift components or from class-specific displacement.",
     "falsifier_2": "If Acetaldehyde's recall stays at 0.00, its confusion with Ethanol is not a displacement along the shared axis, and docs/why-acetaldehyde.md needs revising."
+  },
+  "step1_gate": {
+    "run": "runs/20261005T140110659659Z_drift_projection_cv",
+    "what": "five-fold stratified CV on Batch 1 with the real network, 3 seeds x 5 folds per cell, each fold's basis fitted from its own training rows. No target file opened; leakage audit passed.",
+    "rule": "a projected cell's accuracy at epoch 100 may not fall more than 0.02 below R-fig-logps",
+    "accuracy_at_epoch_100": {
+      "R-fig-logps": 0.968,
+      "R-proj-axis": 0.9709,
+      "R-proj-sub3": 0.9716,
+      "R-proj-eth": 0.9657
+    },
+    "peak_accuracy": {
+      "R-fig-logps": 0.9695,
+      "R-proj-axis": 0.9724,
+      "R-proj-sub3": 0.9716,
+      "R-proj-eth": 0.9658
+    },
+    "held_out_loss_at_epoch_100": {
+      "R-fig-logps": 0.1458,
+      "R-proj-axis": 0.1376,
+      "R-proj-sub3": 0.1499,
+      "R-proj-eth": 0.1607
+    },
+    "result": "all three pass. R-proj-axis and R-proj-sub3 sit slightly above the baseline on held-out Batch 1 accuracy and R-proj-axis has the lowest held-out loss; R-proj-eth is 0.002 below. None of this says anything about the target."
   }
 }
