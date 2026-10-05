@@ -57,6 +57,8 @@ def main() -> int:
     parser.add_argument("--marker-scale", type=float, default=1.0)
     parser.add_argument("--no-suptitle", action="store_true")
     parser.add_argument("--lang", choices=("zh", "en"), default="zh")
+    parser.add_argument("--two-d", action="store_true",
+                        help="PC1 against PC2 instead of the three-component box")
     parser.add_argument("--clip", type=float, nargs=2, default=(1.0, 99.0),
                         help="percentiles of the drawn clouds that set the axis range")
     args = parser.parse_args()
@@ -114,23 +116,47 @@ def main() -> int:
     lim = [(a - p, b + p) for (a, b), p in zip(lim, pad)]
 
     fs = args.font_scale
-    figure = plt.figure(figsize=(4.25 * len(panels), 5.6), facecolor=SURFACE)
+    figure = plt.figure(figsize=(4.25 * len(panels), 4.9 if args.two_d else 5.6),
+                        facecolor=SURFACE)
     radius0 = None
+    marker_label = ("target Acetaldehyde centroid" if args.lang == "en"
+                    else "target Acetaldehyde 重心（診斷）")
     for index, (variant, title) in enumerate(panels, start=1):
-        axis = figure.add_subplot(1, len(panels), index, projection="3d")
-        axis.set_facecolor(SURFACE)
         z, labels = clouds[variant]
         points = project(z)
-        for c in range(1, 7):
-            m = labels == c
-            axis.scatter(points[m, 0], points[m, 1], points[m, 2], s=3.5 * args.marker_scale,
-                         color=COLOURS[c - 1], alpha=0.35, linewidths=0,
-                         label=GAS_LABELS[c], depthshade=False)
-        if target_point is not None:
-            axis.scatter(*target_point, marker="X", s=150, color=CRITICAL,
-                         edgecolors="white", linewidths=1.4, depthshade=False,
-                         zorder=10, label=("target Acetaldehyde centroid" if args.lang == "en"
-                                           else "target Acetaldehyde 重心（診斷）"))
+        if args.two_d:
+            axis = figure.add_subplot(1, len(panels), index)
+            axis.set_facecolor(SURFACE)
+            for spine in axis.spines.values():
+                spine.set_color("#d9d8d4")
+            for c in range(1, 7):
+                m = labels == c
+                axis.scatter(points[m, 0], points[m, 1], s=6 * args.marker_scale,
+                             color=COLOURS[c - 1], alpha=0.45, linewidths=0,
+                             label=GAS_LABELS[c])
+            if target_point is not None:
+                axis.scatter(target_point[0], target_point[1], marker="X", s=180,
+                             color=CRITICAL, edgecolors="white", linewidths=1.4,
+                             zorder=10, label=marker_label)
+            axis.set_xlim(*lim[0]); axis.set_ylim(*lim[1])
+            axis.set_aspect("equal")
+            axis.set_xlabel(f"PC1 ({explained[0]:.1%})", fontsize=9 * fs, color=INK_MUTED)
+            if index == 1:
+                axis.set_ylabel(f"PC2 ({explained[1]:.1%})", fontsize=9 * fs, color=INK_MUTED)
+            axis.tick_params(labelsize=8 * fs, colors=INK_MUTED)
+            axis.grid(True, color="#e6e5e1", linewidth=0.6)
+        else:
+            axis = figure.add_subplot(1, len(panels), index, projection="3d")
+            axis.set_facecolor(SURFACE)
+            for c in range(1, 7):
+                m = labels == c
+                axis.scatter(points[m, 0], points[m, 1], points[m, 2], s=3.5 * args.marker_scale,
+                             color=COLOURS[c - 1], alpha=0.35, linewidths=0,
+                             label=GAS_LABELS[c], depthshade=False)
+            if target_point is not None:
+                axis.scatter(*target_point, marker="X", s=150, color=CRITICAL,
+                             edgecolors="white", linewidths=1.4, depthshade=False,
+                             zorder=10, label=marker_label)
         radius = np.mean([np.linalg.norm(points[labels == c]
                                          - points[labels == c].mean(0), axis=1).mean()
                           for c in range(1, 7)])
@@ -151,7 +177,9 @@ def main() -> int:
             subtitle = f"{title}\nwithin-class radius {radius:.2f} ({radius / radius0:.2f}x){reach}"
         else:
             subtitle = f"{title}\n類內半徑 {radius:.2f}（{radius / radius0:.2f}×）{reach}"
-        axis.set_title(subtitle, fontsize=10 * fs, color=INK, pad=2)
+        axis.set_title(subtitle, fontsize=10 * fs, color=INK, pad=4)
+        if args.two_d:
+            continue
         axis.set_xlim(*lim[0]); axis.set_ylim(*lim[1]); axis.set_zlim(*lim[2])
         axis.set_xlabel(f"PC1 ({explained[0]:.1%})", fontsize=8.5 * fs, color=INK_MUTED)
         axis.set_ylabel(f"PC2 ({explained[1]:.1%})", fontsize=8.5 * fs, color=INK_MUTED)
@@ -171,9 +199,12 @@ def main() -> int:
         figure.suptitle("Batch 1 擴充前後的三維主成分空間（對照論文 Fig. 4）\n"
                         "所有面板共用同一組投影與座標範圍；範圍取全體的 1–99 百分位",
                         fontsize=13 * fs, color=INK, y=0.99)
-    figure.subplots_adjust(left=0.01, right=0.99,
-                           top=0.80 if not args.no_suptitle else 0.88,
-                           bottom=0.10 if len(panels) == 4 else 0.14, wspace=0.02)
+    if args.two_d:
+        figure.subplots_adjust(left=0.05, right=0.99, top=0.84, bottom=0.24, wspace=0.12)
+    else:
+        figure.subplots_adjust(left=0.01, right=0.99,
+                               top=0.80 if not args.no_suptitle else 0.88,
+                               bottom=0.10 if len(panels) == 4 else 0.14, wspace=0.02)
     out = ROOT / args.out
     out.parent.mkdir(parents=True, exist_ok=True)
     figure.savefig(out, dpi=155, facecolor=SURFACE)
