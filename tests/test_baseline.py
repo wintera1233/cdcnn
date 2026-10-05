@@ -751,6 +751,13 @@ class InputNormalisationTests(unittest.TestCase):
             z = normalize.apply(normalize.fit(kind, x), x)
             self.assertEqual(z.shape, x.shape, kind)
             self.assertTrue(np.isfinite(z).all(), kind)
+            if kind in normalize.PROJECTED:
+                # v12: the projection removes a component and, by declared
+                # choice, nothing is re-standardised afterwards, so the global
+                # spread drops below one by the removed share.
+                self.assertLess(float(z.std()), 1.0, kind)
+                self.assertGreater(float(z.std()), 0.5, kind)
+                continue
             self.assertAlmostEqual(float(z.std()), 1.0, places=6, msg=kind)
 
     def test_composed_normalizers_equal_their_stages(self):
