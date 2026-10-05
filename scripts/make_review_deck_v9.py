@@ -215,7 +215,7 @@ def build() -> Path:
         color=RGBColor(0xCF, 0xD3, 0xDE))
     p = tf.add_paragraph(); p.space_before = Pt(30)
     run(p, "UCI Gas Sensor Array Drift，Batch 1 訓練、Batch 2–10 評估  ·  五個 seed  ·  "
-           "runs 2026-09-22 至 09-29  ·  分支 exp/v7-redesign", size=12.5,
+           "runs 2026-09-22 至 10-05  ·  分支 exp/v12-drift-projection", size=12.5,
         color=RGBColor(0xA8, 0xAD, 0xBD))
     rect(s, M, Inches(5.6), Inches(0.62), Inches(0.62), ORANGE, shape=MSO_SHAPE.OVAL)
     tf = textbox(s, M + Inches(0.85), Inches(5.62), Inches(8), Inches(0.6),
