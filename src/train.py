@@ -54,12 +54,18 @@ def epoch_is_saved(epoch: int, dense_until: int = 20, then_every: int = 5) -> bo
 
 def train_one(variant: str, seed: int, config: dict, source_x: np.ndarray,
               source_y: np.ndarray, checkpoint_dir: Path, device: str,
-              save_every_epoch: bool, learning_rate: float | None = None) -> dict:
+              save_every_epoch: bool, learning_rate: float | None = None,
+              normalizer_params: dict | None = None) -> dict:
     """Train one variant at one seed for `config['training']['epochs']` epochs.
 
     Returns the history; writes `epoch_XXX.pt` when `save_every_epoch` and always
     writes `final.pt`. Checkpoints are written, not frozen: freezing and hashing
     happen in `src.audit` once every run of the ladder is complete.
+
+    `normalizer_params` replaces the Normal block fitted on `source_x`. Only
+    `scripts/leak_diagnostic_scaler.py` passes it, to fit the scaler on data a
+    source-only run may not see; such a run is target-informed by construction
+    and cannot pass the leakage audit.
     """
     training = config["training"]
     optimizer_config = config["optimizer"]
@@ -70,7 +76,12 @@ def train_one(variant: str, seed: int, config: dict, source_x: np.ndarray,
     seed_everything(seed)
     # The Normal block is part of the variant's definition, not a free knob:
     # the 2x2 in proposal.md section 6 crosses it with the head.
-    normalizer = normalize.fit(VARIANTS[variant]["normalizer"], source_x)
+    if normalizer_params is None:
+        normalizer = normalize.fit(VARIANTS[variant]["normalizer"], source_x)
+    else:
+        if normalizer_params["kind"] != VARIANTS[variant]["normalizer"]:
+            raise ProtocolError("injected normalizer does not match the variant")
+        normalizer = dict(normalizer_params)
     normalised = normalize.apply(normalizer, source_x)
     labels = source_y
 
@@ -193,7 +204,10 @@ def train_one(variant: str, seed: int, config: dict, source_x: np.ndarray,
     _save(checkpoint_dir / "final.pt", model, normalizer, variant, seed,
           training["epochs"], config, lr)
     summary = {"variant": variant, "seed": seed, "device": device,
-               "normalizer": normalizer["kind"], "learning_rate": lr,
+               "normalizer": normalizer["kind"],
+               "normalizer_fitted_on": ("injected (see the run's leak_diagnostic.json)"
+                                        if normalizer_params is not None else "Batch 1"),
+               "learning_rate": lr,
                "finished_at": utc_now(),
                "parameters": parameter_breakdown(model),
                "source_rows": int(len(source_y)),

@@ -360,6 +360,14 @@ the settled baseline and the numbers are source-only except `R-proj-eth`.
   premise is already gone. The previous branch measured it five times at -0.005
   to +0.003. The run is one `gpu-smoke` plus one `launch`, about fifteen
   minutes, if it is ever wanted.
+- **A StandardScaler fitted on all ten batches does not explain the paper's
+  0.6346.** `docs/leak-diagnostic-scaler.md`, run
+  `20261006T025338707996Z_leak_diagnostic_scaler`, deliberately target-informed
+  and excluded from every source-only table: `R-fig` goes from 0.4114 (scaler on
+  Batch 1) to 0.4351 (scaler on Batches 1-10, values only), +0.024, five seeds
+  all under 0.46. The 0.08 gap to the paper's ResNet remains unexplained; the
+  explanations left all need more target information than a scaler, or a
+  different Batch 1.
 - **A drift-over-radius ratio can rise when drift is removed**, if the removal
   shrinks the within-class radius more than the drift (v12.0: 1.80 to 2.46 under
   `R-proj-axis`). Report the numerator and denominator separately.
