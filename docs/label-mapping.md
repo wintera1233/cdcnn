@@ -67,14 +67,41 @@ closest at 1.02, and the model separates all six perfectly at source. See
 The geometry agrees. Every target batch's Acetaldehyde centroid lands nearest
 Batch 1's **Ethanol** centroid, eight times of nine; see `docs/why-acetaldehyde.md`.
 
+## The count table, re-checked on 2026-10-06: it matches every batch under a permutation
+
+The claim above that Table 2 "matches the file in only one column" assumed the
+table's columns are in label order. They are not. Matching the paper's sixty
+cells (ten batches, six columns) against the file's per-label counts over all
+720 column-to-label assignments:
+
+| assignment | total absolute mismatch over 60 cells |
+|---|---:|
+| Ethanol=3, Ethylene=4, Ammonia=5, Acetaldehyde=2, Acetone=1, Toluene=6 | **9** |
+| the adopted mapping (1=Ethanol, 2=Ammonia, 3=Ethylene, 4=Acetaldehyde, 5=Acetone, 6=Toluene) | 4371 |
+
+The 9 is two typographical slips: Batch 5 Acetone printed 20 for 28, Batch 7
+Ethylene printed 745 for 744. So the paper's Table 2 is the UCI page's own table
+copied verbatim, and the data are the same files. What the table cannot settle
+is the name-to-label mapping, because the UCI documentation contradicts itself:
+its text gives one encoding and its count table implies another.
+
+Which naming did the paper use for Fig. S3? Its dead class is "Acetaldehyde",
+sent 100 % to "Ethanol". The file's dead class is label 4 (the 30-row class of
+Batch 1), whose target centroid lands on label 1's. Under the text encoding
+label 4 is Acetaldehyde and label 1 is Ethanol, which agrees with Fig. S3. Under
+the count-table encoding label 4 is Ethylene and label 1 is Acetone, and the
+paper's Ethylene at 0.95 would contradict the geometry every model here
+measures. The paper therefore almost certainly named by the text encoding, and
+the adopted mapping, which differs from it only in exchanging 2 and 3, keeps the
+dead-class correspondence. Nothing numerical depends on this.
+
 ## What stays unexplained
 
-Under the adopted mapping the per-batch count table matches the file in only one
-column, Toluene. Either the table's columns are not in label order, or it
-describes a differently ordered release of the files. This is recorded rather
-than resolved: no reading of the table can simultaneously satisfy the dataset's
-own stated encoding, and the encoding is the more direct statement about the
-files that are actually here.
+The table's columns are not in label order (see the re-check above), so the
+table and the dataset's stated encoding cannot both be read literally. The
+encoding is the more direct statement about the files that are actually here,
+and the paper's Fig. S3 is consistent with it; the table is kept as a fact about
+counts, not about names.
 
 `tests/test_baseline.py` therefore asserts the per-label **counts** - a fact
 about the files - and the adopted mapping, rather than asserting a correspondence

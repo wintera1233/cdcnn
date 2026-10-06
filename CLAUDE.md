@@ -27,10 +27,14 @@ structure against the paper's Fig. 4(a):
 
 `1 = Ethanol, 2 = Ammonia, 3 = Ethylene, 4 = Acetaldehyde, 5 = Acetone, 6 = Toluene`
 
-The paper's Table 2 per-gas counts match this file in only one column under that
-mapping. The conflict is recorded, not resolved; the counts per label are the
-fact and the names are the interpretation. Changing the mapping changes no
-measurement, because only integer labels reach the model.
+The paper's Table 2 is the UCI count table copied verbatim and matches this file
+in every batch under a column permutation (total mismatch 9 over 60 cells, two
+typos); what it cannot settle is which name goes with which label, because the
+UCI documentation's text encoding and its own count table disagree. The counts
+per label are the fact and the names are the interpretation; the paper's Fig. S3
+is consistent with the text encoding, which the adopted mapping follows up to the
+2/3 exchange. Changing the mapping changes no measurement, because only integer
+labels reach the model. See `docs/label-mapping.md`.
 
 Rules:
 
