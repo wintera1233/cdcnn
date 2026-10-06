@@ -55,7 +55,7 @@ def main() -> int:
     prs = Presentation(DECK)
     deck = Deck(prs)
     s, _ = deck.slide("這半年的工作概覽", keep_body=False)
-    kicker(s, "六條線，從 5 月到 10 月：三條在漂移補償，三條在特徵工程；資料集從 UCI、Zenodo 走到 TI 再回到 UCI。")
+    kicker(s, "六條線，5 月到 10 月：三條在漂移補償，三條在特徵工程；資料集 UCI、Zenodo、TI。")
     X, _, W, _ = BODY
     table(s, ["時間", "主題", "資料集", "做了什麼", "結果"], ROWS,
           X, Inches(1.62), W, col_fracs=(0.1, 0.17, 0.2, 0.3, 0.23), size=9,
