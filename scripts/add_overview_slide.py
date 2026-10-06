@@ -24,6 +24,10 @@ DECK = ROOT / "reports" / "10-22.pptx"
 POSITION = 1   # zero-based index the new slide moves to: right after the cover
 
 ROWS = [
+    ["05", "濃度為錨的漂移校正遷移（CDC，IEEE Sensors Letters 2020）",
+     "UCI 漂移資料集",
+     "復現 CB 模型（自編碼器 + 多任務 MLP，同時預測標籤與濃度）與遞迴式 CDC 遷移流程，每類 5 筆 transfer sample",
+     "CB 平均 91.55（論文 91.85）；CDC 流程 Batch 10 到 92.54，靜態微調只有 60.75"],
     ["07-16", "特徵擷取與特徵空間分析",
      "Zenodo 長期漂移資料集：62 顆感測器、12 個月、三種 VOC",
      "Savitzky–Golay 濾波；每顆感測器取 5 種特徵；用 PCA 看濃度與日間漂移的影響",
@@ -44,10 +48,6 @@ ROWS = [
      "UCI 漂移資料集：16 顆感測器、36 個月、6 種氣體",
      "照 Fig. 2 重建、只用 Batch 1；三個元件逐一加入；投影延伸；文獻對照",
      "基線 0.5556；三個元件都無增益；文獻中不看 target 的方法都在 60% 以下"],
-    ["另一條線", "濃度為錨的漂移校正遷移（CDC，IEEE Sensors Letters 2020）",
-     "UCI 漂移資料集",
-     "復現 CB 模型（自編碼器 + 多任務 MLP，同時預測標籤與濃度）與遞迴式 CDC 遷移流程，每類 5 筆 transfer sample",
-     "CB 平均 91.55（論文 91.85）；CDC 流程 Batch 10 到 92.54，靜態微調只有 60.75"],
 ]
 
 
@@ -55,11 +55,11 @@ def main() -> int:
     prs = Presentation(DECK)
     deck = Deck(prs)
     s, _ = deck.slide("這半年的工作概覽", keep_body=False)
-    kicker(s, "六條線：三條在特徵工程，三條在漂移補償；資料集從 Zenodo、TI 走到 UCI。")
+    kicker(s, "六條線，從 5 月到 10 月：三條在漂移補償，三條在特徵工程；資料集從 UCI、Zenodo 走到 TI 再回到 UCI。")
     X, _, W, _ = BODY
     table(s, ["時間", "主題", "資料集", "做了什麼", "結果"], ROWS,
           X, Inches(1.62), W, col_fracs=(0.1, 0.17, 0.2, 0.3, 0.23), size=9,
-          row_h=Inches(0.72), bold_rows=(5,), aligns=["left"] * 5)
+          row_h=Inches(0.72), bold_rows=(6,), aligns=["left"] * 5)
     # Move the new slide to its place after the cover.
     id_list = prs.slides._sldIdLst
     new = list(id_list)[-1]
