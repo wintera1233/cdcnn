@@ -3,9 +3,10 @@
 This branch (`exp/v12-drift-projection`, from `exp/v7-redesign`) carries the
 whole ladder: the baseline is settled (`baseline.md`), directed augmentation,
 feature generation and a signed feature generation are all measured (section 4),
-the contrastive loss `L_con` is implemented but, by decision, not run, and
-v12.0 - projecting Batch 1's own drift axis out of the input - is measured
-(`proposal-v12.md`, `docs/v12-drift-projection.md`). The rules below are protocol, not
+the contrastive loss `L_con` is measured (v11.0), and v12.0 - projecting
+Batch 1's own drift axis out of the input - is measured (`proposal-v12.md`,
+`docs/v12-drift-projection.md`). All three of the paper's components are
+measured; none reproduces a gain. The rules below are protocol, not
 method: they say nothing about which architecture, optimizer, or training
 schedule to use, because those are what the redesign is for. Section 4 records
 what has already been measured - do not spend GPU time re-deriving any of it.
@@ -310,6 +311,39 @@ never from a target file. All cells carry `R-aug-t2`, lambda_MSE 0.5.
   the shift is measured on top of a same-direction displacement; the cleaner
   `R-gen-shift` without augmentation against `R-fig-logps` was not run.
 
+#### v11.0 the contrastive loss `L_con` (`docs/v11-contrastive.md`)
+
+Run `runs/20261006T032018108986Z_baseline_ladder_full`, four cells x five seeds,
+pooled SD 0.0069 to 0.0102, threshold 0.0087 to 0.0110. Eq. (S5) as printed:
+SupCon over `z_f U z_bar_f`, L2-normalised flattened `z_f`, no learned head,
+mean over anchors; tau 0.07 (SupCon's default) or 0.5, lambda_con 0.5, neither
+given by the paper. All cells on `R-gen`'s setting.
+
+| variant | `z_bar_f` | tau | target mean | SD | vs `R-gen` | separable |
+|---|---|---:|---:|---:|---:|---|
+| `R-gen` | - | - | 0.5773 | 0.0069 | - | - |
+| `R-con-t5` | paper's | 0.5 | 0.5760 | 0.0096 | -0.0014 | no |
+| `R-con-shift` | v10's shifted | 0.07 | 0.5666 | 0.0078 | -0.0107 | yes, negative |
+| `R-con` | paper's | 0.07 | 0.5635 | 0.0102 | -0.0138 | yes, negative |
+
+- **The paper's `L_con` is separably negative under this protocol.** It undoes
+  half of the augmentation's trade: Ethylene +0.19, Toluene -0.25, Acetone
+  -0.10. At tau 0.5 the loss barely acts (4.83 to 4.69) and the cell returns to
+  the control. Which `z_bar_f` it pulls toward makes no difference (0.003).
+- **Mechanism: it compresses the source's within-class radius, not the drift.**
+  Drift over within-class radius at `z_f`: 1.69 for `R-gen`, **2.73** for
+  `R-con` (-52% "compression"), 1.72 at tau 0.5. The invariance it enforces is
+  to `z_bar_f`, which never leaves Batch 1, so the denominator shrinks and the
+  numerator does not: the only component with an invariance mechanism makes the
+  representation more drift-sensitive.
+- The pre-registered falsifier ("if `R-con` is separable, the paper's +0.053 has
+  a foothold") was written for a gain and triggered in the opposite direction;
+  the honest reading is that `L_con` has a measurable effect at these constants
+  and it is negative. The previous branch's -0.005 to +0.003 sits between the
+  two tau values.
+- **All three of the paper's components are now measured: -0.0216, +0.0004,
+  -0.0138.** The source-only settled number remains 0.5556.
+
 #### v12.0 projecting the drift axis out of the input (`docs/v12-drift-projection.md`)
 
 Run `runs/20261005T145146298993Z_baseline_ladder_full`, four cells x five seeds,
@@ -352,18 +386,12 @@ the settled baseline and the numbers are source-only except `R-proj-eth`.
   fixed epoch count doubles the gradient steps. Any comparison between augmented
   and unaugmented training must state which of step count and per-sample exposure
   it matches; it cannot match both.
-- **Two of the paper's three components now measure at about zero under this
-  protocol**: augmentation as the paper specifies it (isotropic) at -0.0216, and
-  feature generation at +0.0004 as written and +0.0023 with a correctly signed,
-  drift-sized displacement (v10.0). **The contrastive loss `L_con` (Eq. S5) is
-  implemented (v11.0, `src/loss.py:supervised_contrastive`, variants `R-con`,
-  `R-con-shift`, `R-con-t5`, `configs/contrastive.json` with a pre-registered
-  prediction) and was deliberately not run**, by the user's decision on
-  2026-09-29: the invariance it asks for is to `z_bar_f`, and v9.0 and v10.0
-  measured that `z_bar_f` never leaves Batch 1 along the drift axis, so the
-  premise is already gone. The previous branch measured it five times at -0.005
-  to +0.003. The run is one `gpu-smoke` plus one `launch`, about fifteen
-  minutes, if it is ever wanted.
+- **All three of the paper's components measure at zero or below under this
+  protocol**: augmentation as the paper specifies it (isotropic) -0.0216,
+  feature generation +0.0004 as written and +0.0023 correctly signed and sized
+  (v10.0), the contrastive loss -0.0138 at SupCon's tau and -0.0014 at tau 0.5
+  (v11.0). `z_bar_f` never leaves Batch 1, so every term that ties the two
+  branches together enforces invariance to something that is not the drift.
 - **A StandardScaler fitted on all ten batches does not explain the paper's
   0.6346.** `docs/leak-diagnostic-scaler.md`, run
   `20261006T025338707996Z_leak_diagnostic_scaler`, deliberately target-informed

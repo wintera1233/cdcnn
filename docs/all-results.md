@@ -47,6 +47,9 @@ remains `R-fig-logps` at 0.5556.**
 
 | Cell | run | augmentation | feature generation | `L_MSE` | Batch 1 | Target mean | SD | vs its own reference |
 |---|---|---|---|---:|---:|---:|---:|---:|
+| `R-con-t5` | v11.0 | directed, T=2 | per-position + L_con tau 0.5, lambda 0.5 | λ=0.5 | 0.9942 | **0.5760** | 0.0096 | −0.0014 |
+| `R-con-shift` | v11.0 | directed, T=2 | shifted block + L_con tau 0.07 | λ=0.5 | 0.9933 | **0.5666** | 0.0078 | −0.0107 |
+| `R-con` | v11.0 | directed, T=2 | per-position + L_con tau 0.07, lambda 0.5 (the paper's CDCNN) | λ=0.5 | 0.9933 | **0.5635** | 0.0102 | −0.0138 |
 | `R-gen-shift` | v10.0 | directed, T=2 | per-position, Eq. (14) + 2 block offsets along Batch 1's style-space offset | λ=0.5 | 0.9937 | **0.5796** | 0.0077 | +0.0023 |
 | `R-gen-m10` | v9.0 | directed, T=2 | per-position | λ=1.0 | 0.9933 | **0.5776** | 0.0062 | +0.0006 |
 | `R-gen` | v9.0 | directed, T=2 | per-position | λ=0.5 | 0.9942 | **0.5774** | 0.0065 | +0.0004 |
@@ -63,8 +66,9 @@ remains `R-fig-logps` at 0.5556.**
 | `R-aug-paper` | v8.0 | isotropic (Eq. 7) | — | — | 0.9811 | **0.5340** | 0.0249 | -0.0216 |
 
 The augmentation reference is `R-fig-logps`; the feature generation reference is
-`R-aug-t2`, because every v9 cell carries that augmentation. The v10.0 cells are
-compared against `R-gen` of the same run; see `docs/v10-signed-generation.md`.
+`R-aug-t2`, because every v9 cell carries that augmentation. The v10.0 and v11.0 cells are
+compared against `R-gen` of their own runs; see `docs/v10-signed-generation.md`
+and `docs/v11-contrastive.md`.
 
 **Feature generation is worth nothing under this protocol.** The three v9 cells
 span 0.5749 to 0.5776 against a reference of 0.5770, and the separability
