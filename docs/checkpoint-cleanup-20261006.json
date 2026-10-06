@@ -1,0 +1,180 @@
+{
+ "removed_at": "2026-10-06",
+ "what": "every checkpoint under runs/; none kept, by the user's explicit choice",
+ "why": "the project is paused at v12.0 and the folder was 23 GB, 17 GB of it checkpoints; the user asked to keep the code trace and the reports only. Moving the files to .trash would not free space on the same filesystem.",
+ "kept": [],
+ "files_removed": 1363,
+ "bytes_freed": 17226574289,
+ "deviation": "CLAUDE.md section 7 forbids deleting a run directory. This removes checkpoint files inside retained runs, as docs/checkpoint-cleanup-20260923.json did. Every run directory and all of its records are untouched.",
+ "how_to_regenerate": "each run is deterministic given its manifest's config, seeds and code hashes: rebuild the container from docker/Dockerfile, check out the manifest's git revision and re-run the config with scripts/run_baseline.py gpu-smoke then launch; about twelve minutes per four-cell run.",
+ "per_run": {
+  "runs/20260922T184129389577Z_head_norm_full": {
+   "files_removed": 3,
+   "bytes_freed": 37908321,
+   "sha256_recorded_in": "checkpoint_digests.json"
+  },
+  "runs/20260923T024353983726Z_baseline_gpu_smoke": {
+   "files_removed": 4,
+   "bytes_freed": 50546860,
+   "sha256_recorded_in": "docs/checkpoint-cleanup-20261006.json, sha256_of_files_without_digests"
+  },
+  "runs/20260923T024412142812Z_input_norm_full": {
+   "files_removed": 156,
+   "bytes_freed": 1971693300,
+   "sha256_recorded_in": "checkpoint_digests.json"
+  },
+  "runs/20260923T024906324067Z_baseline_gpu_smoke": {
+   "files_removed": 4,
+   "bytes_freed": 50546860,
+   "sha256_recorded_in": "docs/checkpoint-cleanup-20261006.json, sha256_of_files_without_digests"
+  },
+  "runs/20260923T024922889421Z_input_norm_5seed": {
+   "files_removed": 164,
+   "bytes_freed": 2072789324,
+   "sha256_recorded_in": "checkpoint_digests.json"
+  },
+  "runs/20260923T033730315462Z_baseline_gpu_smoke": {
+   "files_removed": 4,
+   "bytes_freed": 50544684,
+   "sha256_recorded_in": "docs/checkpoint-cleanup-20261006.json, sha256_of_files_without_digests"
+  },
+  "runs/20260923T033747817275Z_augmentation_full": {
+   "files_removed": 164,
+   "bytes_freed": 2072697676,
+   "sha256_recorded_in": "checkpoint_digests.json"
+  },
+  "runs/20260923T045523171041Z_baseline_gpu_smoke": {
+   "files_removed": 4,
+   "bytes_freed": 50544428,
+   "sha256_recorded_in": "docs/checkpoint-cleanup-20261006.json, sha256_of_files_without_digests"
+  },
+  "runs/20260923T045825776329Z_baseline_gpu_smoke": {
+   "files_removed": 4,
+   "bytes_freed": 50544428,
+   "sha256_recorded_in": "docs/checkpoint-cleanup-20261006.json, sha256_of_files_without_digests"
+  },
+  "runs/20260923T045843638020Z_displacement_full": {
+   "files_removed": 164,
+   "bytes_freed": 2072696524,
+   "sha256_recorded_in": "checkpoint_digests.json"
+  },
+  "runs/20260923T071322749118Z_baseline_smoke": {
+   "files_removed": 4,
+   "bytes_freed": 50544428,
+   "sha256_recorded_in": "docs/checkpoint-cleanup-20261006.json, sha256_of_files_without_digests"
+  },
+  "runs/20260923T071837833290Z_baseline_gpu_smoke": {
+   "files_removed": 4,
+   "bytes_freed": 50544428,
+   "sha256_recorded_in": "docs/checkpoint-cleanup-20261006.json, sha256_of_files_without_digests"
+  },
+  "runs/20260923T071856507630Z_baseline_ladder_full": {
+   "files_removed": 164,
+   "bytes_freed": 2072694220,
+   "sha256_recorded_in": "checkpoint_digests.json"
+  },
+  "runs/20260929T031506701143Z_baseline_smoke": {
+   "files_removed": 4,
+   "bytes_freed": 50544428,
+   "sha256_recorded_in": "docs/checkpoint-cleanup-20261006.json, sha256_of_files_without_digests"
+  },
+  "runs/20260929T031825784660Z_baseline_gpu_smoke": {
+   "files_removed": 4,
+   "bytes_freed": 50544428,
+   "sha256_recorded_in": "docs/checkpoint-cleanup-20261006.json, sha256_of_files_without_digests"
+  },
+  "runs/20260929T031927475103Z_baseline_ladder_full": {
+   "files_removed": 164,
+   "bytes_freed": 2072694220,
+   "sha256_recorded_in": "checkpoint_digests.json"
+  },
+  "runs/20261005T145128467709Z_baseline_gpu_smoke": {
+   "files_removed": 4,
+   "bytes_freed": 50553196,
+   "sha256_recorded_in": "docs/checkpoint-cleanup-20261006.json, sha256_of_files_without_digests"
+  },
+  "runs/20261005T145146298993Z_baseline_ladder_full": {
+   "files_removed": 164,
+   "bytes_freed": 2073049100,
+   "sha256_recorded_in": "checkpoint_digests.json"
+  },
+  "runs/20261006T025133058336Z_leak_diagnostic_scaler": {
+   "files_removed": 2,
+   "bytes_freed": 25276950,
+   "sha256_recorded_in": "docs/checkpoint-cleanup-20261006.json, sha256_of_files_without_digests"
+  },
+  "runs/20261006T025338707996Z_leak_diagnostic_scaler": {
+   "files_removed": 10,
+   "bytes_freed": 126384750,
+   "sha256_recorded_in": "docs/checkpoint-cleanup-20261006.json, sha256_of_files_without_digests"
+  },
+  "runs/20261006T031956642466Z_baseline_gpu_smoke": {
+   "files_removed": 4,
+   "bytes_freed": 50544428,
+   "sha256_recorded_in": "docs/checkpoint-cleanup-20261006.json, sha256_of_files_without_digests"
+  },
+  "runs/20261006T032018108986Z_baseline_ladder_full": {
+   "files_removed": 164,
+   "bytes_freed": 2072687308,
+   "sha256_recorded_in": "checkpoint_digests.json"
+  }
+ },
+ "sha256_of_files_without_digests": {
+  "runs/20260923T024353983726Z_baseline_gpu_smoke/checkpoints/R-fig-grp_lr0.0003_seed1042/final.pt": "98c5664c73c99bb3f3cacfb96c6682f85bc72f99d7351a0b21644e2645a7bf9b",
+  "runs/20260923T024353983726Z_baseline_gpu_smoke/checkpoints/R-fig-logps_lr0.0003_seed1042/final.pt": "7579648a5c9bc8f87830066b9cbb13eec5b9719996f4d067bb6a462bc7419b31",
+  "runs/20260923T024353983726Z_baseline_gpu_smoke/checkpoints/R-fig-ps_lr0.0003_seed1042/final.pt": "69b2aebb8cac624229db4a9aeb6248931e78bcc78bac839bb96dfd70195d0152",
+  "runs/20260923T024353983726Z_baseline_gpu_smoke/checkpoints/R-fig-ssps_lr0.0003_seed1042/final.pt": "70be26e8160a9bbc6da2f6c0763c5ae997594f788eb1d7fe94cf8268a06d430f",
+  "runs/20260923T024906324067Z_baseline_gpu_smoke/checkpoints/R-fig-grp_lr0.0003_seed1042/final.pt": "c37c2f117869a5b65b7968831d331cec526688a389b10eb82d6aeb0edac519e0",
+  "runs/20260923T024906324067Z_baseline_gpu_smoke/checkpoints/R-fig-logps_lr0.0003_seed1042/final.pt": "b2a990ddcc1e41254583bab9f5f2c7dce47234564919468cf4cb0fb113512b37",
+  "runs/20260923T024906324067Z_baseline_gpu_smoke/checkpoints/R-fig-ps_lr0.0003_seed1042/final.pt": "67817381090503e77245b22c922dee076ef8ecb0e66816a1f4851fb64dddde8c",
+  "runs/20260923T024906324067Z_baseline_gpu_smoke/checkpoints/R-fig-ssps_lr0.0003_seed1042/final.pt": "dc7417114569531db4b944290e3cd791b2a03f8c4fd1235c6774b8388717b5ed",
+  "runs/20260923T033730315462Z_baseline_gpu_smoke/checkpoints/R-aug-eth_lr0.0003_seed1042/final.pt": "9443b62eb433def545806d6b97f9ca19e4244456a277e4a518477b243c562262",
+  "runs/20260923T033730315462Z_baseline_gpu_smoke/checkpoints/R-aug-ethd_lr0.0003_seed1042/final.pt": "2ecd8b9d2145c2be32e4d4ebadcb769f538d86701fd9f330f84d45779dd51ef0",
+  "runs/20260923T033730315462Z_baseline_gpu_smoke/checkpoints/R-aug-paper_lr0.0003_seed1042/final.pt": "c0ca401f7ad6e498b11a2b8670c3b9f8b562013b4a595c0768e937d81b07cb5c",
+  "runs/20260923T033730315462Z_baseline_gpu_smoke/checkpoints/R-fig-logps_lr0.0003_seed1042/final.pt": "1f2fe1d596af4850b5156964c2d4b61f6b97276fc4dfe8d8f736d4e94d3b979a",
+  "runs/20260923T045523171041Z_baseline_gpu_smoke/checkpoints/R-aug-t2_lr0.0003_seed1042/final.pt": "7029a07df9f9ffd38c511429c85596828188626eb53ee19c7a38635768b85a2c",
+  "runs/20260923T045523171041Z_baseline_gpu_smoke/checkpoints/R-aug-t3_lr0.0003_seed1042/final.pt": "3a03cc1dd7996ba60530bd84d1194f282b2c1005dc55f117825fffe050737029",
+  "runs/20260923T045523171041Z_baseline_gpu_smoke/checkpoints/R-aug-t4_lr0.0003_seed1042/final.pt": "f86f4495ff71565afda4041944386bd61a46783c29cfd9ff0a7b44d2b6b45f5c",
+  "runs/20260923T045523171041Z_baseline_gpu_smoke/checkpoints/R-fig-logps_lr0.0003_seed1042/final.pt": "2576f5702316fed5a228ab20e9a10f0ecb92adb64618b07d775fea2e7c8563c2",
+  "runs/20260923T045825776329Z_baseline_gpu_smoke/checkpoints/R-aug-t2_lr0.0003_seed1042/final.pt": "7abed3aca4671e373877c0a6e9b4653f3b20728ce45de732a99e09aafe6f9e2d",
+  "runs/20260923T045825776329Z_baseline_gpu_smoke/checkpoints/R-aug-t3_lr0.0003_seed1042/final.pt": "3b9af02d27f1f3039864f85286aa8a839205c4d50605df7fe5e2fe38ac29c7b4",
+  "runs/20260923T045825776329Z_baseline_gpu_smoke/checkpoints/R-aug-t4_lr0.0003_seed1042/final.pt": "a39f35dc6e26ea8b66fdfcd7391d34a0bbd2315e7fe0746704b1e1c0e24a15f2",
+  "runs/20260923T045825776329Z_baseline_gpu_smoke/checkpoints/R-fig-logps_lr0.0003_seed1042/final.pt": "295743126abda2294892d2b66716aca1d03b9a4224ec24f79082343837359ae9",
+  "runs/20260923T071322749118Z_baseline_smoke/checkpoints/R-aug-t2_lr0.0003_seed1042/final.pt": "903bdbcfbd158ad2722dc060b1bdbf6cecdf401b1d6307a652e6dd5418ffe3d3",
+  "runs/20260923T071322749118Z_baseline_smoke/checkpoints/R-gen-ce2_lr0.0003_seed1042/final.pt": "192ecb5648cf30873c282b0779414b480060a7cce6c5725f85c28130e80b8bd2",
+  "runs/20260923T071322749118Z_baseline_smoke/checkpoints/R-gen-m10_lr0.0003_seed1042/final.pt": "e7a8e8baacede987bc3146a6e6326ba767de1b66ead0544759547a674867259e",
+  "runs/20260923T071322749118Z_baseline_smoke/checkpoints/R-gen_lr0.0003_seed1042/final.pt": "ff192618af7483df30d531eac8f204162590c9ecae77345ce87a65f4feb1d99b",
+  "runs/20260923T071837833290Z_baseline_gpu_smoke/checkpoints/R-aug-t2_lr0.0003_seed1042/final.pt": "0e849ce9bf44fb5c08024cc656198e2ddf4064e3f2cf9024e07c63897d87c00a",
+  "runs/20260923T071837833290Z_baseline_gpu_smoke/checkpoints/R-gen-ce2_lr0.0003_seed1042/final.pt": "5244af7fa988078bf5b29d203e31af0c4bda446ab6b0dc3be6d40a393785b3bc",
+  "runs/20260923T071837833290Z_baseline_gpu_smoke/checkpoints/R-gen-m10_lr0.0003_seed1042/final.pt": "0f28fe5eb06470ce0f564e02116130a34e1aea66ad5311868fcafe01b3f3c38a",
+  "runs/20260923T071837833290Z_baseline_gpu_smoke/checkpoints/R-gen_lr0.0003_seed1042/final.pt": "2d2b3bfff42bfab4283a4d5d4e1f017f63b8341272df4d554665a93a11f44c3b",
+  "runs/20260929T031506701143Z_baseline_smoke/checkpoints/R-aug-t2_lr0.0003_seed1042/final.pt": "14b2706220963a9ea5dc2bbb38f5ee025cdfec6c2e91f539444409b0ab750fc3",
+  "runs/20260929T031506701143Z_baseline_smoke/checkpoints/R-gen-shift_lr0.0003_seed1042/final.pt": "0fe68ddf115322187ad64fbc198f7d2b2da2be744f1bf9b6dfa5ef1257921e0d",
+  "runs/20260929T031506701143Z_baseline_smoke/checkpoints/R-gen-sign_lr0.0003_seed1042/final.pt": "afe924466b1e543288d7c99dd80b3624bb73c1ae3e1ffb33c6ee6030ff2fe31a",
+  "runs/20260929T031506701143Z_baseline_smoke/checkpoints/R-gen_lr0.0003_seed1042/final.pt": "13e21112711528063c08a5fa2c0ccb9ea10b34978044a23d2604a37dae4e67e5",
+  "runs/20260929T031825784660Z_baseline_gpu_smoke/checkpoints/R-aug-t2_lr0.0003_seed1042/final.pt": "b7bae5a939dee08763bf3fdb9d3ecd8446f883816f1866bfa61761e27434545a",
+  "runs/20260929T031825784660Z_baseline_gpu_smoke/checkpoints/R-gen-shift_lr0.0003_seed1042/final.pt": "1c3785ac8c5e9894521125dc4119369e3d7b849b2efa6cab0d6141e9a8375bcf",
+  "runs/20260929T031825784660Z_baseline_gpu_smoke/checkpoints/R-gen-sign_lr0.0003_seed1042/final.pt": "03c463423245a1d8fff13ff8b350262426077c7b7f370908cb0bc6619f33feb8",
+  "runs/20260929T031825784660Z_baseline_gpu_smoke/checkpoints/R-gen_lr0.0003_seed1042/final.pt": "e5be2ef4a69f1e21cd1df49c6674ecac501698d517fec7dd8f0a5e785df64742",
+  "runs/20261005T145128467709Z_baseline_gpu_smoke/checkpoints/R-fig-logps_lr0.0003_seed1042/final.pt": "44935afb182b9e3c1774c8ea3cae9e31ab2dfa48032b21bf18ca485be9e05813",
+  "runs/20261005T145128467709Z_baseline_gpu_smoke/checkpoints/R-proj-axis_lr0.0003_seed1042/final.pt": "8b74e51020e33ce3793025ce2189b70b18070c130f7be7567cdee59e00c409fb",
+  "runs/20261005T145128467709Z_baseline_gpu_smoke/checkpoints/R-proj-eth_lr0.0003_seed1042/final.pt": "e11685cc3b2a9bd544e19e10b3450bccecb9adc55028e5734a80fff48a42610d",
+  "runs/20261005T145128467709Z_baseline_gpu_smoke/checkpoints/R-proj-sub3_lr0.0003_seed1042/final.pt": "6fa4e24496849c997023a1ac54c0051fb2415325d9e984b5a0ceccc0d1fc54fb",
+  "runs/20261006T025133058336Z_leak_diagnostic_scaler/checkpoints/R-fig_all-batch-scaler_seed1042/final.pt": "ac5b6cde1f0cab0311cf827a4e0058dbcd1df979c312767c3bb6bb6437c61042",
+  "runs/20261006T025133058336Z_leak_diagnostic_scaler/checkpoints/R-fig_batch1-scaler_seed1042/final.pt": "0fa46ceac68a57932e418efa8e20261a3e1877524743eef5e59bf48b5cc804f5",
+  "runs/20261006T025338707996Z_leak_diagnostic_scaler/checkpoints/R-fig_all-batch-scaler_seed1042/final.pt": "dd0e7b72da27e2886fc639c6faec6a3323b794177862f534a114ffc0f3b5b7d6",
+  "runs/20261006T025338707996Z_leak_diagnostic_scaler/checkpoints/R-fig_all-batch-scaler_seed123/final.pt": "a1ad0c537b3b4efaa623ccb6b5735000984aa170071a3767ed49468016a1df62",
+  "runs/20261006T025338707996Z_leak_diagnostic_scaler/checkpoints/R-fig_all-batch-scaler_seed2024/final.pt": "409d4ada862c6624dd861404eca3263e979386cabf8d8188c5b6e19207bf1573",
+  "runs/20261006T025338707996Z_leak_diagnostic_scaler/checkpoints/R-fig_all-batch-scaler_seed3407/final.pt": "85830129932f01b18f105d27059a03d09606a8cfdfe1e47f103a48e0bd5a7e7c",
+  "runs/20261006T025338707996Z_leak_diagnostic_scaler/checkpoints/R-fig_all-batch-scaler_seed42/final.pt": "a339bd187c5bb7eb13b53e873067f34f7396b8519d32f98c1d0f241c0648b3f2",
+  "runs/20261006T025338707996Z_leak_diagnostic_scaler/checkpoints/R-fig_batch1-scaler_seed1042/final.pt": "4f93330bd9332b390871292374f889674338b2dd22e06edc3be6d80aeabebd69",
+  "runs/20261006T025338707996Z_leak_diagnostic_scaler/checkpoints/R-fig_batch1-scaler_seed123/final.pt": "73280cea89b72e54df9b03afa79e712ec0a74d7ef9cd4afd20e1627aac80f93f",
+  "runs/20261006T025338707996Z_leak_diagnostic_scaler/checkpoints/R-fig_batch1-scaler_seed2024/final.pt": "85eed6331d65f64a97181299c410d7a90476225505168b3fbe4b4630a0d2a87d",
+  "runs/20261006T025338707996Z_leak_diagnostic_scaler/checkpoints/R-fig_batch1-scaler_seed3407/final.pt": "45bbcfb0ac5260ecc18da4e60123e9a7ce86aad4b6e9046879f49974515a8ccd",
+  "runs/20261006T025338707996Z_leak_diagnostic_scaler/checkpoints/R-fig_batch1-scaler_seed42/final.pt": "56e0660d1ae9f2900a4023a7570de862b977134421d78322ab7bf02700782368",
+  "runs/20261006T031956642466Z_baseline_gpu_smoke/checkpoints/R-con-shift_lr0.0003_seed1042/final.pt": "df84d626aa8490e64be3cf3c3c59aa7a0094dc790209cf4cee5ff12a1c07240c",
+  "runs/20261006T031956642466Z_baseline_gpu_smoke/checkpoints/R-con-t5_lr0.0003_seed1042/final.pt": "cb3f9ab76f8c688458467bc15eea217aace32d618cbe4860ee4f583d3ad73968",
+  "runs/20261006T031956642466Z_baseline_gpu_smoke/checkpoints/R-con_lr0.0003_seed1042/final.pt": "06e593f2fb7a677657956c42c562145450f607b6414cc67faaf77dc622b42d60",
+  "runs/20261006T031956642466Z_baseline_gpu_smoke/checkpoints/R-gen_lr0.0003_seed1042/final.pt": "78151887a72252f658e35ffa566001cdbc5121d7eb38ee11e7c22115294bd7fe"
+ }
+}

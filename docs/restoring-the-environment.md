@@ -35,6 +35,10 @@ uv pip install --python .venv/bin/python -r requirements-venv-lock.txt \
 - `runs/`: gitignored. Each run directory holds its manifest (config, code hashes,
   git revision, library versions), per-seed `history.json`, `target_results.json`,
   `target_summary.json`, the leakage audit and `checkpoint_digests.json`. These
-  records are the trace behind every number in `docs/`. The checkpoint files
-  beside them are regenerable: a run is deterministic given its manifest, and a
-  four-cell, five-seed run takes about twelve minutes on this GPU.
+  records are the trace behind every number in `docs/`. **The checkpoint files
+  were removed on 2026-10-06** to shrink the folder from 23 GB to 264 MB
+  (`docs/checkpoint-cleanup-20261006.json`). They are regenerable: a run is
+  deterministic given its manifest, and a four-cell, five-seed run takes about
+  twelve minutes on this GPU. Post-hoc scripts that load a `final.pt`
+  (the generation-coverage figures, `measure_signed_direction.py`, the drift
+  compression measurements) need the run they name re-trained first.

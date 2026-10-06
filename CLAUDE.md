@@ -452,6 +452,15 @@ documentation and must not be an image reshape.
 - A run directory is self-describing: config, manifest with input hashes,
   per-seed metrics, the leakage audit, and any failure records stay together.
 
+- **State of this checkout since 2026-10-06 (project paused at v12.0).** Every
+  checkpoint file under `runs/` was removed at the user's decision, 1363 files
+  and 17.2 GB, recorded with per-run counts and hashes in
+  `docs/checkpoint-cleanup-20261006.json` (`scripts/cleanup_checkpoints.py`). All
+  31 run directories and their records remain, so every number still traces to
+  its run; any script that loads a `final.pt` needs that run re-trained first,
+  about twelve minutes each. The local `.venv` was removed too;
+  `docs/restoring-the-environment.md` and `requirements-venv-lock.txt` rebuild it.
+
 ## 8. Reporting
 
 - State what was measured, on how many seeds, and the spread. A single-seed pilot
