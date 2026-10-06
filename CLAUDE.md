@@ -458,8 +458,11 @@ documentation and must not be an image reshape.
   `docs/checkpoint-cleanup-20261006.json` (`scripts/cleanup_checkpoints.py`). All
   31 run directories and their records remain, so every number still traces to
   its run; any script that loads a `final.pt` needs that run re-trained first,
-  about twelve minutes each. The local `.venv` was removed too;
-  `docs/restoring-the-environment.md` and `requirements-venv-lock.txt` rebuild it.
+  about twelve minutes each. The local `.venv`, the container image
+  `cdcnn:cu121` and the ten files under `Dataset/` were removed too, the last at
+  the user's explicit instruction and as the one exception to section 1's
+  immutability rule. `docs/restoring-the-environment.md` rebuilds all three and
+  lists the dataset's sha256 per file; verify them before any run.
 
 ## 8. Reporting
 
